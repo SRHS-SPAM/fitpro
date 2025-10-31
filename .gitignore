@@ -1,0 +1,12 @@
+# .gitignore 파일 내용
+
+# Python 가상 환경 폴더 제외
+# 백엔드 폴더 내에 있다면 아래와 같이 지정
+backend/.venv/ 
+
+# 기타 Python 관련 캐시 파일 제외
+__pycache__/
+*.pyc
+
+# 중요한 환경 변수 파일도 반드시 제외!
+.env

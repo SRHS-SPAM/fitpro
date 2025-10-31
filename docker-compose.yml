@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fitner_backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app # 소스 코드 마운트 (개발용)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: always
+
+  # React Frontend Service (Placeholder for structure completion)
+  # Frontend code is omitted in this response, but the service is defined
+  frontend:
+    # 이 부분은 React 코드가 준비되면 채워집니다.
+    # 예시: build: ./frontend
+    image: node:20-alpine # 임시 이미지
+    container_name: fitner_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    # volumes:
+    #   - ./frontend:/app
+    # command: npm run dev
+    # depends_on:
+    #   - backend
+    command: ["tail", "-f", "/dev/null"] # 컨테이너 유지를 위한 임시 명령어
