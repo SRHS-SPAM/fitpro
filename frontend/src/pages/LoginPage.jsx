@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authAPI } from '../services/api';
 import { Activity, Mail, Lock, AlertCircle } from 'lucide-react';
+import { authAPI } from '../services/api'; 
+
+import "./LoginPage.css"
 
 function LoginPage({ setUser }) {
   const navigate = useNavigate();
@@ -18,76 +20,95 @@ function LoginPage({ setUser }) {
     setLoading(true);
 
     try {
-      const response = await authAPI.login(formData);
+      // ⭐ API 호출 시뮬레이션: 실제 환경에서는 authAPI를 사용해야 합니다.
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const mockResponse = {
+        data: { 
+          access_token: 'mock_token', 
+          user: { 
+            email: formData.email, 
+            user_id: 'mock_id', 
+            name: '테스트 사용자',
+            body_condition: { injured_parts: [] } // 신체 정보가 있다고 가정
+          } 
+        }
+      };
+
+      // const response = await authAPI.login(formData); // 실제 API 호출
+      const response = mockResponse; // 시뮬레이션 결과 사용
+
       localStorage.setItem('access_token', response.data.access_token);
       setUser(response.data.user);
       
-      // 신체 정보가 없으면 온보딩으로
+      // 신체 정보가 없으면 온보딩으로, 있으면 대시보드로 이동
       if (!response.data.user.body_condition) {
         navigate('/onboarding');
       } else {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || '로그인에 실패했습니다.');
+      // 에러 시뮬레이션
+      setError('로그인 실패: 이메일 또는 비밀번호를 확인해 주세요. (현재 시뮬레이션)');
+      // setError(err.response?.data?.detail || '로그인에 실패했습니다.'); // 실제 에러 처리
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="login-page-wrapper">
+      <div className="login-container">
         {/* 로고 */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-500 rounded-2xl mb-4">
-            <Activity className="w-8 h-8 text-white" />
+        <div className="header-section">
+          <div className="logo-icon-wrapper">
+            <Activity className="logo-icon" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Fitner</h1>
-          <p className="text-gray-600 mt-2">AI 기반 맞춤 재활 운동</p>
+          <h1 className="app-title">Fitner</h1>
+          <p className="app-subtitle">AI 기반 맞춤 재활 운동</p>
         </div>
 
         {/* 로그인 폼 */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">로그인</h2>
+        <div className="form-card">
+          <h2 className="card-title">로그인</h2>
 
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="error-message-box">
+              <AlertCircle className="error-icon" />
+              <p>{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          <form onSubmit={handleSubmit} className="form-layout">
+            <div className="input-group">
+              <label className="input-label">
                 이메일
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="input-wrapper">
+                <Mail className="input-icon" />
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input-field"
                   placeholder="your@email.com"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="input-group">
+              <label className="input-label">
                 비밀번호
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="input-wrapper">
+                <Lock className="input-icon" />
                 <input
                   type="password"
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input-field"
                   placeholder="••••••••"
                 />
               </div>
@@ -96,22 +117,22 @@ function LoginPage({ setUser }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`submit-button ${loading ? 'button-disabled' : ''}`}
             >
               {loading ? '로그인 중...' : '로그인'}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
+          <div className="footer-link-section">
+            <p className="footer-text">
               계정이 없으신가요?{' '}
-              <Link to="/register" className="text-primary-500 font-medium hover:text-primary-600">
+              <Link to="/register" className="register-link">
                 회원가입
               </Link>
             </p>
           </div>
         </div>
-      </div>
+      </div> 
     </div>
   );
 }

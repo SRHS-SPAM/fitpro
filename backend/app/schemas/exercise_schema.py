@@ -37,8 +37,8 @@ class CustomizationParams(BaseModel):
 
 class ExerciseGenerateRequest(BaseModel):
     """운동 생성 요청"""
-    exercise_type: str = Field(..., regex="^(rehabilitation|strength|stretching)$")
-    intensity: str = Field(default="medium", regex="^(low|medium|high)$")
+    exercise_type: str = Field(..., pattern="^(rehabilitation|strength|stretching)$")
+    intensity: str = Field(default="medium", pattern="^(low|medium|high)$")
     duration_minutes: int = Field(default=15, ge=5, le=60)
     focus_areas: Optional[List[str]] = Field(default=None, description="집중 부위")
 

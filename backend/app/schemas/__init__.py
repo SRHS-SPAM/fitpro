@@ -34,13 +34,13 @@ from .exercise_schema import (
     ExerciseTemplateCreate
 )
 
-from .pose_schema import (
-    PoseLandmarkInput,
-    PoseAnalysisRequest,
-    PoseAnalysisResponse,
-    AngleError,
-    CompletedPoseAnalysis
-)
+# from .pose_schema import (
+#     PoseLandmarkInput,
+#     PoseAnalysisRequest,
+#     PoseAnalysisResponse,
+#     AngleError,
+#     CompletedPoseAnalysis
+# )
 
 from .record_schema import (
     RecordCreate,

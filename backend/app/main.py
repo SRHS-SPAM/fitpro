@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from .routers import auth
+
 from .config import settings
 from .database import connect_to_mongo, close_mongo_connection
 
@@ -49,7 +51,7 @@ app.add_middleware(
 
 # --- 라우터 등록 (TODO: 나중에 구현 예정) ---
 # from .routers import auth, users, exercises, records
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 # app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 # app.include_router(exercises.router, prefix="/api/v1/exercises", tags=["Exercises"])
 # app.include_router(records.router, prefix="/api/v1/records", tags=["Records"])
