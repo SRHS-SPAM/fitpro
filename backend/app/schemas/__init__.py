@@ -50,7 +50,7 @@ from .record_schema import (
     MostFrequentExercise,
     DailyBreakdown,
     FeedbackData,
-    RecordUpdateRequest
+    #RecordUpdateRequest
 )
 
 __all__ = [
@@ -95,5 +95,5 @@ __all__ = [
     "MostFrequentExercise",
     "DailyBreakdown",
     "FeedbackData",
-    "RecordUpdateRequest",
+    #"RecordUpdateRequest",
 ]

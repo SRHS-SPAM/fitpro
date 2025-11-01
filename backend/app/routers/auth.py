@@ -4,7 +4,8 @@ from bson import ObjectId
 import bcrypt
 
 from ..database import get_database
-from ..schemas.auth_schema import RegisterRequest, LoginRequest, AuthResponse
+from ..schemas.user_schema import UserRegister as RegisterRequest, UserLogin as LoginRequest
+from ..schemas.auth_schema import Token as AuthResponse
 from ..schemas.user_schema import UserResponse
 from ..utils.jwt_handler import create_access_token
 
