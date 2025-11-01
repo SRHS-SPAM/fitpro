@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { exerciseAPI } from '../services/api';
-import { Activity, Clock, Zap, History, User, AlertCircle } from 'lucide-react';
+import { Activity, Clock, Zap, History, User, AlertCircle, Home, Dumbbell, ClipboardList, UserCircle } from 'lucide-react';
+import './HomePage.css';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('home');
   const [options, setOptions] = useState({
     exercise_type: 'rehabilitation',
     intensity: 'low',
@@ -33,54 +35,51 @@ function HomePage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-100">
+    <div className="home-page-wrapper">
       {/* 헤더 */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
+      <div className="home-header">
+        <div className="home-header-content">
+          <div className="home-logo-section">
+            <div className="home-logo-icon">
+              <Activity className="home-logo-icon-svg" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Fitner</h1>
-              <p className="text-xs text-gray-500">{user?.name}님</p>
+              <h1 className="home-logo-text">Fitner</h1>
+              <p className="home-user-text">{user?.name || '사용자'}님</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-2 text-gray-500 hover:text-gray-700"
-          >
-            <User className="w-6 h-6" />
-          </button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 pb-20">
+      {/* 메인 콘텐츠 영역 */}
+      <div className="home-main-content">
         {/* 신체 상태 카드 */}
         {user?.body_condition && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-3">현재 상태</h2>
-            <div className="space-y-2">
+          <div className="home-status-card">
+            <h2 className="home-card-title">💪 현재 상태</h2>
+            <div className="home-status-content">
               {user.body_condition.injured_parts?.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-gray-600">불편 부위:</span>
-                  {user.body_condition.injured_parts.map(part => (
-                    <span key={part} className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">
-                      {part}
-                    </span>
-                  ))}
+                <div className="home-injured-section">
+                  <span className="home-label">불편 부위:</span>
+                  <div className="home-tag-container">
+                    {user.body_condition.injured_parts.map(part => (
+                      <span key={part} className="home-tag">
+                        {part}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-600">통증 수준:</span>
-                <span className="font-semibold text-primary-600">
+              <div className="home-pain-level">
+                <span className="home-label">통증 수준:</span>
+                <span className="home-pain-value">
                   {user.body_condition.pain_level}/10
                 </span>
               </div>
             </div>
             <button
               onClick={() => navigate('/onboarding')}
-              className="mt-4 text-sm text-primary-500 hover:text-primary-600"
+              className="home-edit-button"
             >
               정보 수정하기 →
             </button>
@@ -88,93 +87,70 @@ function HomePage({ user }) {
         )}
 
         {/* 운동 생성 카드 */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">맞춤 운동 생성</h2>
+        <div className="home-exercise-card">
+          <h2 className="home-main-card-title">🎯 맞춤 운동 생성</h2>
 
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="home-error-box">
+              <AlertCircle className="home-error-icon" />
+              <p className="home-error-text">{error}</p>
             </div>
           )}
 
           {/* 운동 타입 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              운동 종류
-            </label>
-            <div className="grid grid-cols-3 gap-3">
+          <div className="home-section">
+            <label className="home-section-label">운동 종류</label>
+            <div className="home-type-grid">
               {[
-                { value: 'rehabilitation', label: '재활', icon: Activity },
-                { value: 'strength', label: '근력', icon: Zap },
-                { value: 'stretching', label: '스트레칭', icon: Activity }
-              ].map(({ value, label, icon: Icon }) => (
+                { value: 'rehabilitation', label: '재활', icon: '🏥' },
+                { value: 'strength', label: '근력', icon: '💪' },
+                { value: 'stretching', label: '스트레칭', icon: '🧘' }
+              ].map(({ value, label, icon }) => (
                 <button
                   key={value}
                   onClick={() => setOptions({ ...options, exercise_type: value })}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    options.exercise_type === value
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`home-type-button ${options.exercise_type === value ? 'active' : ''}`}
                 >
-                  <Icon className={`w-6 h-6 mx-auto mb-2 ${
-                    options.exercise_type === value ? 'text-primary-500' : 'text-gray-400'
-                  }`} />
-                  <span className={`text-sm font-medium ${
-                    options.exercise_type === value ? 'text-primary-700' : 'text-gray-700'
-                  }`}>
-                    {label}
-                  </span>
+                  <span className="home-type-icon">{icon}</span>
+                  <span className="home-type-label">{label}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* 강도 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              운동 강도
-            </label>
-            <div className="grid grid-cols-3 gap-3">
+          <div className="home-section">
+            <label className="home-section-label">운동 강도</label>
+            <div className="home-intensity-grid">
               {[
-                { value: 'low', label: '낮음' },
-                { value: 'medium', label: '보통' },
-                { value: 'high', label: '높음' }
-              ].map(({ value, label }) => (
+                { value: 'low', label: '낮음', emoji: '🟢' },
+                { value: 'medium', label: '보통', emoji: '🟡' },
+                { value: 'high', label: '높음', emoji: '🔴' }
+              ].map(({ value, label, emoji }) => (
                 <button
                   key={value}
                   onClick={() => setOptions({ ...options, intensity: value })}
-                  className={`py-3 rounded-lg border-2 transition-all ${
-                    options.intensity === value
-                      ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                  }`}
+                  className={`home-intensity-button ${options.intensity === value ? 'active' : ''}`}
                 >
-                  {label}
+                  <span className="home-intensity-emoji">{emoji}</span>
+                  <span className="home-intensity-label">{label}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* 시간 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              운동 시간
-            </label>
-            <div className="grid grid-cols-4 gap-3">
+          <div className="home-section">
+            <label className="home-section-label">운동 시간</label>
+            <div className="home-time-grid">
               {[10, 15, 20, 30].map(minutes => (
                 <button
                   key={minutes}
                   onClick={() => setOptions({ ...options, duration_minutes: minutes })}
-                  className={`py-3 rounded-lg border-2 transition-all ${
-                    options.duration_minutes === minutes
-                      ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                  }`}
+                  className={`home-time-button ${options.duration_minutes === minutes ? 'active' : ''}`}
                 >
-                  <Clock className="w-4 h-4 mx-auto mb-1" />
-                  <span className="text-sm">{minutes}분</span>
+                  <Clock className="home-time-icon" />
+                  <span className="home-time-label">{minutes}분</span>
                 </button>
               ))}
             </div>
@@ -183,38 +159,77 @@ function HomePage({ user }) {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="w-full py-4 bg-primary-500 text-white rounded-xl font-bold text-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className={`home-generate-button ${generating ? 'disabled' : ''}`}
           >
             {generating ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span className="home-generating-text">
+                <div className="home-spinner"></div>
                 AI가 운동을 생성 중...
               </span>
             ) : (
-              '맞춤 운동 생성하기'
+              '✨ 맞춤 운동 생성하기'
             )}
           </button>
         </div>
+      </div>
 
-        {/* 운동 기록 버튼 */}
+      {/* 하단 네비게이션 바 */}
+      <div className="home-bottom-nav">
         <button
-          onClick={() => navigate('/records')}
-          className="w-full bg-white rounded-2xl shadow-lg p-6 flex items-center justify-between hover:shadow-xl transition-shadow"
+          onClick={() => {
+            setActiveTab('home');
+            navigate('/');
+          }}
+          className={`home-nav-button ${activeTab === 'home' ? 'active' : ''}`}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <History className="w-6 h-6 text-gray-600" />
-            </div>
-            <div className="text-left">
-              <h3 className="font-bold text-gray-900">운동 기록</h3>
-              <p className="text-sm text-gray-500">지난 운동 내역 확인</p>
-            </div>
-          </div>
-          <span className="text-2xl text-gray-400">›</span>
+          <Home className="home-nav-icon" />
+          <span className="home-nav-label">홈</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('exercise');
+          }}
+          className={`home-nav-button ${activeTab === 'exercise' ? 'active' : ''}`}
+        >
+          <Dumbbell className="home-nav-icon" />
+          <span className="home-nav-label">운동</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('records');
+            navigate('/records');
+          }}
+          className={`home-nav-button ${activeTab === 'records' ? 'active' : ''}`}
+        >
+          <History className="home-nav-icon" />
+          <span className="home-nav-label">기록</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('my-exercise');
+          }}
+          className={`home-nav-button ${activeTab === 'my-exercise' ? 'active' : ''}`}
+        >
+          <ClipboardList className="home-nav-icon" />
+          <span className="home-nav-label">내 운동</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('profile');
+            navigate('/onboarding');
+          }}
+          className={`home-nav-button ${activeTab === 'profile' ? 'active' : ''}`}
+        >
+          <UserCircle className="home-nav-icon" />
+          <span className="home-nav-label">내 정보</span>
         </button>
       </div>
     </div>
   );
 }
 
-export default HomePage; 
+export default HomePage;

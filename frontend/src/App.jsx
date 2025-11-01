@@ -18,21 +18,30 @@ function App() {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      try {
-        const response = await authAPI.getCurrentUser();
-        setUser(response.data);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('access_token');
-      }
-    }
+    // ⭐ 인증 체크 로직 주석 처리 - 개발 중에는 인증 없이 접근 가능
+    // const token = localStorage.getItem('access_token');
+    // if (token) {
+    //   try {
+    //     const response = await authAPI.getCurrentUser();
+    //     setUser(response.data);
+    //   } catch (error) {
+    //     console.error('Auth check failed:', error);
+    //     localStorage.removeItem('access_token');
+    //   }
+    // }
+    
+    // ⭐ 개발용: 임시 사용자 설정 (필요시 사용)
+    setUser({ 
+      email: 'dev@test.com', 
+      user_id: 'dev_user', 
+      name: '개발 사용자',
+      body_condition: { injured_parts: [] }
+    });
+    
     setLoading(false);
   };
 
   if (loading) {
-    // ... (이 부분도 수정할 필요 없습니다)
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -46,23 +55,30 @@ function App() {
   // 2. <BrowserRouter>를 제거하고 바로 <Routes>를 반환합니다.
   return (
     <Routes>
+      {/* ⭐ 인증 체크 제거: 로그인 없이도 모든 페이지 접근 가능 */}
       <Route path="/login" element={
-        user ? <Navigate to="/" /> : <LoginPage setUser={setUser} />
+        <LoginPage setUser={setUser} />
+        // user ? <Navigate to="/" /> : <LoginPage setUser={setUser} />
       } />
       <Route path="/register" element={
-        user ? <Navigate to="/" /> : <RegisterPage setUser={setUser} />
+        <RegisterPage setUser={setUser} />
+        // user ? <Navigate to="/" /> : <RegisterPage setUser={setUser} />
       } />
       <Route path="/onboarding" element={
-        user ? <OnboardingPage user={user} setUser={setUser} /> : <Navigate to="/login" />
+        <OnboardingPage user={user} setUser={setUser} />
+        // user ? <OnboardingPage user={user} setUser={setUser} /> : <Navigate to="/login" />
       } />
       <Route path="/" element={
-        user ? <HomePage user={user} /> : <Navigate to="/login" />
+        <HomePage user={user} />
+        // user ? <HomePage user={user} /> : <Navigate to="/login" />
       } />
       <Route path="/exercise/:exerciseId" element={
-        user ? <ExercisePage user={user} /> : <Navigate to="/login" />
+        <ExercisePage user={user} />
+        // user ? <ExercisePage user={user} /> : <Navigate to="/login" />
       } />
       <Route path="/records" element={
-        user ? <RecordsPage user={user} /> : <Navigate to="/login" />
+        <RecordsPage user={user} />
+        // user ? <RecordsPage user={user} /> : <Navigate to="/login" />
       } />
     </Routes>
   );
