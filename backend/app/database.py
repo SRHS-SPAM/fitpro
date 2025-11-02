@@ -5,9 +5,11 @@ from .config import settings
 client: AsyncIOMotorClient = None
 db = None
 
-async def connect_to_mongo():
+
+async def connect_to_mongodb():
     """
     FastAPI 시작 시 MongoDB 연결을 설정합니다.
+    (main.py의 lifespan과 함수명 통일)
     """
     global client, db
     print("Connecting to MongoDB...")
@@ -22,26 +24,50 @@ async def connect_to_mongo():
         print(f"Successfully connected to MongoDB database: {settings.MONGO_DB_NAME}")
     except Exception as e:
         print(f"Could not connect to MongoDB: {e}")
-        # 실제 운영 환경에서는 종료 대신 재시도 로직을 구현할 수 있습니다.
-        # 개발 환경에서는 오류를 명확히 표시합니다.
+        raise  # 연결 실패 시 예외를 상위로 전달
         
-async def close_mongo_connection():
+
+async def close_mongodb_connection():
     """
     FastAPI 종료 시 MongoDB 연결을 닫습니다.
+    (main.py의 lifespan과 함수명 통일)
     """
     global client
     if client:
         client.close()
         print("MongoDB connection closed.")
 
-# 컬렉션 접근을 위한 헬퍼 함수 (추후 라우터/서비스에서 사용)
-def get_database():
-    """ 현재 데이터베이스 인스턴스를 반환합니다. """
+
+async def get_database():
+    """
+    현재 데이터베이스 인스턴스를 반환합니다.
+    라우터/서비스에서 await get_database() 형태로 사용
+    """
+    if db is None:
+        raise RuntimeError("Database not initialized. Call connect_to_mongodb() first.")
     return db
 
-# 사용 예시 (미리 정의된 컬렉션 이름)
-# def get_user_collection():
-#     return db["users"]
 
-# def get_exercise_templates_collection():
-#     return db["exercise_templates"]
+# 컬렉션 접근을 위한 헬퍼 함수 (선택적)
+async def get_user_collection():
+    """users 컬렉션 반환"""
+    database = await get_database()
+    return database["users"]
+
+
+async def get_exercise_templates_collection():
+    """exercise_templates 컬렉션 반환"""
+    database = await get_database()
+    return database["exercise_templates"]
+
+
+async def get_generated_exercises_collection():
+    """generated_exercises 컬렉션 반환"""
+    database = await get_database()
+    return database["generated_exercises"]
+
+
+async def get_records_collection():
+    """records 컬렉션 반환"""
+    database = await get_database()
+    return database["records"]
