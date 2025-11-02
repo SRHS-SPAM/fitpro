@@ -67,7 +67,7 @@ def calculate_angle(
     return float(angle_deg)
 
 
-def get_joint_coords(landmarks: List[Dict[str, float]], joint_name: str) -> Tuple[float, float, float]:
+def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
     """
     MediaPipe 랜드마크 리스트에서 특정 관절의 3D 좌표를 추출합니다.
     Args:

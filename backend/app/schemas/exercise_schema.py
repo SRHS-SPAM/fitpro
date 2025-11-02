@@ -76,3 +76,35 @@ class ExerciseTemplateCreate(BaseModel):
     base_animation: SilhouetteAnimation
     reference_angles: Dict[str, float] = {}
     verified_by: str
+
+class PoseAnalysisRequest(BaseModel):
+    """실시간 자세 분석 요청 (랜드마크 데이터 포함)"""
+    pose_landmarks: List[PoseLandmark] = Field(..., description="현재 프레임의 랜드마크 리스트")
+    timestamp_ms: int = Field(..., description="현재 프레임의 타임스탬프 (밀리초)")
+    # 클라이언트에서 이전 프레임의 정보나 운동 상태를 전달할 필요가 있을 경우 추가 필드 포함 가능
+    
+class PoseAnalysisResponse(BaseModel):
+    """실시간 자세 분석 응답"""
+    is_correct: bool = Field(..., description="현재 자세가 목표 자세와 일치하는지 여부")
+    score: float = Field(..., ge=0.0, le=100.0, description="자세 정확도 점수 (0-100)")
+    feedback: str = Field(..., description="사용자에게 제공할 피드백 메시지")
+    critical_error: bool = Field(default=False, description="운동을 중단해야 할 심각한 오류 여부")
+    angle_errors: Dict[str, float] = Field(default={}, description="오차가 큰 관절의 각도 오류 정보")
+
+
+class ExerciseCompleteRequest(BaseModel):
+    """운동 완료 요청"""
+    duration_minutes: float = Field(..., ge=0.1, description="실제 운동한 시간(분)")
+    completed_sets: int = Field(..., ge=0, description="완료한 세트 수")
+    completed_reps: int = Field(..., ge=0, description="총 완료한 반복 횟수")
+    average_score: float = Field(..., ge=0.0, le=100.0, description="세션 평균 자세 점수")
+    pain_level_after: int = Field(..., ge=0, le=10, description="운동 후 통증 수준 (0-10)")
+    pain_level_before: Optional[int] = Field(default=None, ge=0, le=10, description="운동 전 통증 수준")
+
+
+class ExerciseCompleteResponse(BaseModel):
+    """운동 완료 응답"""
+    record_id: str
+    overall_score: float
+    feedback: Dict[str, Any]
+    calories_burned: int
