@@ -1,5 +1,87 @@
-import numpy as np
-from typing import Dict, List, Tuple
+from datetime import datetime, timedelta
+from typing import Dict, Optional  # ← Optional 추가!
+from jose import JWTError, jwt
+import numpy as np 
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from ..config import settings
+
+security = HTTPBearer()
+
+def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
+    """JWT Access Token 생성"""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    
+    to_encode.update({"exp": expire})
+    
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM
+    )
+    
+    return encoded_jwt
+
+def decode_access_token(token: str) -> Dict:
+    """
+    JWT Access Token 디코딩 및 검증
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        return payload
+    
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 인증 토큰입니다.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict:
+    """
+    현재 로그인한 사용자 정보 추출 (Dependency)
+    """
+    token = credentials.credentials
+    
+    try:
+        payload = decode_access_token(token)
+        
+        user_id: str = payload.get("sub")
+        email: str = payload.get("email")
+        
+        if user_id is None or email is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="인증 정보가 올바르지 않습니다.",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        
+        return {
+            "user_id": user_id,
+            "email": email
+        }
+    
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증 토큰이 만료되었거나 유효하지 않습니다.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
 
 def calculate_angle(point1: np.ndarray, point2: np.ndarray, point3: np.ndarray) -> float:
@@ -42,7 +124,9 @@ def calculate_angle(point1: np.ndarray, point2: np.ndarray, point3: np.ndarray) 
     return angle_degrees
 
 
-def get_landmark_coords(landmarks: List[Dict], index: int) -> np.ndarray:
+
+
+def get_landmark_coords(landmarks: list[Dict], index: int) -> np.ndarray:
     """
     랜드마크 리스트에서 특정 인덱스의 3D 좌표 추출
     
@@ -115,7 +199,7 @@ def calculate_distance_3d(point1: Dict, point2: Dict) -> float:
     return distance
 
 
-def normalize_landmarks(landmarks: List[Dict]) -> List[Dict]:
+def normalize_landmarks(landmarks: list[Dict]) -> list[Dict]:
     """
     랜드마크 좌표 정규화 (중심점 기준, 스케일 조정)
     
@@ -158,7 +242,7 @@ def normalize_landmarks(landmarks: List[Dict]) -> List[Dict]:
     return normalized_landmarks
 
 
-def calculate_body_ratio(landmarks: List[Dict]) -> Dict[str, float]:
+def calculate_body_ratio(landmarks: list[Dict]) -> Dict[str, float]:
     """
     신체 비율 계산 (어깨 너비, 다리 길이 등)
     
@@ -206,7 +290,7 @@ def calculate_body_ratio(landmarks: List[Dict]) -> Dict[str, float]:
     return ratios
 
 
-def check_visibility_threshold(landmarks: List[Dict], threshold: float = 0.5) -> List[int]:
+def check_visibility_threshold(landmarks: list[Dict], threshold: float = 0.5) -> list[int]:
     """
     가시성(visibility)이 낮은 랜드마크 인덱스 반환
     
@@ -227,7 +311,7 @@ def check_visibility_threshold(landmarks: List[Dict], threshold: float = 0.5) ->
     return low_visibility_indices
 
 
-def calculate_center_of_mass(landmarks: List[Dict]) -> Dict[str, float]:
+def calculate_center_of_mass(landmarks: list[Dict]) -> Dict[str, float]:
     """
     무게중심 계산 (주요 관절 기준)
     
@@ -258,7 +342,7 @@ def calculate_center_of_mass(landmarks: List[Dict]) -> Dict[str, float]:
     }
 
 
-def detect_pose_symmetry(landmarks: List[Dict]) -> float:
+def detect_pose_symmetry(landmarks: list[Dict]) -> float:
     """
     좌우 대칭성 점수 계산 (0-100)
     
@@ -300,8 +384,8 @@ def detect_pose_symmetry(landmarks: List[Dict]) -> float:
 
 
 def calculate_joint_velocity(
-    previous_landmarks: List[Dict],
-    current_landmarks: List[Dict],
+    previous_landmarks: list[Dict],
+    current_landmarks: list[Dict],
     time_delta_ms: float,
     joint_index: int
 ) -> float:

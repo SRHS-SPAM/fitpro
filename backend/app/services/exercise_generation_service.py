@@ -7,7 +7,10 @@ from ..config import settings
 
 
 # OpenAI 클라이언트 초기화
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(
+    api_key=settings.OPENAI_API_KEY
+    # proxies 파라미터 제거!
+)
 
 
 async def generate_personalized_exercise(

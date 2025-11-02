@@ -76,3 +76,106 @@ class ExerciseTemplateCreate(BaseModel):
     base_animation: SilhouetteAnimation
     reference_angles: Dict[str, float] = {}
     verified_by: str
+
+# 기존 코드 아래에 추가 ↓
+
+class PoseAnalysisRequest(BaseModel):
+    """실시간 자세 분석 요청"""
+    pose_landmarks: List[Dict[str, float]] = Field(..., min_items=33, max_items=33, description="33개 랜드마크")
+    timestamp_ms: int = Field(..., ge=0, description="현재 타임스탬프 (밀리초)")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "pose_landmarks": [
+                    {"x": 0.5, "y": 0.3, "z": -0.1, "visibility": 0.99}
+                ] * 33,
+                "timestamp_ms": 5000
+            }
+        }
+
+
+class PoseAnalysisResponse(BaseModel):
+    """실시간 자세 분석 응답"""
+    is_correct: bool = Field(..., description="자세가 올바른지 여부")
+    score: int = Field(..., ge=0, le=100, description="자세 점수 (0-100)")
+    feedback: str = Field(..., description="피드백 메시지")
+    critical_error: bool = Field(default=False, description="심각한 오류 여부")
+    angle_errors: Dict[str, Dict[str, float]] = Field(default={}, description="각도 오차 정보")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "is_correct": False,
+                "score": 75,
+                "feedback": "무릎이 발끝을 넘었습니다. 엉덩이를 뒤로 빼주세요.",
+                "critical_error": False,
+                "angle_errors": {
+                    "left_knee": {
+                        "current": 85.0,
+                        "target": 90.0,
+                        "diff": 5.0
+                    }
+                }
+            }
+        }
+
+
+class ExerciseCompleteRequest(BaseModel):
+    """운동 완료 요청"""
+    completed_sets: int = Field(..., ge=0, description="완료한 세트 수")
+    completed_reps: int = Field(..., ge=0, description="완료한 반복 횟수")
+    average_score: int = Field(..., ge=0, le=100, description="평균 점수")
+    pain_level_before: Optional[int] = Field(None, ge=0, le=10, description="운동 전 통증 수준")
+    pain_level_after: int = Field(..., ge=0, le=10, description="운동 후 통증 수준")
+    duration_minutes: int = Field(..., gt=0, description="실제 운동 시간 (분)")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "completed_sets": 3,
+                "completed_reps": 10,
+                "average_score": 82,
+                "pain_level_before": 3,
+                "pain_level_after": 2,
+                "duration_minutes": 15
+            }
+        }
+
+
+class ExerciseFeedback(BaseModel):
+    """운동 피드백"""
+    summary: str = Field(..., description="전체 요약")
+    improvements: List[str] = Field(default=[], description="개선 사항")
+    strengths: List[str] = Field(default=[], description="잘한 점")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "summary": "잘 하셨습니다!",
+                "improvements": ["무릎 각도 주의"],
+                "strengths": ["속도 조절 우수"]
+            }
+        }
+
+
+class ExerciseCompleteResponse(BaseModel):
+    """운동 완료 응답"""
+    record_id: str = Field(..., description="기록 ID")
+    overall_score: int = Field(..., ge=0, le=100, description="전체 점수")
+    feedback: ExerciseFeedback = Field(..., description="피드백")
+    calories_burned: int = Field(..., ge=0, description="소모 칼로리")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "record_id": "65abc123def456789012",
+                "overall_score": 82,
+                "feedback": {
+                    "summary": "잘 하셨습니다!",
+                    "improvements": ["무릎 각도 주의"],
+                    "strengths": ["속도 조절 우수"]
+                },
+                "calories_burned": 45
+            }
+        }

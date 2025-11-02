@@ -135,3 +135,63 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
 # 예시 사용 (테스트용)
 # landmark_mock = [{'x': 0, 'y': 0, 'z': 0}] * 33 
 # analyzed_data = analyze_pose(landmark_mock)
+
+# 기존 코드는 그대로 두고, 맨 아래에 추가
+
+def get_landmark_coords(landmarks: List[Dict], index: int) -> np.ndarray:
+    """
+    랜드마크 리스트에서 특정 인덱스의 3D 좌표 추출
+    
+    Args:
+        landmarks: MediaPipe 랜드마크 리스트
+        index: 랜드마크 인덱스 (0-32)
+    
+    Returns:
+        numpy array [x, y, z]
+    """
+    if index < 0 or index >= len(landmarks):
+        raise ValueError(f"잘못된 랜드마크 인덱스: {index}")
+    
+    landmark = landmarks[index]
+    return np.array([
+        landmark.get("x", 0.0),
+        landmark.get("y", 0.0),
+        landmark.get("z", 0.0)
+    ])
+
+
+def calculate_angle_error(current_angle: float, target_angle: float) -> float:
+    """
+    현재 각도와 목표 각도의 오차 계산
+    
+    Args:
+        current_angle: 현재 각도
+        target_angle: 목표 각도
+    
+    Returns:
+        각도 오차 (절댓값)
+    """
+    return abs(current_angle - target_angle)
+
+
+def calculate_distance_2d(point1: Dict, point2: Dict) -> float:
+    """
+    두 점 사이의 2D 거리 계산 (x, y 좌표만 사용)
+    """
+    dx = point2["x"] - point1["x"]
+    dy = point2["y"] - point1["y"]
+    
+    distance = np.sqrt(dx**2 + dy**2)
+    return distance
+
+
+def calculate_distance_3d(point1: Dict, point2: Dict) -> float:
+    """
+    두 점 사이의 3D 거리 계산
+    """
+    dx = point2["x"] - point1["x"]
+    dy = point2["y"] - point1["y"]
+    dz = point2["z"] - point1["z"]
+    
+    distance = np.sqrt(dx**2 + dy**2 + dz**2)
+    return distance
