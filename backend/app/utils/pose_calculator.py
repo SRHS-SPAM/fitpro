@@ -67,7 +67,7 @@ def calculate_angle(
     return float(angle_deg)
 
 
-def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
+def get_landmark_coords(landmarks: List[Dict[str, float]], joint_name: str) -> Tuple[float, float, float]:
     """
     MediaPipe 랜드마크 리스트에서 특정 관절의 3D 좌표를 추출합니다.
     Args:
@@ -102,28 +102,28 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
     
     # 1. 팔꿈치 각도 (예: 왼팔꿈치)
     try:
-        shoulder_l = get_joint_coords(landmarks, "LEFT_SHOULDER")
-        elbow_l = get_joint_coords(landmarks, "LEFT_ELBOW")
-        wrist_l = get_joint_coords(landmarks, "LEFT_WRIST")
+        shoulder_l = get_landmark_coords(landmarks, "LEFT_SHOULDER")
+        elbow_l = get_landmark_coords(landmarks, "LEFT_ELBOW")
+        wrist_l = get_landmark_coords(landmarks, "LEFT_WRIST")
         angles['left_elbow_angle'] = calculate_angle(shoulder_l, elbow_l, wrist_l)
         
-        shoulder_r = get_joint_coords(landmarks, "RIGHT_SHOULDER")
-        elbow_r = get_joint_coords(landmarks, "RIGHT_ELBOW")
-        wrist_r = get_joint_coords(landmarks, "RIGHT_WRIST")
+        shoulder_r = get_landmark_coords(landmarks, "RIGHT_SHOULDER")
+        elbow_r = get_landmark_coords(landmarks, "RIGHT_ELBOW")
+        wrist_r = get_landmark_coords(landmarks, "RIGHT_WRIST")
         angles['right_elbow_angle'] = calculate_angle(shoulder_r, elbow_r, wrist_r)
     except Exception as e:
         print(f"Error calculating elbow angle: {e}")
         
     # 2. 무릎 각도 (예: 왼무릎)
     try:
-        hip_l = get_joint_coords(landmarks, "LEFT_HIP")
-        knee_l = get_joint_coords(landmarks, "LEFT_KNEE")
-        ankle_l = get_joint_coords(landmarks, "LEFT_ANKLE")
+        hip_l = get_landmark_coords(landmarks, "LEFT_HIP")
+        knee_l = get_landmark_coords(landmarks, "LEFT_KNEE")
+        ankle_l = get_landmark_coords(landmarks, "LEFT_ANKLE")
         angles['left_knee_angle'] = calculate_angle(hip_l, knee_l, ankle_l)
         
-        hip_r = get_joint_coords(landmarks, "RIGHT_HIP")
-        knee_r = get_joint_coords(landmarks, "RIGHT_KNEE")
-        ankle_r = get_joint_coords(landmarks, "RIGHT_ANKLE")
+        hip_r = get_landmark_coords(landmarks, "RIGHT_HIP")
+        knee_r = get_landmark_coords(landmarks, "RIGHT_KNEE")
+        ankle_r = get_landmark_coords(landmarks, "RIGHT_ANKLE")
         angles['right_knee_angle'] = calculate_angle(hip_r, knee_r, ankle_r)
     except Exception as e:
         print(f"Error calculating knee angle: {e}")
@@ -135,3 +135,9 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
 # 예시 사용 (테스트용)
 # landmark_mock = [{'x': 0, 'y': 0, 'z': 0}] * 33 
 # analyzed_data = analyze_pose(landmark_mock)
+
+def calculate_angle_error(current_angle: float, target_angle: float) -> float:
+    """
+    현재 각도와 목표 각도의 오차 계산 (절댓값)
+    """
+    return abs(current_angle - target_angle)
