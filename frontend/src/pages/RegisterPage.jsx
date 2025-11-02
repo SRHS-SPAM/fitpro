@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { Activity, Mail, Lock, User, AlertCircle } from 'lucide-react';
-
 import "./RegisterPage.css";
 
 function RegisterPage({ setUser }) {
@@ -22,8 +21,21 @@ function RegisterPage({ setUser }) {
 
     try {
       const response = await authAPI.register(formData);
-      localStorage.setItem('access_token', response.data.access_token);
-      setUser(response.data);
+      const { access_token, user_id } = response.data;
+
+      localStorage.setItem('access_token', access_token);
+
+      // ⭐ [수정됨] 백엔드 응답에 이름이 없으므로,
+      // 사용자가 입력한 formData를 기반으로 user 객체를 직접 만듭니다.
+      const newUser = {
+        user_id: user_id,
+        email: formData.email,
+        name: formData.name,
+        // 온보딩 전이므로 body_condition은 기본값으로 설정
+        body_condition: { injured_parts: [], pain_level: 0, limitations: [] } 
+      };
+      setUser(newUser);
+      
       navigate('/onboarding');
     } catch (err) {
       setError(err.response?.data?.detail || '회원가입에 실패했습니다.');
@@ -32,6 +44,7 @@ function RegisterPage({ setUser }) {
     }
   };
 
+  // --- JSX 부분은 수정할 필요 없습니다 ---
   return (
     <>
       <div className="register-page-wrapper">

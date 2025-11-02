@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Activity, Mail, Lock, AlertCircle } from 'lucide-react';
 import { authAPI } from '../services/api'; 
-
 import "./LoginPage.css"
 
 function LoginPage({ setUser }) {
@@ -20,46 +19,32 @@ function LoginPage({ setUser }) {
     setLoading(true);
 
     try {
-      // ⭐ API 호출 시뮬레이션: 실제 환경에서는 authAPI를 사용해야 합니다.
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockResponse = {
-        data: { 
-          access_token: 'mock_token', 
-          user: { 
-            email: formData.email, 
-            user_id: 'mock_id', 
-            name: '테스트 사용자',
-            body_condition: { injured_parts: [] } // 신체 정보가 있다고 가정
-          } 
-        }
-      };
+      // ⭐ [수정됨] 실제 API를 호출합니다.
+      const response = await authAPI.login(formData);
+      const { access_token, user } = response.data;
 
-      // const response = await authAPI.login(formData); // 실제 API 호출
-      const response = mockResponse; // 시뮬레이션 결과 사용
-
-      localStorage.setItem('access_token', response.data.access_token);
-      setUser(response.data.user);
+      localStorage.setItem('access_token', access_token);
+      // 백엔드가 반환한 user 객체를 상태에 저장합니다.
+      setUser(user);
       
-      // 신체 정보가 없으면 온보딩으로, 있으면 대시보드로 이동
-      if (!response.data.user.body_condition) {
+      // 온보딩 완료 여부에 따라 페이지를 이동시킵니다.
+      // body_condition이 없거나, 있더라도 내용이 비어있으면 온보딩으로 이동합니다.
+      if (!user.body_condition || user.body_condition.injured_parts.length === 0) {
         navigate('/onboarding');
       } else {
         navigate('/');
       }
     } catch (err) {
-      // 에러 시뮬레이션
-      setError('로그인 실패: 이메일 또는 비밀번호를 확인해 주세요. (현재 시뮬레이션)');
-      // setError(err.response?.data?.detail || '로그인에 실패했습니다.'); // 실제 에러 처리
+      setError(err.response?.data?.detail || '로그인에 실패했습니다. 이메일 또는 비밀번호를 확인해주세요.');
     } finally {
       setLoading(false);
     }
   };
 
+  // --- JSX 부분은 수정할 필요 없습니다 ---
   return (
     <div className="login-page-wrapper">
       <div className="login-container">
-        {/* 로고 */}
         <div className="header-section">
           <div className="logo-icon-wrapper">
             <Activity className="logo-icon" />
@@ -68,7 +53,6 @@ function LoginPage({ setUser }) {
           <p className="app-subtitle">AI 기반 맞춤 재활 운동</p>
         </div>
 
-        {/* 로그인 폼 */}
         <div className="form-card">
           <h2 className="card-title">로그인</h2>
 

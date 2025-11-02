@@ -1,6 +1,9 @@
 # backend/app/schemas/auth_schema.py
 
 from pydantic import BaseModel
+from typing import Optional
+
+from .user_schema import UserResponse 
 
 
 class TokenData(BaseModel):
@@ -11,8 +14,12 @@ class TokenData(BaseModel):
 
 class Token(BaseModel):
     """토큰 응답"""
+    user_id: str
+    email: str
     access_token: str
     token_type: str = "bearer"
+    
+    user: Optional[UserResponse] = None
 
 
 class TokenPayload(BaseModel):

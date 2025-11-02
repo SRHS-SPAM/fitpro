@@ -1,3 +1,5 @@
+# backend/app/routers/auth.py
+
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import datetime
 from bson import ObjectId
@@ -50,6 +52,7 @@ async def register(request: RegisterRequest):
     # JWT 토큰 생성
     access_token = create_access_token(data={"sub": user_id, "email": request.email})
     
+    # AuthResponse 스키마에 따라 응답 반환
     return AuthResponse(
         user_id=user_id,
         email=request.email,
@@ -83,6 +86,7 @@ async def login(request: LoginRequest):
     user_id = str(user["_id"])
     access_token = create_access_token(data={"sub": user_id, "email": user["email"]})
     
+    # AuthResponse 스키마에 따라 응답 반환
     return AuthResponse(
         user_id=user_id,
         email=user["email"],
@@ -91,6 +95,8 @@ async def login(request: LoginRequest):
             user_id=user_id,
             email=user["email"],
             name=user["name"],
-            body_condition=user.get("body_condition")
+            body_condition=user.get("body_condition"),
+            # ⭐ [수정됨] datetime 객체를 ISO 8601 형식의 문자열로 변환합니다.
+            created_at=user["created_at"].isoformat()
         )
     )
