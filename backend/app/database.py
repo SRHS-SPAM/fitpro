@@ -1,14 +1,32 @@
+# app/database.py
+
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
+from typing import Optional
+
 from .config import settings
 
+<<<<<<< HEAD
 client: AsyncIOMotorClient = None
+=======
+# MongoDB 클라이언트와 데이터베이스 인스턴스를 저장할 변수
+# 초기 상태는 None으로 명확히 지정합니다.
+client: Optional[AsyncIOMotorClient] = None
+>>>>>>> 50368306afd3c5086c010b03561c022edcb94782
 db = None
 
 
 async def connect_to_mongodb():
+<<<<<<< HEAD
+=======
+    """
+    FastAPI 시작 시 MongoDB 연결을 설정합니다.
+    """
+>>>>>>> 50368306afd3c5086c010b03561c022edcb94782
     global client, db
     print("Connecting to MongoDB...")
     try:
+        # 클라이언트 인스턴스는 이 함수 내에서만 생성합니다.
         client = AsyncIOMotorClient(
             settings.MONGODB_URI,
             serverSelectionTimeoutMS=30000,
@@ -17,8 +35,12 @@ async def connect_to_mongodb():
             tlsAllowInvalidCertificates=True
         )
         await client.admin.command('ping') 
+        
+        # 데이터베이스 인스턴스 할당
         db = client[settings.MONGO_DB_NAME]
+        
         print(f"Successfully connected to MongoDB database: {settings.MONGO_DB_NAME}")
+        
     except Exception as e:
         print(f"Could not connect to MongoDB: {e}")
         raise
@@ -33,7 +55,7 @@ async def close_mongodb_connection():
 
 async def get_database():
     if db is None:
-        raise RuntimeError("Database not initialized. Call connect_to_mongodb() first.")
+        raise RuntimeError("Database not initialized. Call connect_to_mongodb() at startup.")
     return db
 
 

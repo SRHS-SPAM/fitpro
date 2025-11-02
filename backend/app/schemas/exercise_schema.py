@@ -170,7 +170,7 @@ class ExerciseCompleteResponse(BaseModel):
         schema_extra = {
             "example": {
                 "record_id": "65abc123def456789012",
-                "overall_score": 82,
+                "overall_scorWe": 82,
                 "feedback": {
                     "summary": "잘 하셨습니다!",
                     "improvements": ["무릎 각도 주의"],

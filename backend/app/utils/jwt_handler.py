@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from datetime import datetime, timedelta
 from typing import Dict, Optional  # ← Optional 추가!
 from jose import JWTError, jwt
@@ -82,6 +83,84 @@ async def get_current_user(
             detail="인증 토큰이 만료되었거나 유효하지 않습니다.",
             headers={"WWW-Authenticate": "Bearer"}
         )
+=======
+import numpy as np
+from typing import Dict, List, Tuple
+import time
+import jwt
+from decouple import config
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+# 환경 변수에서 Secret Key를 로드
+JWT_SECRET = config("secret", default="your_strong_secret_key")
+JWT_ALGORITHM = config("algorithm", default="HS256")
+
+# OAuth2 스킴 설정 (토큰을 헤더에서 가져오기 위해 필요)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+
+# 엑세스 토큰 생성 함수 (auth.py가 요청하는 함수)
+def create_access_token(user_id: str) -> str:
+    """
+    사용자 ID를 기반으로 JWT 엑세스 토큰을 생성합니다.
+    """
+    # 토큰 만료 시간 (예: 24시간)
+    expire = time.time() + 60 * 60 * 24
+    
+    payload = {
+        "user_id": user_id,
+        "expires": expire,
+        # 'iat' (issued at) 대신 'time.time()'을 사용했습니다.
+    }
+    
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token
+
+# 토큰 해독 및 유효성 검사 함수
+def decode_access_token(token: str) -> dict:
+    try:
+        decoded_token = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        # 만료 시간 검사
+        if decoded_token.get("expires") >= time.time():
+            return decoded_token
+        # 만료 시 예외 발생
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="토큰이 만료되었습니다.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.exceptions.DecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 토큰입니다.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+# **auth.py가 요청하는 함수** (현재 사용자를 가져오는 의존성 함수)
+# 이 함수는 데이터베이스에서 사용자 정보를 검색해야 합니다.
+async def get_current_user(token: str = Depends(oauth2_scheme)): # db: Session = Depends(get_db)
+    # 1. 토큰 해독 및 유효성 검사
+    payload = decode_access_token(token)
+    user_id = payload.get("user_id")
+    
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증 정보를 찾을 수 없습니다.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 2. (TODO: 실제 데이터베이스 연결 및 사용자 검색 로직)
+    # 이 부분은 당신의 프로젝트 구조에 따라 달라집니다.
+    # 현재는 오류 없이 서버를 실행하기 위해 임시 User 객체를 반환합니다.
+    # user = db.query(models.User).filter(models.User.id == user_id).first()
+
+    # if user is None:
+    #     raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 임시 반환 (실제 구현 시 위 주석 코드를 사용해야 합니다)
+    return {"id": user_id, "name": "Test User"} # 실제 User 객체/스키마를 반환해야 함
+>>>>>>> 50368306afd3c5086c010b03561c022edcb94782
 
 
 def calculate_angle(point1: np.ndarray, point2: np.ndarray, point3: np.ndarray) -> float:
