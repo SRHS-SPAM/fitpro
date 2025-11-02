@@ -48,11 +48,7 @@ def calculate_angle(
     return float(angle_deg)
 
 
-# 1. 수정된 부분: 함수의 이름을 'get_landmark_coords'로 변경하고, 인자를 받도록 수정
-def get_landmark_coords(
-    landmarks: List[Dict[str, float]], 
-    joint_name: str
-) -> Tuple[float, float, float]:
+def get_landmark_coords(landmarks: List[Dict[str, float]], joint_name: str) -> Tuple[float, float, float]:
     """
     MediaPipe 랜드마크 리스트에서 특정 관절의 3D 좌표를 추출합니다.
     """
@@ -74,7 +70,6 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
     angles = {}
     
     try:
-        # 2. 수정된 부분: 'get_joint_coords'를 위에서 정의한 'get_landmark_coords'로 변경
         shoulder_l = get_landmark_coords(landmarks, "LEFT_SHOULDER")
         elbow_l = get_landmark_coords(landmarks, "LEFT_ELBOW")
         wrist_l = get_landmark_coords(landmarks, "LEFT_WRIST")
@@ -88,7 +83,6 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
         print(f"Error calculating elbow angle: {e}")
         
     try:
-        # 2. 수정된 부분: 'get_joint_coords'를 위에서 정의한 'get_landmark_coords'로 변경
         hip_l = get_landmark_coords(landmarks, "LEFT_HIP")
         knee_l = get_landmark_coords(landmarks, "LEFT_KNEE")
         ankle_l = get_landmark_coords(landmarks, "LEFT_ANKLE")
@@ -102,3 +96,13 @@ def analyze_pose(landmarks: List[Dict[str, float]]) -> Dict[str, float]:
         print(f"Error calculating knee angle: {e}")
     
     return angles
+
+# 예시 사용 (테스트용)
+# landmark_mock = [{'x': 0, 'y': 0, 'z': 0}] * 33 
+# analyzed_data = analyze_pose(landmark_mock)
+
+def calculate_angle_error(current_angle: float, target_angle: float) -> float:
+    """
+    현재 각도와 목표 각도의 오차 계산 (절댓값)
+    """
+    return abs(current_angle - target_angle)
