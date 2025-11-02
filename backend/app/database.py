@@ -6,23 +6,11 @@ from typing import Optional
 
 from .config import settings
 
-<<<<<<< HEAD
 client: AsyncIOMotorClient = None
-=======
-# MongoDB 클라이언트와 데이터베이스 인스턴스를 저장할 변수
-# 초기 상태는 None으로 명확히 지정합니다.
-client: Optional[AsyncIOMotorClient] = None
->>>>>>> 50368306afd3c5086c010b03561c022edcb94782
 db = None
 
 
 async def connect_to_mongodb():
-<<<<<<< HEAD
-=======
-    """
-    FastAPI 시작 시 MongoDB 연결을 설정합니다.
-    """
->>>>>>> 50368306afd3c5086c010b03561c022edcb94782
     global client, db
     print("Connecting to MongoDB...")
     try:

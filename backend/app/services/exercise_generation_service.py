@@ -5,7 +5,6 @@ from bson import ObjectId
 
 from ..config import settings
 
-from .. import settings
 
 # OpenAI 클라이언트 초기화
 client = AsyncOpenAI(
