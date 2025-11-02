@@ -6,7 +6,6 @@ from ..config import settings
 from ..utils.pose_calculator import (
     calculate_angle,
     get_landmark_coords,
-    calculate_angle_error
 )
 
 
