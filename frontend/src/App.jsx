@@ -7,6 +7,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import ExercisePage from './pages/ExercisePage';
 import RecordsPage from './pages/RecordsPage';
 import { authAPI } from './services/api';
+import RecordDetailPage from './pages/RecordDetailPage';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -60,6 +61,8 @@ function App() {
       <Route path="/onboarding" element={
         user ? <OnboardingPage user={user} setUser={setUser} /> : <Navigate to="/login" />
       } />
+      <Route path="/records/:recordId" element={
+        user ? <RecordDetailPage /> : <Navigate to="/login" />} />
       <Route path="/" element={
         user ? <HomePage user={user} /> : <Navigate to="/login" />
       } />

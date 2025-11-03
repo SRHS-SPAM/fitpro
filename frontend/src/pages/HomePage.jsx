@@ -6,7 +6,6 @@ import './HomePage.css';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
-  // ⭐ [수정됨] 문법 오류를 수정한 부분
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('home');
@@ -204,8 +203,13 @@ function HomePage({ user }) {
           <Home className="home-nav-icon" />
           <span className="home-nav-label">홈</span>
         </button>
+        {/* ⭐ [수정됨] "운동" 버튼 클릭 시 페이지 맨 위로 스크롤합니다. */}
         <button
-          onClick={() => setActiveTab('exercise')}
+          onClick={() => {
+            setActiveTab('exercise');
+            // "맞춤 운동 생성" 카드가 있는 곳으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+          }}
           className={`home-nav-button ${activeTab === 'exercise' ? 'active' : ''}`}
         >
           <Dumbbell className="home-nav-icon" />
