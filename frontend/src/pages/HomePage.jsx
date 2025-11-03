@@ -1,16 +1,15 @@
-import { useState, useEffect } from 'react'; // useEffect를 사용합니다.
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exerciseAPI, recordsAPI } from '../services/api'; // recordsAPI를 import합니다.
+import { exerciseAPI, recordsAPI } from '../services/api';
 import { Activity, Clock, History, AlertCircle, Home, Dumbbell, ClipboardList, UserCircle } from 'lucide-react';
 import './HomePage.css';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
+  // ⭐ [수정됨] 문법 오류를 수정한 부분
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('home');
-  
-  // 1. 운동 기록 목록과 로딩 상태를 위한 state 추가
   const [records, setRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
@@ -20,12 +19,9 @@ function HomePage({ user }) {
     duration_minutes: 15
   });
 
-  // 2. 페이지가 처음 로드될 때, 백엔드에서 운동 기록을 불러옵니다.
   useEffect(() => {
     const fetchRecords = async () => {
       try {
-        // 기획서 API 명세에 따라 recordsAPI.getRecords()를 호출합니다.
-        // 예시로 최근 3개의 기록만 가져옵니다. (page=1, limit=3)
         const response = await recordsAPI.getRecords(1, 3); 
         setRecords(response.data.records);
       } catch (err) {
@@ -35,34 +31,26 @@ function HomePage({ user }) {
       }
     };
 
-    if (user) { // 로그인한 사용자일 때만 기록을 불러옵니다.
+    if (user) {
       fetchRecords();
     }
-  }, [user]); // user 정보가 있을 때 한 번만 실행됩니다.
+  }, [user]);
 
   const handleGenerate = async () => {
     setError('');
     setGenerating(true);
     try {
       const response = await exerciseAPI.generate(options);
-      // 기획서에 따라 exercise_id를 사용합니다.
       navigate(`/exercise/${response.data.exercise_id}`);
-    } catch (err)
-     {
+    } catch (err) {
       setError(err.response?.data?.detail || '운동 생성에 실패했습니다.');
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    window.location.href = '/login';
-  };
-
   return (
     <div className="home-page-wrapper">
-      {/* --- 헤더 (수정 없음) --- */}
       <div className="home-header">
         <div className="home-header-content">
           <div className="home-logo-section">
@@ -77,67 +65,179 @@ function HomePage({ user }) {
         </div>
       </div>
 
-
       <div className="home-main-content">
-        {/* --- 신체 상태 카드 (수정 없음) --- */}
         {user?.body_condition && (
-          <div className="home-status-card">
-            <h2 className="home-card-title">💪 현재 상태</h2>
-            <div className="home-status-content">
-              {user.body_condition.injured_parts?.length > 0 && (
-                <div className="home-injured-section">
-                  <span className="home-label">불편 부위:</span>
-                  <div className="home-tag-container">
-                    {user.body_condition.injured_parts.map(part => (
-                      <span key={part} className="home-tag">{part}</span>
-                    ))}
+            <div className="home-status-card">
+              <h2 className="home-card-title">💪 현재 상태</h2>
+              <div className="home-status-content">
+                  {user.body_condition.injured_parts?.length > 0 && (
+                  <div className="home-injured-section">
+                      <span className="home-label">불편 부위:</span>
+                      <div className="home-tag-container">
+                      {user.body_condition.injured_parts.map(part => (
+                          <span key={part} className="home-tag">{part}</span>
+                      ))}
+                      </div>
                   </div>
-                </div>
-              )}
-              <div className="home-pain-level">
-                <span className="home-label">통증 수준:</span>
-                <span className="home-pain-value">{user.body_condition.pain_level}/10</span>
+                  )}
+                  <div className="home-pain-level">
+                  <span className="home-label">통증 수준:</span>
+                  <span className="home-pain-value">{user.body_condition.pain_level}/10</span>
+                  </div>
               </div>
+              <button onClick={() => navigate('/onboarding')} className="home-edit-button">
+                  정보 수정하기 →
+              </button>
             </div>
-            <button onClick={() => navigate('/onboarding')} className="home-edit-button">
-              정보 수정하기 →
-            </button>
-          </div>
         )}
 
-        {/* 3. "최근 운동 기록" 요약 섹션 UI 추가 */}
         <div className="home-records-card">
-          <h2 className="home-main-card-title">📖 최근 운동 기록</h2>
-          {recordsLoading ? (
+            <h2 className="home-main-card-title">📖 최근 운동 기록</h2>
+            {recordsLoading ? (
             <p>기록을 불러오는 중...</p>
-          ) : records && records.length > 0 ? (
+            ) : records && records.length > 0 ? (
             <div className="home-records-list">
-              {records.map(record => (
+                {records.map(record => (
                 <div key={record.record_id} className="home-record-item" onClick={() => navigate(`/records/${record.record_id}`)}>
-                  <span className="record-exercise-name">{record.exercise_name}</span>
-                  <span className="record-date">{new Date(record.completed_at).toLocaleDateString()}</span>
-                  <span className="record-score">점수: {record.score}%</span>
+                    <span className="record-exercise-name">{record.exercise_name}</span>
+                    <span className="record-date">{new Date(record.completed_at).toLocaleDateString()}</span>
+                    <span className="record-score">점수: {record.score}%</span>
                 </div>
-              ))}
+                ))}
             </div>
-          ) : (
+            ) : (
             <p>아직 운동 기록이 없습니다.</p>
-          )}
-          <button onClick={() => navigate('/records')} className="home-edit-button">
-            전체 기록 보기 →
-          </button>
+            )}
         </div>
 
-        {/* --- 운동 생성 카드 (수정 없음, 기획서에 맞는 역할) --- */}
         <div className="home-exercise-card">
-          <h2 className="home-main-card-title">🎯 맞춤 운동 생성</h2>
-          {/* ... (이하 운동 타입, 강도, 시간, 생성 버튼 등 UI는 그대로 유지) ... */}
+            <h2 className="home-main-card-title">🎯 맞춤 운동 생성</h2>
+
+            {error && (
+              <div className="home-error-box">
+                <AlertCircle className="home-error-icon" />
+                <p className="home-error-text">{error}</p>
+              </div>
+            )}
+
+            <div className="home-section">
+              <label className="home-section-label">운동 종류</label>
+              <div className="home-type-grid">
+                {[
+                  { value: 'rehabilitation', label: '재활', icon: '🏥' },
+                  { value: 'strength', label: '근력', icon: '💪' },
+                  { value: 'stretching', label: '스트레칭', icon: '🧘' }
+                ].map(({ value, label, icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setOptions({ ...options, exercise_type: value })}
+                    className={`home-type-button ${options.exercise_type === value ? 'active' : ''}`}
+                  >
+                    <span className="home-type-icon">{icon}</span>
+                    <span className="home-type-label">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="home-section">
+              <label className="home-section-label">운동 강도</label>
+              <div className="home-intensity-grid">
+                {[
+                  { value: 'low', label: '낮음', emoji: '🟢' },
+                  { value: 'medium', label: '보통', emoji: '🟡' },
+                  { value: 'high', label: '높음', emoji: '🔴' }
+                ].map(({ value, label, emoji }) => (
+                  <button
+                    key={value}
+                    onClick={() => setOptions({ ...options, intensity: value })}
+                    className={`home-intensity-button ${options.intensity === value ? 'active' : ''}`}
+                  >
+                    <span className="home-intensity-emoji">{emoji}</span>
+                    <span className="home-intensity-label">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="home-section">
+              <label className="home-section-label">운동 시간</label>
+              <div className="home-time-grid">
+                {[10, 15, 20, 30].map(minutes => (
+                  <button
+                    key={minutes}
+                    onClick={() => setOptions({ ...options, duration_minutes: minutes })}
+                    className={`home-time-button ${options.duration_minutes === minutes ? 'active' : ''}`}
+                  >
+                    <Clock className="home-time-icon" />
+                    <span className="home-time-label">{minutes}분</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className={`home-generate-button ${generating ? 'disabled' : ''}`}
+            >
+              {generating ? (
+                <span className="home-generating-text">
+                  <div className="home-spinner"></div>
+                  AI가 운동을 생성 중...
+                </span>
+              ) : (
+                '✨ 맞춤 운동 생성하기'
+              )}
+            </button>
         </div>
       </div>
       
-      {/* --- 하단 네비게이션 바 (수정 없음) --- */}
       <div className="home-bottom-nav">
-       {/* ... */}
+        <button
+          onClick={() => {
+            setActiveTab('home');
+            navigate('/');
+          }}
+          className={`home-nav-button ${activeTab === 'home' ? 'active' : ''}`}
+        >
+          <Home className="home-nav-icon" />
+          <span className="home-nav-label">홈</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('exercise')}
+          className={`home-nav-button ${activeTab === 'exercise' ? 'active' : ''}`}
+        >
+          <Dumbbell className="home-nav-icon" />
+          <span className="home-nav-label">운동</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('records');
+            navigate('/records');
+          }}
+          className={`home-nav-button ${activeTab === 'records' ? 'active' : ''}`}
+        >
+          <History className="home-nav-icon" />
+          <span className="home-nav-label">기록</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('my-exercise')}
+          className={`home-nav-button ${activeTab === 'my-exercise' ? 'active' : ''}`}
+        >
+          <ClipboardList className="home-nav-icon" />
+          <span className="home-nav-label">내 운동</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('profile');
+            navigate('/onboarding');
+          }}
+          className={`home-nav-button ${activeTab === 'profile' ? 'active' : ''}`}
+        >
+          <UserCircle className="home-nav-icon" />
+          <span className="home-nav-label">내 정보</span>
+        </button>
       </div>
     </div>
   );

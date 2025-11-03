@@ -455,3 +455,77 @@
     color: var(--primary-color);
     font-weight: 600;
 }
+
+.home-records-card {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.home-records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.home-record-item {
+    padding: 0.875rem;
+    background-color: var(--gray-50);
+    border-radius: 0.5rem;
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.home-record-item:hover {
+    border-color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+.record-exercise-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+
+.record-date {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    white-space: nowrap;
+}
+
+.record-score {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    white-space: nowrap;
+}
+
+.home-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 393px;
+    background-color: #ffffff;
+    display: flex;
+    justify-content: space-around;
+    padding: 0.5rem 0 1.25rem 0;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--gray-200);
+}

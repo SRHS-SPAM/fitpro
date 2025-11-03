@@ -48,7 +48,6 @@ function OnboardingPage({ user, setUser }) {
 
   return (
     <div className="onboarding-wrapper">
-      {/* --- (헤더 및 진행 표시 부분은 수정 없음) --- */}
       <div className="onboarding-header">
         <button onClick={() => navigate('/')} className="onboarding-back-button">
           <ChevronLeft className="onboarding-back-icon" />
@@ -59,11 +58,15 @@ function OnboardingPage({ user, setUser }) {
 
       <div className="onboarding-content">
         <div className="onboarding-progress">
-          {/* ... */}
+          <div className={`onboarding-progress-dot ${step >= 1 ? 'active' : ''}`}></div>
+          <div className={`onboarding-progress-dot ${step >= 2 ? 'active' : ''}`}></div>
+          <div className={`onboarding-progress-dot ${step >= 3 ? 'active' : ''}`}></div>
         </div>
+
         {error && (
           <div className="onboarding-error-box">
-            {/* ... */}
+            <AlertCircle className="onboarding-error-icon" />
+            <p className="onboarding-error-text">{error}</p>
           </div>
         )}
 
@@ -73,21 +76,13 @@ function OnboardingPage({ user, setUser }) {
               <h2 className="onboarding-title">
                 현재 치료 중이신 병명이나<br />불편한 부위를 입력해주세요
               </h2>
-
               <div className="onboarding-parts-grid">
                 {BODY_PARTS.map(part => (
-                  <button
-                    key={part}
-                    onClick={() => handlePartToggle(part)}
-                    className={`onboarding-part-button ${
-                      formData.injured_parts.includes(part) ? 'active' : ''
-                    }`}
-                  >
+                  <button key={part} onClick={() => handlePartToggle(part)} className={`onboarding-part-button ${formData.injured_parts.includes(part) ? 'active' : ''}`}>
                     {part}
                   </button>
                 ))}
               </div>
-              
               <div className="onboarding-input-group single">
                 <textarea
                   value={formData.injured_parts_detail}
@@ -97,42 +92,80 @@ function OnboardingPage({ user, setUser }) {
                   rows="4"
                 />
               </div>
-
               {formData.injured_parts.length > 0 && (
                 <div className="onboarding-tags">
                   {formData.injured_parts.map(part => (
-                    // ⭐ [수정됨] 태그(span)를 클릭하면 handlePartToggle 함수가 호출되도록 수정하고,
-                    // 클릭 가능하다는 것을 알려주기 위해 'removable' 클래스를 추가합니다.
-                    <span
-                      key={part}
-                      onClick={() => handlePartToggle(part)}
-                      className="onboarding-tag removable"
-                    >
+                    <span key={part} onClick={() => handlePartToggle(part)} className="onboarding-tag removable">
                       {part} ×
                     </span>
                   ))}
                 </div>
               )}
-
-              <button
-                onClick={() => setStep(2)}
-                className="onboarding-next-button"
-              >
+              <button onClick={() => setStep(2)} className="onboarding-next-button">
                 다음
               </button>
             </div>
           )}
 
-          {/* --- (Step 2와 Step 3은 수정 없음) --- */}
           {step === 2 && (
             <div>
-              {/* ... */}
+              <h2 className="onboarding-title">
+                현재 통증 수준은 어떤가요?
+              </h2>
+              <p className="onboarding-subtitle">
+                0 (통증 없음) ~ 10 (매우 심함)
+              </p>
+              <div className="onboarding-slider-container">
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  value={formData.pain_level}
+                  onChange={(e) => setFormData({ ...formData, pain_level: parseInt(e.target.value) })}
+                  className="onboarding-slider"
+                />
+                <div className="onboarding-slider-labels">
+                  <span>0</span>
+                  <span className="onboarding-slider-value">{formData.pain_level}</span>
+                  <span>10</span>
+                </div>
+              </div>
+              <div className="onboarding-button-group">
+                <button onClick={() => setStep(1)} className="onboarding-prev-button">
+                  이전
+                </button>
+                <button onClick={() => setStep(3)} className="onboarding-next-button">
+                  다음
+                </button>
+              </div>
             </div>
           )}
 
           {step === 3 && (
             <div>
-              {/* ... */}
+              <h2 className="onboarding-title">
+                하기 어려운 동작이 있나요?
+              </h2>
+              <p className="onboarding-subtitle">
+                예: 쪼그려 앉기, 팔 들어올리기 등 (선택사항)
+              </p>
+              <div className="onboarding-input-group single">
+                <textarea
+                  value={formData.limitations_detail}
+                  onChange={(e) => setFormData({ ...formData, limitations_detail: e.target.value })}
+                  placeholder="예: 쪼그려 앉기 어려움, 팔을 머리 위로 올리기 힘듦"
+                  className="onboarding-textarea"
+                  rows="4"
+                />
+              </div>
+              <div className="onboarding-button-group">
+                <button onClick={() => setStep(2)} className="onboarding-prev-button">
+                  이전
+                </button>
+                <button onClick={handleSubmit} disabled={loading} className="onboarding-next-button">
+                  {loading ? '저장 중...' : '완료'}
+                </button>
+              </div>
             </div>
           )}
         </div>
