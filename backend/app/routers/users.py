@@ -1,63 +1,61 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from bson import ObjectId
 
+# ⭐ [핵심] user_schema와 jwt_handler, database를 정확히 import 합니다.
+from ..schemas.user_schema import UserResponse
+from ..utils.jwt_handler import decode_access_token
 from ..database import get_database
-from ..schemas.user_schema import UserResponse, BodyConditionUpdate
-from ..utils.jwt_handler import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+# 프론트엔드의 /auth/login에서 토큰을 발급하므로, tokenUrl을 정확히 명시합니다.
+# 이 URL은 Swagger UI가 인증 테스트를 할 때 사용하는 경로입니다.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """
+    Authorization 헤더에서 토큰을 받아 유효성을 검사하고,
+    DB에서 해당 사용자 정보를 찾아 반환하는 의존성 함수입니다.
+    다른 모든 API에서 이 함수를 재사용하게 됩니다.
+    """
+    try:
+        payload = decode_access_token(token)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except Exception: # JWTError 등 구체적인 에러 처리 권장
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    db = await get_database()
+    # MongoDB의 _id는 ObjectId 객체이므로, 검색 전에 변환해줍니다.
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # user 딕셔너리에 user_id를 문자열로 추가하여 다른 곳에서 쉽게 사용하도록 합니다.
+    user["user_id"] = str(user["_id"])
+    return user
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+async def read_users_me(current_user: dict = Depends(get_current_user)):
     """
-    현재 로그인한 사용자 정보 조회
+    현재 로그인된 사용자의 정보를 반환합니다. (프론트엔드 App.jsx가 호출)
     """
-    db = await get_database()
-    
-    user = await db.users.find_one({"_id": ObjectId(current_user["user_id"])})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="사용자를 찾을 수 없습니다."
-        )
-    
+    # get_current_user가 반환한 사용자 정보를 UserResponse 스키마에 맞춰 가공합니다.
     return UserResponse(
-        user_id=str(user["_id"]),
-        email=user["email"],
-        name=user["name"],
-        body_condition=user.get("body_condition")
+        user_id=str(current_user["_id"]),
+        email=current_user["email"],
+        name=current_user["name"],
+        body_condition=current_user.get("body_condition"),
+        created_at=current_user["created_at"].isoformat()
     )
-
-
-@router.put("/me/body-condition")
-async def update_body_condition(
-    body_condition: BodyConditionUpdate,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    사용자 신체 상태 업데이트
-    """
-    db = await get_database()
-    
-    # body_condition 업데이트
-    update_data = body_condition.dict(exclude_unset=True)
-    
-    result = await db.users.update_one(
-        {"_id": ObjectId(current_user["user_id"])},
-        {"$set": {"body_condition": update_data}}
-    )
-    
-    if result.matched_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="사용자를 찾을 수 없습니다."
-        )
-    
-    # 업데이트된 사용자 정보 조회
-    updated_user = await db.users.find_one({"_id": ObjectId(current_user["user_id"])})
-    
-    return {
-        "message": "업데이트 완료",
-        "body_condition": updated_user["body_condition"]
-    }

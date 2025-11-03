@@ -1,3 +1,5 @@
+# backend/app/main.py
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,9 +7,10 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.database import connect_to_mongodb, close_mongodb_connection
-from app.routers import auth, users, exercises
 from app.config import settings
 
+# ⭐ [수정됨] 라우터들을 한 번에 import하여 코드를 정리합니다.
+from app.routers import auth, users, exercises, records
 
 # 로깅 설정
 logging.basicConfig(
@@ -120,27 +123,16 @@ async def health_check():
     }
 
 
-# 라우터 등록
-app.include_router(
-    auth.router,
-    prefix="/api/v1",
-    tags=["Authentication"]
-)
-
-app.include_router(
-    users.router,
-    prefix="/api/v1",
-    tags=["Users"]
-)
-
-app.include_router(
-    exercises.router,
-    prefix="/api/v1",
-    tags=["Exercises"]
-)
+# --- 라우터 등록 ---
+# 각 라우터 파일을 앱에 포함시켜 해당 엔드포인트들을 활성화합니다.
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(exercises.router, prefix="/api/v1")
+# ⭐ [추가됨] records 라우터를 등록하여 /api/v1/records 경로를 활성화합니다.
+app.include_router(records.router, prefix="/api/v1")
 
 
-# 개발 환경에서만 사용 (프로덕션에서는 Gunicorn/Uvicorn 사용)
+# 개발 환경에서 직접 실행 시 사용 (프로덕션에서는 Gunicorn/Uvicorn 사용)
 if __name__ == "__main__":
     import uvicorn
     
@@ -149,6 +141,6 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=settings.PORT,
-        reload=True,  # 코드 변경 시 자동 재시작
+        reload=True,
         log_level="info"
     )

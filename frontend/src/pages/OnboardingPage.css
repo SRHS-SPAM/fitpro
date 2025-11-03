@@ -342,3 +342,14 @@
 .onboarding-button-group .onboarding-next-button {
     flex: 1;
 }
+
+
+.onboarding-tag.removable {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.onboarding-tag.removable:hover {
+    background-color: #ef4444;
+    color: white;
+}
