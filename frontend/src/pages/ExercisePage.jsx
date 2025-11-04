@@ -1,153 +1,391 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { exerciseAPI } from '../services/api';
-import CameraView from '../components/camera/CameraView';
-import ExerciseDemo from '../components/exercise/ExerciseDemo';
-import ExerciseFeedback from '../components/exercise/ExerciseFeedback';
-import { Play, Pause, X, CheckCircle, AlertCircle, Activity } from 'lucide-react'; // Activity 아이콘 추가
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera } from '@mediapipe/camera_utils';
+import { Pose } from '@mediapipe/pose';
+import Webcam from 'react-webcam';
+import axios from 'axios';
 
-function ExercisePage({ user }) { // user prop을 받도록 수정
-  const { exerciseId } = useParams();
-  const navigate = useNavigate();
+const ExercisePage = ({ exerciseId }) => {
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const poseRef = useRef(null);
+  
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isStarted, setIsStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(0);
-  const [feedback, setFeedback] = useState(null);
-  const [scores, setScores] = useState([]);
-  const [showCamera, setShowCamera] = useState(false);
-  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState('준비하세요');
+  const [score, setScore] = useState(100);
+  const [totalScore, setTotalScore] = useState([]);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
-  // ⭐ 1. 운동 시작 전 통증 수준을 저장할 상태 추가
-  // 사용자의 현재 통증 수준을 기본값으로 가져옵니다.
-  const [painLevelBefore, setPainLevelBefore] = useState(user?.body_condition?.pain_level || 5);
-  
-  // ⭐ 운동 완료 시 '운동 후' 통증을 물어보기 위한 상태 (선택 사항)
-  // 지금은 간단하게 3으로 고정하겠습니다.
-  const [painLevelAfter, setPainLevelAfter] = useState(3);
-
+  // 운동 정보 불러오기
   useEffect(() => {
-    loadExercise();
+    const fetchExercise = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const token = localStorage.getItem('access_token');
+        console.log('운동 정보 요청 중... ID:', exerciseId);
+        
+        const response = await axios.get(
+          `http://localhost:8000/api/v1/exercises/${exerciseId}`,
+          { 
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 10000 // 10초 타임아웃
+          }
+        );
+        
+        console.log('운동 정보 응답:', response.data);
+        setExercise(response.data);
+        setTimeRemaining(response.data.duration_seconds);
+        setLoading(false);
+      } catch (error) {
+        console.error('운동 정보 로드 실패:', error);
+        setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
+        setLoading(false);
+      }
+    };
+
+    if (exerciseId) {
+      fetchExercise();
+    }
   }, [exerciseId]);
 
-  const loadExercise = async () => {
-    try {
-      const response = await exerciseAPI.getExercise(exerciseId);
-      setExercise(response.data);
-    } catch (err) {
-      setError('운동 정보를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // MediaPipe Pose 초기화
+  useEffect(() => {
+    if (!exercise || !isStarted) return;
 
-  const handleStart = () => {
-    setIsStarted(true);
-    setShowCamera(true);
-  };
-
-  const handlePauseToggle = () => {
-    setIsPaused(!isPaused);
-  };
-
-  const handlePoseDetected = async (landmarks) => {
-    if (isPaused || !isStarted) return;
-    try {
-      const response = await exerciseAPI.analyzeRealtime(exerciseId, {
-        pose_landmarks: landmarks,
-        timestamp_ms: Date.now()
-      });
-      setFeedback(response.data);
-      if (response.data.score) {
-        setScores(prevScores => [...prevScores, response.data.score]);
+    const pose = new Pose({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
       }
-      // ... (자동 카운팅 로직) ...
-    } catch (err) {
-      console.error('Pose analysis failed:', err);
-    }
-  };
+    });
 
-  const handleComplete = async () => {
-    const averageScore = scores.length > 0
-      ? scores.reduce((a, b) => a + b, 0) / scores.length
-      : 0;
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
 
-    try {
-      // ⭐ 3. pain_level_before와 pain_level_after 값을 API로 전송
-      await exerciseAPI.complete(exerciseId, {
-        completed_sets: currentSet,
-        completed_reps: currentRep,
-        average_score: Math.round(averageScore),
-        pain_level_before: painLevelBefore, // 저장해뒀던 '운동 전' 통증 값
-        pain_level_after: painLevelAfter,     // '운동 후' 통증 값 (지금은 3으로 고정)
-        duration_minutes: Math.round(exercise.duration_seconds / 60)
+    pose.onResults(onPoseResults);
+    poseRef.current = pose;
+
+    if (webcamRef.current && webcamRef.current.video) {
+      const camera = new Camera(webcamRef.current.video, {
+        onFrame: async () => {
+          if (poseRef.current && !isPaused) {
+            await poseRef.current.send({ image: webcamRef.current.video });
+          }
+        },
+        width: 640,
+        height: 480
       });
-      navigate('/records');
-    } catch (err) {
-      setError('운동 완료 처리에 실패했습니다.');
+      camera.start();
+    }
+
+    return () => {
+      if (poseRef.current) {
+        poseRef.current.close();
+      }
+    };
+  }, [exercise, isStarted, isPaused]);
+
+  // 자세 분석 결과 처리
+  const onPoseResults = async (results) => {
+    if (!results.poseLandmarks || isPaused) return;
+
+    // Canvas에 스켈레톤 그리기
+    drawSkeleton(results);
+
+    // 2초마다 백엔드로 자세 분석 요청
+    if (Date.now() % 2000 < 100) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const landmarks = results.poseLandmarks.map(lm => ({
+          x: lm.x,
+          y: lm.y,
+          z: lm.z,
+          visibility: lm.visibility
+        }));
+
+        const response = await axios.post(
+          `http://localhost:8000/api/v1/exercises/${exerciseId}/analyze-realtime`,
+          {
+            pose_landmarks: landmarks,
+            timestamp_ms: Date.now() % (exercise.duration_seconds * 1000)
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setFeedback(response.data.feedback);
+        setScore(response.data.score);
+        setTotalScore(prev => [...prev, response.data.score]);
+
+        // 반복 횟수 카운트
+        if (response.data.is_correct && currentRep < exercise.repetitions) {
+          setCurrentRep(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('자세 분석 실패:', error);
+      }
     }
   };
 
-  const handleExit = () => {
-    if (confirm('운동을 종료하시겠습니까?')) {
-      navigate('/');
+  // 스켈레톤 그리기
+  const drawSkeleton = (results) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (results.poseLandmarks) {
+      const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+        [11, 23], [12, 24], [23, 24],
+        [23, 25], [25, 27], [24, 26], [26, 28]
+      ];
+
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 2;
+
+      connections.forEach(([start, end]) => {
+        const startPoint = results.poseLandmarks[start];
+        const endPoint = results.poseLandmarks[end];
+
+        if (startPoint && endPoint) {
+          ctx.beginPath();
+          ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+          ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+          ctx.stroke();
+        }
+      });
+
+      results.poseLandmarks.forEach((landmark) => {
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(
+          landmark.x * canvas.width,
+          landmark.y * canvas.height,
+          5,
+          0,
+          2 * Math.PI
+        );
+        ctx.fill();
+      });
+    }
+
+    ctx.restore();
+  };
+
+  // 타이머
+  useEffect(() => {
+    if (!isStarted || isPaused || timeRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          handleComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isStarted, isPaused, timeRemaining]);
+
+  // 운동 완료
+  const handleComplete = async () => {
+    setIsStarted(false);
+    
+    const avgScore = totalScore.reduce((a, b) => a + b, 0) / totalScore.length || 0;
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.post(
+        `http://localhost:8000/api/v1/exercises/${exerciseId}/complete`,
+        {
+          completed_sets: currentSet,
+          completed_reps: currentRep,
+          average_score: Math.round(avgScore),
+          pain_level_after: 0,
+          duration_minutes: Math.ceil((exercise.duration_seconds - timeRemaining) / 60)
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert(`운동 완료!\n점수: ${response.data.overall_score}\n${response.data.feedback.summary}`);
+    } catch (error) {
+      console.error('운동 완료 저장 실패:', error);
     }
   };
 
-  // ... (loading, error 화면은 동일) ...
+  // 로딩 화면
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
+        <div className="text-gray-400 text-sm mt-2">ID: {exerciseId}</div>
+      </div>
+    );
+  }
+
+  // 에러 화면
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+        <div className="text-white text-2xl mb-2">로딩 실패</div>
+        <div className="text-gray-400 text-center max-w-md">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
+
+  if (!exercise) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* ... (헤더 부분은 동일) ... */}
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
+      <div className="max-w-6xl mx-auto mb-6">
+        <h1 className="text-3xl font-bold mb-2">{exercise.name}</h1>
+        <p className="text-gray-400">{exercise.description}</p>
+      </div>
 
-      <div className="p-4 space-y-4">
-        {!isStarted ? (
-          /* 시작 전 화면 */
-          <div className="bg-gray-800 rounded-2xl p-6">
-            {/* ... (운동 정보, 방법, 주의사항 등 기존 UI는 동일) ... */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+            <Webcam
+              ref={webcamRef}
+              className="absolute top-0 left-0 w-full h-full object-cover"
+              mirrored={true}
+            />
+            <canvas
+              ref={canvasRef}
+              className="absolute top-0 left-0 w-full h-full"
+            />
+            
+            <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+              <div className="text-4xl font-bold">{score}</div>
+              <div className="text-sm text-gray-400">점수</div>
+            </div>
 
-            {/* ⭐ 2. 운동 시작 전 통증 수준을 묻는 UI 추가 */}
-            <div className="mb-8">
-              <h3 className="font-bold mb-3 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary-400" />
-                운동 시작 전 통증 수준
-              </h3>
-              <div className="onboarding-slider-container"> {/* OnboardingPage 스타일 재사용 */}
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  value={painLevelBefore}
-                  onChange={(e) => setPainLevelBefore(parseInt(e.target.value))}
-                  className="onboarding-slider"
-                />
-                <div className="onboarding-slider-labels text-white">
-                  <span>0</span>
-                  <span className="onboarding-slider-value">{painLevelBefore}</span>
-                  <span>10</span>
-                </div>
+            <div className="absolute top-4 right-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+              <div className="text-2xl font-mono">
+                {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
               </div>
             </div>
 
-            <button
-              onClick={handleStart}
-              className="w-full py-4 bg-primary-500 rounded-xl font-bold text-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <Play className="w-6 h-6" />
-              운동 시작하기
-            </button>
+            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg text-center">
+              <p className="text-lg">{feedback}</p>
+            </div>
           </div>
-        ) : (
-          /* 운동 중 화면 */
-          <>
-            {/* ... (운동 중 UI는 동일) ... */}
-          </>
-        )}
+
+          <div className="flex gap-4 mt-4">
+            {!isStarted ? (
+              <button
+                onClick={() => setIsStarted(true)}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+              >
+                운동 시작
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsPaused(!isPaused)}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  {isPaused ? '재개' : '일시정지'}
+                </button>
+                <button
+                  onClick={handleComplete}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  종료
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4">진행 상황</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>세트</span>
+                  <span>{currentSet} / {exercise.sets}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all"
+                    style={{ width: `${(currentSet / exercise.sets) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>반복</span>
+                  <span>{currentRep} / {exercise.repetitions}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-green-500 h-2 rounded-full transition-all"
+                    style={{ width: `${(currentRep / exercise.repetitions) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4">운동 지침</h3>
+            <ol className="space-y-2 text-sm text-gray-300">
+              {exercise.instructions.map((instruction, index) => (
+                <li key={index} className="flex">
+                  <span className="font-semibold mr-2">{index + 1}.</span>
+                  <span>{instruction}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
+            <ul className="space-y-2 text-sm text-gray-300">
+              {exercise.safety_warnings.map((warning, index) => (
+                <li key={index}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default ExercisePage;
