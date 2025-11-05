@@ -13,8 +13,6 @@
     Activity
     } from 'lucide-react';
 
-    // ⭐ [핵심] 더 이상 별도의 CSS 파일을 import할 필요가 없습니다.
-
     function RecordDetailPage() {
     const { recordId } = useParams();
     const navigate = useNavigate();

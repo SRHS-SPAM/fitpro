@@ -1,9 +1,6 @@
-# backend/app/schemas/exercise_schema.py
-
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
-
 
 class PoseLandmark(BaseModel):
     """MediaPipe Pose 랜드마크 좌표"""
@@ -59,6 +56,8 @@ class ExerciseResponse(BaseModel):
     customization_params: Optional[CustomizationParams] = None
     created_at: str
     expires_at: Optional[str] = None
+    # --- [수정] 추천 이유 필드 추가 ---
+    recommendation_reason: Optional[str] = Field(None, description="AI가 이 운동을 추천한 이유")
 
 
 class ExerciseListResponse(BaseModel):
@@ -77,7 +76,23 @@ class ExerciseTemplateCreate(BaseModel):
     reference_angles: Dict[str, float] = {}
     verified_by: str
 
-# 기존 코드 아래에 추가 ↓
+# --- [추가] AI 운동 추천 API를 위한 스키마 ---
+class ExerciseRecommendation(BaseModel):
+    """운동 추천 목록에 포함될 개별 운동 항목"""
+    exercise_id: str = Field(..., description="DB에 저장된 운동의 고유 ID")
+    name: str
+    description: str
+    duration_minutes: int
+    intensity: str
+    sets: int
+    repetitions: int
+    recommendation_reason: str
+
+class RecommendationsResponse(BaseModel):
+    """운동 추천 API의 최종 응답 형태"""
+    exercises: List[ExerciseRecommendation]
+# --- 추가된 부분 끝 ---
+
 
 class PoseAnalysisRequest(BaseModel):
     """실시간 자세 분석 요청"""
@@ -170,7 +185,7 @@ class ExerciseCompleteResponse(BaseModel):
         schema_extra = {
             "example": {
                 "record_id": "65abc123def456789012",
-                "overall_scorWe": 82,
+                "overall_score": 82,
                 "feedback": {
                     "summary": "잘 하셨습니다!",
                     "improvements": ["무릎 각도 주의"],

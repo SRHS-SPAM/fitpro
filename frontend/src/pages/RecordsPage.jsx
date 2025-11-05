@@ -44,6 +44,17 @@ function RecordsPage() {
     });
   };
 
+  // --- [수정] 요청에 맞게 시간 포맷팅 함수 변경 ---
+  const formatDuration = (minutes) => {
+    // duration_minutes 값이 1보다 작으면 '0분'으로 표시
+    if (minutes < 1) {
+      return '0분';
+    }
+    // 그 외에는 숫자를 반올림하여 분 단위로만 표시
+    return `${Math.round(minutes)}분`;
+  };
+  // --- 수정된 부분 끝 ---
+
   const getScoreColorClass = (score) => {
     if (score >= 80) return 'score-green';
     if (score >= 60) return 'score-yellow';
@@ -64,7 +75,7 @@ function RecordsPage() {
 
   // 통계 계산
   const stats = {
-    totalWorkouts: records.length,
+    totalWorkouts: total,
     averageScore: records.length > 0
       ? Math.round(records.reduce((sum, r) => sum + (r.score || 0), 0) / records.length)
       : 0,
@@ -90,7 +101,6 @@ function RecordsPage() {
 
   return (
     <div className="records-page">
-      {/* 헤더 */}
       <div className="records-header">
         <div className="records-header-content">
           <button
@@ -104,7 +114,6 @@ function RecordsPage() {
       </div>
 
       <div className="records-content">
-        {/* 통계 카드 */}
         <div className="records-stats-grid">
           <div className="records-stat-card">
             <div className="records-stat-content">
@@ -129,7 +138,7 @@ function RecordsPage() {
               </div>
             </div>
           </div>
-
+          
           <div className="records-stat-card">
             <div className="records-stat-content">
               <div className="records-stat-icon orange">
@@ -137,7 +146,7 @@ function RecordsPage() {
               </div>
               <div>
                 <p className="records-stat-label">총 운동 시간</p>
-                <p className="records-stat-value">{stats.totalMinutes}분</p>
+                <p className="records-stat-value">{formatDuration(stats.totalMinutes)}</p>
               </div>
             </div>
           </div>
@@ -155,7 +164,6 @@ function RecordsPage() {
           </div>
         </div>
 
-        {/* 운동 기록 목록 */}
         <div className="records-list">
           <h2 className="records-section-title">최근 운동</h2>
           
@@ -169,10 +177,10 @@ function RecordsPage() {
                 첫 운동을 시작해보세요!
               </p>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/exercise-selection')}
                 className="records-empty-button"
               >
-                운동 시작하기
+                AI 추천 받기
               </button>
             </div>
           ) : (
@@ -206,11 +214,10 @@ function RecordsPage() {
                     </div>
                     <div className="records-item-detail time">
                       <Clock />
-                      <span>{record.duration_minutes}분</span>
+                      <span>{formatDuration(record.duration_minutes)}</span>
                     </div>
                   </div>
 
-                  {/* 점수 바 */}
                   <div className="records-progress-bar">
                     <div
                       className={`records-progress-fill ${getProgressColorClass(record.score)}`}
@@ -223,7 +230,6 @@ function RecordsPage() {
           )}
         </div>
 
-        {/* 페이지네이션 */}
         {total > 10 && (
           <div className="records-pagination">
             <button

@@ -30,16 +30,15 @@ function App() {
         localStorage.removeItem('access_token');
       }
     }
-    
-    // setUser({ 
-    //   email: 'dev@test.com', 
-    //   user_id: 'dev_user', 
-    //   name: '개발 사용자',
-    //   body_condition: { injured_parts: [] }
-    // });
-    
     setLoading(false);
   };
+
+  // --- 추가된 로그아웃 핸들러 ---
+  const handleLogout = () => {
+    localStorage.removeItem('access_token'); // 로컬 스토리지에서 토큰 제거
+    setUser(null); // 앱의 user 상태를 null로 업데이트하여 로그아웃 처리
+  };
+  // --- 여기까지 추가 ---
 
   if (loading) {
     return (
@@ -66,7 +65,8 @@ function App() {
       <Route path="/records/:recordId" element={
         user ? <RecordDetailPage /> : <Navigate to="/login" />} />
       <Route path="/" element={
-        user ? <HomePage user={user} /> : <Navigate to="/login" />
+        // HomePage에도 로그아웃 기능을 추가할 수 있으므로 onLogout 전달
+        user ? <HomePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
       } />
       <Route path="/exercise/:exerciseId" element={
         user ? <ExercisePage user={user} /> : <Navigate to="/login" />
@@ -74,9 +74,14 @@ function App() {
       <Route path="/records" element={
         user ? <RecordsPage user={user} /> : <Navigate to="/login" />
       } />
+      
+      {/* --- 수정된 InfoPage 라우트 --- */}
       <Route path="/info" element={
-        user ? <InfoPage user={user} /> : <Navigate to="/login" />
+        // InfoPage에 user 정보와 onLogout 함수를 props로 전달합니다.
+        user ? <InfoPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
       } />
+      {/* --- 여기까지 수정 --- */}
+
       <Route path="/exercise-selection" element={
         user ? <ExerciseSelectionPage /> : <Navigate to="/login" />
       } />
