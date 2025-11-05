@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 import { Pose } from '@mediapipe/pose';
+import { useParams } from 'react-router-dom'; // ⭐ 이 줄을 추가!
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
-const ExercisePage = ({ exerciseId }) => {
+const ExercisePage = () => {  // ⭐ props 제거
+  const { exerciseId } = useParams(); // ⭐ URL에서 exerciseId 추출
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const poseRef = useRef(null);
