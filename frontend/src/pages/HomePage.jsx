@@ -235,7 +235,7 @@ function HomePage({ user }) {
         <button
           onClick={() => {
             setActiveTab('profile');
-            navigate('/onboarding');
+            navigate('/info');
           }}
           className={`home-nav-button ${activeTab === 'profile' ? 'active' : ''}`}
         >

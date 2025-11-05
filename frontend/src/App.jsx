@@ -6,8 +6,9 @@ import RegisterPage from './pages/RegisterPage';
 import OnboardingPage from './pages/OnboardingPage';
 import ExercisePage from './pages/ExercisePage';
 import RecordsPage from './pages/RecordsPage';
-import { authAPI } from './services/api';
 import RecordDetailPage from './pages/RecordDetailPage';
+import InfoPage from './pages/InfoPage';
+import { authAPI } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -71,6 +72,9 @@ function App() {
       } />
       <Route path="/records" element={
         user ? <RecordsPage user={user} /> : <Navigate to="/login" />
+      } />
+      <Route path="/info" element={
+        user ? <InfoPage user={user} /> : <Navigate to="/login" />
       } />
     </Routes>
   );

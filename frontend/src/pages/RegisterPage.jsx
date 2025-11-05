@@ -36,6 +36,7 @@ function RegisterPage({ setUser }) {
       };
       setUser(newUser);
       
+      // navigate('/login');
       navigate('/onboarding');
     } catch (err) {
       setError(err.response?.data?.detail || '회원가입에 실패했습니다.');
