@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exerciseAPI, recordsAPI } from '../services/api';
-import { Activity, Clock, History, AlertCircle, Home, Dumbbell, UserCircle } from 'lucide-react';
+import { recordsAPI } from '../services/api';
+import { Activity, AlertCircle } from 'lucide-react';
+// --- [수정] BottomNav 컴포넌트의 import 경로를 수정합니다. ---
+import BottomNav from '../components/BottomNav'; 
 import './HomePage.css';
 
-// App.jsx로부터 user와 setUser를 props로 받습니다.
-function HomePage({ user, setUser }) {
+function HomePage({ user }) {
   const navigate = useNavigate();
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('home');
   const [records, setRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRecords = async () => {
+      setRecordsLoading(true);
       try {
         const response = await recordsAPI.getRecords(1, 3); 
         setRecords(response.data.records);
@@ -24,10 +24,7 @@ function HomePage({ user, setUser }) {
         setRecordsLoading(false);
       }
     };
-
-    if (user) {
-      fetchRecords();
-    }
+    if (user) fetchRecords();
   }, [user]);
 
   const handleStartExercise = () => {
@@ -59,12 +56,8 @@ function HomePage({ user, setUser }) {
                   <div className="home-injured-section">
                       <span className="home-label">불편 부위:</span>
                       <div className="home-tag-container">
-                      {user.body_condition.injured_parts.map(part => (
-                          <span key={part} className="home-tag">{part}</span>
-                      ))}
-                      {user.body_condition.injured_parts_detail && (
-                          <span className="home-tag detail">{user.body_condition.injured_parts_detail}</span>
-                      )}
+                      {user.body_condition.injured_parts.map(part => ( <span key={part} className="home-tag">{part}</span> ))}
+                      {user.body_condition.injured_parts_detail && ( <span className="home-tag detail">{user.body_condition.injured_parts_detail}</span> )}
                       </div>
                   </div>
                   )}
@@ -73,7 +66,6 @@ function HomePage({ user, setUser }) {
                       <span className="home-pain-value">{user.body_condition.pain_level}/10</span>
                   </div>
               </div>
-              {/* --- [핵심 수정] 잘 작동하는 온보딩 페이지로 링크를 변경 --- */}
               <button onClick={() => navigate('/onboarding')} className="home-edit-button">
                   정보 수정하기 →
               </button>
@@ -82,9 +74,8 @@ function HomePage({ user, setUser }) {
 
         <div className="home-records-card">
             <h2 className="home-main-card-title">📖 최근 운동 기록</h2>
-            {recordsLoading ? (
-            <p>기록을 불러오는 중...</p>
-            ) : records && records.length > 0 ? (
+            {recordsLoading ? (<p>기록을 불러오는 중...</p>) 
+            : records && records.length > 0 ? (
             <div className="home-records-list">
                 {records.map(record => (
                 <div key={record.record_id} className="home-record-item" onClick={() => navigate(`/records/${record.record_id}`)}>
@@ -94,46 +85,20 @@ function HomePage({ user, setUser }) {
                 </div>
                 ))}
             </div>
-            ) : (
-            <p>아직 운동 기록이 없습니다.</p>
-            )}
+            ) : (<p>아직 운동 기록이 없습니다.</p>)}
         </div>
 
         <div className="home-exercise-card">
             <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
-            {error && (
-              <div className="home-error-box">
-                <AlertCircle className="home-error-icon" />
-                <p className="home-error-text">{error}</p>
-              </div>
-            )}
-            <button
-              onClick={handleStartExercise}
-              className="home-generate-button"
-            >
+            <p className="home-card-subtitle">AI가 당신의 현재 상태에 맞춰 운동을 추천해 드립니다.</p>
+            {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
+            <button onClick={handleStartExercise} className="home-generate-button">
               ✨ AI 맞춤 운동 추천받기
             </button>
         </div>
       </div>
       
-      <div className="home-bottom-nav">
-        <button onClick={() => navigate('/')} className="home-nav-button active">
-          <Home className="home-nav-icon" />
-          <span className="home-nav-label">홈</span>
-        </button>
-        <button onClick={() => navigate('/exercise-selection')} className="home-nav-button">
-          <Dumbbell className="home-nav-icon" />
-          <span className="home-nav-label">운동</span>
-        </button>
-        <button onClick={() => navigate('/records')} className="home-nav-button">
-          <History className="home-nav-icon" />
-          <span className="home-nav-label">기록</span>
-        </button>
-        <button onClick={() => navigate('/info')} className="home-nav-button">
-          <UserCircle className="home-nav-icon" />
-          <span className="home-nav-label">내 정보</span>
-        </button>
-      </div>
+      <BottomNav active="home" />
     </div>
   );
 }

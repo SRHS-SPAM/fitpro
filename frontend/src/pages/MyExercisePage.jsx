@@ -1,24 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Clock, Zap, History } from 'lucide-react';
-import BottomNav from '../components/BottomNav'; // 재사용할 하단 네비게이션
+// --- [수정] BottomNav 컴포넌트의 import 경로를 수정합니다. ---
+import BottomNav from '../components/BottomNav';
 
-// 운동 강도에 따른 색상을 반환하는 헬퍼 함수
 const getIntensityColor = (intensity) => {
     switch (intensity?.toLowerCase()) {
         case 'low': return 'bg-green-500';
         case 'medium': return 'bg-yellow-500';
         case 'high': return 'bg-red-500';
+        case 'stretching': return 'bg-blue-500';
         default: return 'bg-gray-500';
     }
 };
 
-// App.jsx로부터 myExercises 목록을 props로 받습니다.
 const MyExercisePage = ({ myExercises }) => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-100">
+        <div className="flex flex-col min-h-screen bg-gray-100 pb-20">
             <header className="bg-white shadow-sm sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto p-4 flex items-center justify-center relative">
                     <button onClick={() => navigate('/')} className="absolute left-4">
