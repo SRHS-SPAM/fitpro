@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 import { Pose } from '@mediapipe/pose';
-import { useParams } from 'react-router-dom'; // ⭐ 이 줄을 추가!
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
 import axios from 'axios';
 
-const ExercisePage = () => {  // ⭐ props 제거
-  const { exerciseId } = useParams(); // ⭐ URL에서 exerciseId 추출
+const ExercisePage = () => {
+  const { exerciseId } = useParams();
+  const navigate = useNavigate();
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const poseRef = useRef(null);
@@ -22,6 +24,42 @@ const ExercisePage = () => {  // ⭐ props 제거
   const [score, setScore] = useState(100);
   const [totalScore, setTotalScore] = useState([]);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [showGuide, setShowGuide] = useState(true);
+  const [guideFrame, setGuideFrame] = useState(0);
+
+  // 운동별 가이드 포즈 데이터 (예시 - 실제로는 백엔드에서 받아와야 함)
+  const guidePoses = {
+    squat: [
+      // 스쿼트 시작 자세
+      {
+        11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 },
+        13: { x: 0.35, y: 0.5 }, 14: { x: 0.65, y: 0.5 },
+        15: { x: 0.3, y: 0.7 }, 16: { x: 0.7, y: 0.7 },
+        23: { x: 0.42, y: 0.6 }, 24: { x: 0.58, y: 0.6 },
+        25: { x: 0.4, y: 0.8 }, 26: { x: 0.6, y: 0.8 },
+        27: { x: 0.38, y: 0.95 }, 28: { x: 0.62, y: 0.95 }
+      },
+      // 스쿼트 내려간 자세
+      {
+        11: { x: 0.4, y: 0.4 }, 12: { x: 0.6, y: 0.4 },
+        13: { x: 0.32, y: 0.55 }, 14: { x: 0.68, y: 0.55 },
+        15: { x: 0.25, y: 0.7 }, 16: { x: 0.75, y: 0.7 },
+        23: { x: 0.42, y: 0.75 }, 24: { x: 0.58, y: 0.75 },
+        25: { x: 0.35, y: 0.85 }, 26: { x: 0.65, y: 0.85 },
+        27: { x: 0.33, y: 0.95 }, 28: { x: 0.67, y: 0.95 }
+      }
+    ],
+    plank: [
+      {
+        11: { x: 0.35, y: 0.4 }, 12: { x: 0.65, y: 0.4 },
+        13: { x: 0.25, y: 0.45 }, 14: { x: 0.75, y: 0.45 },
+        15: { x: 0.2, y: 0.5 }, 16: { x: 0.8, y: 0.5 },
+        23: { x: 0.38, y: 0.55 }, 24: { x: 0.62, y: 0.55 },
+        25: { x: 0.35, y: 0.75 }, 26: { x: 0.65, y: 0.75 },
+        27: { x: 0.33, y: 0.9 }, 28: { x: 0.67, y: 0.9 }
+      }
+    ]
+  };
 
   // 운동 정보 불러오기
   useEffect(() => {
@@ -37,7 +75,7 @@ const ExercisePage = () => {  // ⭐ props 제거
           `http://localhost:8000/api/v1/exercises/${exerciseId}`,
           { 
             headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000 // 10초 타임아웃
+            timeout: 10000
           }
         );
         
@@ -56,6 +94,21 @@ const ExercisePage = () => {  // ⭐ props 제거
       fetchExercise();
     }
   }, [exerciseId]);
+
+  // 가이드 프레임 애니메이션
+  useEffect(() => {
+    if (!isStarted || isPaused || !showGuide) return;
+
+    const interval = setInterval(() => {
+      setGuideFrame(prev => {
+        const exerciseType = exercise?.name?.toLowerCase() || 'squat';
+        const poses = guidePoses[exerciseType] || guidePoses.squat;
+        return (prev + 1) % poses.length;
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isStarted, isPaused, showGuide, exercise]);
 
   // MediaPipe Pose 초기화
   useEffect(() => {
@@ -102,10 +155,8 @@ const ExercisePage = () => {  // ⭐ props 제거
   const onPoseResults = async (results) => {
     if (!results.poseLandmarks || isPaused) return;
 
-    // Canvas에 스켈레톤 그리기
     drawSkeleton(results);
 
-    // 2초마다 백엔드로 자세 분석 요청
     if (Date.now() % 2000 < 100) {
       try {
         const token = localStorage.getItem('access_token');
@@ -129,7 +180,6 @@ const ExercisePage = () => {  // ⭐ props 제거
         setScore(response.data.score);
         setTotalScore(prev => [...prev, response.data.score]);
 
-        // 반복 횟수 카운트
         if (response.data.is_correct && currentRep < exercise.repetitions) {
           setCurrentRep(prev => prev + 1);
         }
@@ -139,7 +189,7 @@ const ExercisePage = () => {  // ⭐ props 제거
     }
   };
 
-  // 스켈레톤 그리기
+  // 스켈레톤 그리기 (사용자 + 가이드)
   const drawSkeleton = (results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -151,15 +201,51 @@ const ExercisePage = () => {  // ⭐ props 제거
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (results.poseLandmarks) {
-      const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
-      ];
+    const connections = [
+      [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+      [11, 23], [12, 24], [23, 24],
+      [23, 25], [25, 27], [24, 26], [26, 28]
+    ];
 
+    // 가이드 실루엣 그리기
+    if (showGuide) {
+      const exerciseType = exercise?.name?.toLowerCase() || 'squat';
+      const poses = guidePoses[exerciseType] || guidePoses.squat;
+      const guidePose = poses[guideFrame];
+
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+      ctx.lineWidth = 4;
+
+      connections.forEach(([start, end]) => {
+        const startPoint = guidePose[start];
+        const endPoint = guidePose[end];
+
+        if (startPoint && endPoint) {
+          ctx.beginPath();
+          ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+          ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+          ctx.stroke();
+        }
+      });
+
+      Object.values(guidePose).forEach((landmark) => {
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
+        ctx.beginPath();
+        ctx.arc(
+          landmark.x * canvas.width,
+          landmark.y * canvas.height,
+          7,
+          0,
+          2 * Math.PI
+        );
+        ctx.fill();
+      });
+    }
+
+    // 사용자 실루엣 그리기
+    if (results.poseLandmarks) {
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
 
       connections.forEach(([start, end]) => {
         const startPoint = results.poseLandmarks[start];
@@ -179,7 +265,7 @@ const ExercisePage = () => {  // ⭐ props 제거
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          5,
+          6,
           0,
           2 * Math.PI
         );
@@ -228,6 +314,7 @@ const ExercisePage = () => {  // ⭐ props 제거
       );
 
       alert(`운동 완료!\n점수: ${response.data.overall_score}\n${response.data.feedback.summary}`);
+      navigate('/');
     } catch (error) {
       console.error('운동 완료 저장 실패:', error);
     }
@@ -251,12 +338,20 @@ const ExercisePage = () => {  // ⭐ props 제거
         <div className="text-red-500 text-6xl mb-4">⚠️</div>
         <div className="text-white text-2xl mb-2">로딩 실패</div>
         <div className="text-gray-400 text-center max-w-md">{error}</div>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-6 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg"
-        >
-          다시 시도
-        </button>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg"
+          >
+            다시 시도
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg"
+          >
+            홈으로
+          </button>
+        </div>
       </div>
     );
   }
@@ -271,7 +366,14 @@ const ExercisePage = () => {  // ⭐ props 제거
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
-      <div className="max-w-6xl mx-auto mb-6">
+      <button
+        onClick={() => navigate('/')}
+        className="flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span>나가기</span>
+      </button>
+      <div className="max-w-6xl mx-auto mb-6 pt-2">
         <h1 className="text-3xl font-bold mb-2">{exercise.name}</h1>
         <p className="text-gray-400">{exercise.description}</p>
       </div>
@@ -300,8 +402,20 @@ const ExercisePage = () => {  // ⭐ props 제거
               </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg text-center">
-              <p className="text-lg">{feedback}</p>
+            <button
+              onClick={() => setShowGuide(!showGuide)}
+              className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition"
+            >
+              {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+            </button>
+
+            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
+              <p className="text-lg text-center">{feedback}</p>
+              {showGuide && (
+                <p className="text-sm text-blue-400 text-center mt-1">
+                  파란색 가이드를 따라하세요
+                </p>
+              )}
             </div>
           </div>
 
