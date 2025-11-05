@@ -8,6 +8,7 @@ import ExercisePage from './pages/ExercisePage';
 import RecordsPage from './pages/RecordsPage';
 import RecordDetailPage from './pages/RecordDetailPage';
 import InfoPage from './pages/InfoPage';
+import ExerciseSelectionPage from './pages/ExerciseSelectionPage';
 import { authAPI } from './services/api';
 
 function App() {
@@ -76,6 +77,10 @@ function App() {
       <Route path="/info" element={
         user ? <InfoPage user={user} /> : <Navigate to="/login" />
       } />
+      <Route path="/exercise-selection" element={
+        user ? <ExerciseSelectionPage /> : <Navigate to="/login" />
+      } />
+      
     </Routes>
   );
 }

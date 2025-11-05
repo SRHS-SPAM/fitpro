@@ -40,7 +40,8 @@ function HomePage({ user }) {
     setGenerating(true);
     try {
       const response = await exerciseAPI.generate(options);
-      navigate(`/exercise/${response.data.exercise_id}`);
+      // navigate(`/exercise/${response.data.exercise_id}`);
+      navigate('/exercise-selection');
     } catch (err) {
       setError(err.response?.data?.detail || '운동 생성에 실패했습니다.');
     } finally {
