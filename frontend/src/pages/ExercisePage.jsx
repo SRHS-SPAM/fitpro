@@ -182,6 +182,12 @@ const ExercisePage = () => {
 
         if (response.data.is_correct && currentRep < exercise.repetitions) {
           setCurrentRep(prev => prev + 1);
+          
+          // 반복 완료 시 다음 세트로
+          if (currentRep + 1 >= exercise.repetitions && currentSet < exercise.sets) {
+            setCurrentSet(prev => prev + 1);
+            setCurrentRep(0); // 반복 횟수 초기화
+          }
         }
       } catch (error) {
         console.error('자세 분석 실패:', error);
@@ -458,7 +464,7 @@ const ExercisePage = () => {
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentSet / exercise.sets) * 100}%` }}
+                    style={{ width: `${Math.min((currentSet / exercise.sets) * 100, 100)}%` }}
                   />
                 </div>
               </div>
@@ -471,7 +477,7 @@ const ExercisePage = () => {
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div
                     className="bg-green-500 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentRep / exercise.repetitions) * 100}%` }}
+                    style={{ width: `${Math.min((currentRep / exercise.repetitions) * 100, 100)}%` }}
                   />
                 </div>
               </div>
