@@ -12,6 +12,7 @@ const ExercisePage = () => {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const poseRef = useRef(null);
+  const cameraRef = useRef(null); // 카메라 참조 추가
   
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,11 +27,11 @@ const ExercisePage = () => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [showGuide, setShowGuide] = useState(true);
   const [guideFrame, setGuideFrame] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
 
-  // 운동별 가이드 포즈 데이터 (예시 - 실제로는 백엔드에서 받아와야 함)
+  // 운동별 가이드 포즈 데이터
   const guidePoses = {
     squat: [
-      // 스쿼트 시작 자세
       {
         11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 },
         13: { x: 0.35, y: 0.5 }, 14: { x: 0.65, y: 0.5 },
@@ -39,7 +40,6 @@ const ExercisePage = () => {
         25: { x: 0.4, y: 0.8 }, 26: { x: 0.6, y: 0.8 },
         27: { x: 0.38, y: 0.95 }, 28: { x: 0.62, y: 0.95 }
       },
-      // 스쿼트 내려간 자세
       {
         11: { x: 0.4, y: 0.4 }, 12: { x: 0.6, y: 0.4 },
         13: { x: 0.32, y: 0.55 }, 14: { x: 0.68, y: 0.55 },
@@ -69,8 +69,6 @@ const ExercisePage = () => {
       
       try {
         const token = localStorage.getItem('access_token');
-        console.log('운동 정보 요청 중... ID:', exerciseId);
-        
         const response = await axios.get(
           `http://localhost:8000/api/v1/exercises/${exerciseId}`,
           { 
@@ -79,7 +77,6 @@ const ExercisePage = () => {
           }
         );
         
-        console.log('운동 정보 응답:', response.data);
         setExercise(response.data);
         setTimeRemaining(response.data.duration_seconds);
         setLoading(false);
@@ -97,7 +94,7 @@ const ExercisePage = () => {
 
   // 가이드 프레임 애니메이션
   useEffect(() => {
-    if (!isStarted || isPaused || !showGuide) return;
+    if (!isStarted || isPaused || !showGuide || isCompleted) return;
 
     const interval = setInterval(() => {
       setGuideFrame(prev => {
@@ -108,11 +105,11 @@ const ExercisePage = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isStarted, isPaused, showGuide, exercise]);
+  }, [isStarted, isPaused, showGuide, exercise, isCompleted]);
 
   // MediaPipe Pose 초기화
   useEffect(() => {
-    if (!exercise || !isStarted) return;
+    if (!exercise || !isStarted || isCompleted) return;
 
     const pose = new Pose({
       locateFile: (file) => {
@@ -134,26 +131,36 @@ const ExercisePage = () => {
     if (webcamRef.current && webcamRef.current.video) {
       const camera = new Camera(webcamRef.current.video, {
         onFrame: async () => {
-          if (poseRef.current && !isPaused) {
-            await poseRef.current.send({ image: webcamRef.current.video });
+          if (poseRef.current && !isPaused && !isCompleted) {
+            try {
+              await poseRef.current.send({ image: webcamRef.current.video });
+            } catch (err) {
+              console.error('Pose send error:', err);
+            }
           }
         },
         width: 640,
         height: 480
       });
+      cameraRef.current = camera;
       camera.start();
     }
 
     return () => {
+      if (cameraRef.current) {
+        cameraRef.current.stop();
+        cameraRef.current = null;
+      }
       if (poseRef.current) {
         poseRef.current.close();
+        poseRef.current = null;
       }
     };
-  }, [exercise, isStarted, isPaused]);
+  }, [exercise, isStarted, isPaused, isCompleted]);
 
   // 자세 분석 결과 처리
   const onPoseResults = async (results) => {
-    if (!results.poseLandmarks || isPaused) return;
+    if (!results.poseLandmarks || isPaused || isCompleted) return;
 
     drawSkeleton(results);
 
@@ -180,14 +187,28 @@ const ExercisePage = () => {
         setScore(response.data.score);
         setTotalScore(prev => [...prev, response.data.score]);
 
-        if (response.data.is_correct && currentRep < exercise.repetitions) {
-          setCurrentRep(prev => prev + 1);
-          
-          // 반복 완료 시 다음 세트로
-          if (currentRep + 1 >= exercise.repetitions && currentSet < exercise.sets) {
-            setCurrentSet(prev => prev + 1);
-            setCurrentRep(0); // 반복 횟수 초기화
-          }
+        if (response.data.is_correct) {
+          setCurrentRep(prevRep => {
+            const newRep = prevRep + 1;
+            
+            if (newRep >= exercise.repetitions) {
+              setCurrentSet(prevSet => {
+                if (prevSet >= exercise.sets) {
+                  // 모든 세트 완료
+                  setIsCompleted(true);
+                  setFeedback('🏆 모든 세트 완료! 수고하셨습니다!');
+                  saveCompletion();
+                  return prevSet;
+                } else {
+                  setFeedback(`🎉 ${prevSet}세트 완료! 다음 세트를 시작하세요.`);
+                  return prevSet + 1;
+                }
+              });
+              return 0;
+            }
+            
+            return newRep;
+          });
         }
       } catch (error) {
         console.error('자세 분석 실패:', error);
@@ -195,7 +216,37 @@ const ExercisePage = () => {
     }
   };
 
-  // 스켈레톤 그리기 (사용자 + 가이드)
+  // 완료 데이터 저장 (분리된 함수)
+  const saveCompletion = async () => {
+    const avgScore = totalScore.length > 0 
+      ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
+      : 0;
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      const completionData = {
+        completed_sets: currentSet,
+        completed_reps: exercise.repetitions,
+        average_score: avgScore,
+        pain_level_after: 5,
+        duration_minutes: Math.max(1, Math.ceil((exercise.duration_seconds - timeRemaining) / 60))
+      };
+      
+      console.log('완료 데이터:', completionData);
+      
+      await axios.post(
+        `http://localhost:8000/api/v1/exercises/${exerciseId}/complete`,
+        completionData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      console.log('운동 완료 저장 성공');
+    } catch (error) {
+      console.error('완료 저장 실패:', error.response?.data);
+    }
+  };
+
+  // 스켈레톤 그리기
   const drawSkeleton = (results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -213,8 +264,7 @@ const ExercisePage = () => {
       [23, 25], [25, 27], [24, 26], [26, 28]
     ];
 
-    // 가이드 실루엣 그리기
-    if (showGuide) {
+    if (showGuide && !isCompleted) {
       const exerciseType = exercise?.name?.toLowerCase() || 'squat';
       const poses = guidePoses[exerciseType] || guidePoses.squat;
       const guidePose = poses[guideFrame];
@@ -248,7 +298,6 @@ const ExercisePage = () => {
       });
     }
 
-    // 사용자 실루엣 그리기
     if (results.poseLandmarks) {
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 3;
@@ -284,12 +333,13 @@ const ExercisePage = () => {
 
   // 타이머
   useEffect(() => {
-    if (!isStarted || isPaused || timeRemaining <= 0) return;
+    if (!isStarted || isPaused || timeRemaining <= 0 || isCompleted) return;
 
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
-          handleComplete();
+          setIsCompleted(true);
+          saveCompletion();
           return 0;
         }
         return prev - 1;
@@ -297,33 +347,26 @@ const ExercisePage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isStarted, isPaused, timeRemaining]);
+  }, [isStarted, isPaused, timeRemaining, isCompleted]);
 
-  // 운동 완료
-  const handleComplete = async () => {
+  // 수동 종료
+  const handleComplete = () => {
+    setIsCompleted(true);
     setIsStarted(false);
-    
-    const avgScore = totalScore.reduce((a, b) => a + b, 0) / totalScore.length || 0;
-    
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await axios.post(
-        `http://localhost:8000/api/v1/exercises/${exerciseId}/complete`,
-        {
-          completed_sets: currentSet,
-          completed_reps: currentRep,
-          average_score: Math.round(avgScore),
-          pain_level_after: 0,
-          duration_minutes: Math.ceil((exercise.duration_seconds - timeRemaining) / 60)
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    saveCompletion();
+  };
 
-      alert(`운동 완료!\n점수: ${response.data.overall_score}\n${response.data.feedback.summary}`);
-      navigate('/');
-    } catch (error) {
-      console.error('운동 완료 저장 실패:', error);
-    }
+  // 재시작
+  const handleRestart = () => {
+    setIsCompleted(false);
+    setCurrentSet(1);
+    setCurrentRep(0);
+    setScore(100);
+    setTotalScore([]);
+    setTimeRemaining(exercise.duration_seconds);
+    setFeedback('준비하세요');
+    setIsStarted(true);
+    setIsPaused(false);
   };
 
   // 로딩 화면
@@ -332,7 +375,6 @@ const ExercisePage = () => {
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
         <div className="text-white text-2xl">운동 정보 로딩 중...</div>
-        <div className="text-gray-400 text-sm mt-2">ID: {exerciseId}</div>
       </div>
     );
   }
@@ -374,11 +416,12 @@ const ExercisePage = () => {
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
       <button
         onClick={() => navigate('/')}
-        className="flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
+        className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
       </button>
+
       <div className="max-w-6xl mx-auto mb-6 pt-2">
         <h1 className="text-3xl font-bold mb-2">{exercise.name}</h1>
         <p className="text-gray-400">{exercise.description}</p>
@@ -408,16 +451,54 @@ const ExercisePage = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowGuide(!showGuide)}
-              className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition"
-            >
-              {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
-            </button>
+            {!isCompleted && (
+              <button
+                onClick={() => setShowGuide(!showGuide)}
+                className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition"
+              >
+                {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+              </button>
+            )}
+
+            {isCompleted && (
+              <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50">
+                <div className="text-center space-y-6 p-8">
+                  <div className="text-6xl mb-4">🏆</div>
+                  <h2 className="text-4xl font-bold text-white mb-2">운동 완료!</h2>
+                  <p className="text-xl text-gray-300 mb-4">
+                    {exercise.sets}세트 × {exercise.repetitions}회 달성
+                  </p>
+                  
+                  <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                    <div className="text-3xl font-bold text-blue-400 mb-2">
+                      {totalScore.length > 0 
+                        ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
+                        : 0}점
+                    </div>
+                    <p className="text-gray-400">평균 점수</p>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleRestart}
+                      className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
+                    >
+                      🔄 다시 하기
+                    </button>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                    >
+                      🏠 홈으로
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
               <p className="text-lg text-center">{feedback}</p>
-              {showGuide && (
+              {showGuide && !isCompleted && (
                 <p className="text-sm text-blue-400 text-center mt-1">
                   파란색 가이드를 따라하세요
                 </p>
@@ -433,6 +514,21 @@ const ExercisePage = () => {
               >
                 운동 시작
               </button>
+            ) : isCompleted ? (
+              <div className="flex-1 flex gap-4">
+                <button
+                  onClick={handleRestart}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  다시 하기
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  종료
+                </button>
+              </div>
             ) : (
               <>
                 <button
