@@ -67,3 +67,34 @@ class UserUpdate(BaseModel):
     """사용자 프로필 업데이트"""
     name: Optional[str] = Field(None, min_length=1, max_length=50)
     body_condition: Optional[BodyCondition] = None
+
+# 기존 코드 아래에 추가
+
+class DeleteAccountRequest(BaseModel):
+    """계정 삭제 요청 (비밀번호 확인)"""
+    password: str = Field(..., min_length=1, description="비밀번호 확인")
+    confirm_text: Optional[str] = Field(None, description="확인 문구 (예: '삭제합니다')")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "password": "password123",
+                "confirm_text": "삭제합니다"
+            }
+        }
+
+
+class DeleteAccountResponse(BaseModel):
+    """계정 삭제 응답"""
+    message: str = Field(..., description="삭제 완료 메시지")
+    deleted_user_id: str = Field(..., description="삭제된 사용자 ID")
+    deleted_at: str = Field(..., description="삭제 시간")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "message": "계정이 성공적으로 삭제되었습니다.",
+                "deleted_user_id": "65abc123def456789012",
+                "deleted_at": "2025-11-06T12:34:56"
+            }
+        }
