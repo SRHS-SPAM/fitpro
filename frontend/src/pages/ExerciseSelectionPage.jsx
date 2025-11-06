@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Clock, Zap, CheckCircle, PlusCircle } from 'lucide-react';
 import axios from 'axios';
 
-// App.jsx로부터 addMyExercise 함수와 myExercises 목록을 props로 받습니다.
+// ✅ 수정사항 없음: 기존대로 props를 받아 사용
 const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 이미 저장된 운동인지 확인하기 위한 ID 집합 (Set)
   const savedExerciseIds = new Set(myExercises.map(ex => ex.exercise_id));
 
   useEffect(() => {
@@ -87,6 +86,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
               {exercise.recommendation_reason && (<div className="bg-blue-900 bg-opacity-30 border border-blue-500 rounded-lg p-3"><p className="text-sm text-blue-200"><span className="font-semibold">💡 추천 이유:</span> {exercise.recommendation_reason}</p></div>)}
               
               <div className="mt-4 grid grid-cols-2 gap-3">
+                {/* ✅ 수정: App.jsx에서 받은 addMyExercise 함수 호출 (API 호출 포함) */}
                 <button
                   onClick={() => addMyExercise(exercise)}
                   disabled={isSaved}

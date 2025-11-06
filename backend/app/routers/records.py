@@ -254,7 +254,9 @@ async def get_statistics(
         raise HTTPException(status_code=500, detail=f"통계 조회 실패: {str(e)}")
 
 
-@router.delete("/{record_id}", status_code=204)
+# backend/app/routers/records.py의 delete_record 함수를 이것으로 교체
+
+@router.delete("/{record_id}")
 async def delete_record(
     record_id: str,
     current_user: dict = Depends(get_current_user),
@@ -262,25 +264,44 @@ async def delete_record(
 ):
     """
     운동 기록 삭제
+    
+    - 기록은 삭제되지만, 이미 집계된 통계(총 운동 시간, 횟수 등)는 유지됩니다.
+    - 실제 운동 기록만 삭제되며, 운동 템플릿(my_exercises)은 영향받지 않습니다.
     """
     try:
+        # 삭제 전에 기록 존재 여부 확인
+        record = await db.records.find_one({
+            "_id": ObjectId(record_id),
+            "user_id": ObjectId(current_user["user_id"])
+        })
+        
+        if not record:
+            raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.")
+        
+        # 기록 삭제
         result = await db.records.delete_one({
             "_id": ObjectId(record_id),
             "user_id": ObjectId(current_user["user_id"])
         })
         
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.")
+            raise HTTPException(status_code=404, detail="기록 삭제에 실패했습니다.")
         
-        return None
+        # 204 No Content 대신 200 OK로 메시지 반환 (프론트엔드에서 확인 가능)
+        return {
+            "message": "기록이 삭제되었습니다.",
+            "record_id": record_id,
+            "deleted_exercise_name": record.get("exercise_name")
+        }
         
+    except HTTPException:
+        raise
     except Exception as e:
         if "not a valid ObjectId" in str(e):
             raise HTTPException(status_code=400, detail="올바르지 않은 기록 ID입니다.")
         raise HTTPException(status_code=500, detail=f"기록 삭제 실패: {str(e)}")
 
 
-# ============== Helper Functions ==============
 
 def _format_record_response(record: dict) -> dict:
     """

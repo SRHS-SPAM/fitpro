@@ -50,13 +50,44 @@ export const exerciseAPI = {
     api.post(`/exercises/${exerciseId}/analyze-realtime`, data),
   complete: (exerciseId, data) => 
     api.post(`/exercises/${exerciseId}/complete`, data),
+  
+  // 내 운동 목록 조회
+  getMyExercises: () => api.get('/exercises/my-exercises'),
+  
+  // 운동 템플릿 삭제
+  deleteExercise: (exerciseId) => api.delete(`/exercises/${exerciseId}`),
+  
+  // ✅ 새로 추가: 운동 저장
+  saveExercise: (exerciseId) => api.post(`/exercises/${exerciseId}/save`),
 };
 
 // Records API
 export const recordsAPI = {
-  getRecords: (page = 1, limit = 10) => 
-    api.get('/records', { params: { page, limit } }),
+  // 기록 목록 조회 (페이지네이션)
+  getRecords: (page = 1, limit = 10, params = {}) => 
+    api.get('/records', { 
+      params: { 
+        page, 
+        limit,
+        ...params
+      } 
+    }),
+  
+  // 특정 기록 상세 조회
   getRecord: (recordId) => api.get(`/records/${recordId}`),
+  
+  // 기록 삭제
+  deleteRecord: (recordId) => api.delete(`/records/${recordId}`),
+  
+  // 통계 조회 (주간/월간/연간)
+  getStatistics: (period = 'week') => {
+    if (period === 'cumulative') {
+      return api.get('/records/statistics/cumulative');
+    }
+    return api.get('/records/statistics/summary', { 
+      params: { period }
+    });
+  },
 };
 
 export default api;

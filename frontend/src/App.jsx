@@ -10,33 +10,18 @@ import RecordDetailPage from './pages/RecordDetailPage';
 import InfoPage from './pages/InfoPage';
 import ExerciseSelectionPage from './pages/ExerciseSelectionPage';
 import MyExercisePage from './pages/MyExercisePage';
-import { authAPI } from './services/api';
+import { authAPI, exerciseAPI } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  const [myExercises, setMyExercises] = useState(() => {
-    try {
-      const saved = localStorage.getItem('myExercises');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error("Failed to parse myExercises from localStorage", error);
-      return [];
-    }
-  });
+  // ✅ 수정: localStorage 제거, DB에서 가져온 데이터만 사용
+  const [myExercises, setMyExercises] = useState([]);
 
-  useEffect(() => {
-    localStorage.setItem('myExercises', JSON.stringify(myExercises));
-  }, [myExercises]);
-
-  const addMyExercise = (exerciseToAdd) => {
-    if (!myExercises.some(ex => ex.exercise_id === exerciseToAdd.exercise_id)) {
-      setMyExercises(prev => [...prev, exerciseToAdd]);
-    }
-  };
-
-  useEffect(() => { checkAuth(); }, []);
+  useEffect(() => { 
+    checkAuth(); 
+  }, []);
 
   const checkAuth = async () => {
     const token = localStorage.getItem('access_token');
@@ -44,6 +29,9 @@ function App() {
       try {
         const response = await authAPI.getCurrentUser();
         setUser(response.data);
+        
+        // ✅ 추가: 로그인 시 '내 운동' 목록을 DB에서 불러오기
+        await loadMyExercises();
       } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('access_token');
@@ -52,9 +40,47 @@ function App() {
     setLoading(false);
   };
 
+  // ✅ 새로 추가: DB에서 '내 운동' 목록 불러오기
+  const loadMyExercises = async () => {
+    try {
+      const response = await exerciseAPI.getMyExercises();
+      setMyExercises(response.data.exercises || []);
+    } catch (error) {
+      console.error('Failed to load my exercises:', error);
+    }
+  };
+
+  // ✅ 수정: API 호출 후 state 업데이트
+  const addMyExercise = async (exerciseToAdd) => {
+    try {
+      await exerciseAPI.saveExercise(exerciseToAdd.exercise_id);
+      
+      // API 호출 성공 시 프론트엔드 state에도 추가
+      if (!myExercises.some(ex => ex.exercise_id === exerciseToAdd.exercise_id)) {
+        setMyExercises(prev => [...prev, exerciseToAdd]);
+      }
+    } catch (error) {
+      console.error('Failed to save exercise:', error);
+      alert('운동 저장에 실패했습니다.');
+    }
+  };
+
+  // ✅ 새로 추가: 운동 삭제 함수
+  const removeMyExercise = async (exerciseId) => {
+    try {
+      await exerciseAPI.deleteExercise(exerciseId);
+      
+      // API 호출 성공 시 프론트엔드 state에서도 제거
+      setMyExercises(prev => prev.filter(ex => ex.exercise_id !== exerciseId));
+    } catch (error) {
+      console.error('Failed to delete exercise:', error);
+      throw error; // 에러를 다시 던져서 MyExercisePage에서 처리하도록
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('myExercises');
+    // ✅ 수정: localStorage의 myExercises 제거 불필요 (이미 사용 안 함)
     setUser(null);
     setMyExercises([]);
   };
@@ -85,8 +111,9 @@ function App() {
         user ? <ExerciseSelectionPage myExercises={myExercises} addMyExercise={addMyExercise} /> : <Navigate to="/login" />
       } />
       
+      {/* ✅ 수정: removeMyExercise props 추가 */}
       <Route path="/my-exercises" element={
-        user ? <MyExercisePage myExercises={myExercises} /> : <Navigate to="/login" />
+        user ? <MyExercisePage myExercises={myExercises} removeMyExercise={removeMyExercise} /> : <Navigate to="/login" />
       } />
     </Routes>
   );

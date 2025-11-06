@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Clock, Zap, History } from 'lucide-react';
-// --- [수정] BottomNav 컴포넌트의 import 경로를 수정합니다. ---
+import { ArrowLeft, Dumbbell, Clock, Zap, History, Trash2 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 
 const getIntensityColor = (intensity) => {
@@ -14,8 +13,32 @@ const getIntensityColor = (intensity) => {
     }
 };
 
-const MyExercisePage = ({ myExercises }) => {
+// ✅ 수정: App.jsx에서 myExercises와 removeMyExercise를 props로 받음
+const MyExercisePage = ({ myExercises, removeMyExercise }) => {
     const navigate = useNavigate();
+    const [deleteId, setDeleteId] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+
+    // ✅ 제거: useEffect와 loadMyExercises 함수 삭제 (App.jsx에서 관리)
+
+    // ✅ 수정: App.jsx에서 받은 removeMyExercise 함수 호출
+    const handleDelete = async (exerciseId) => {
+        setDeleting(true);
+        try {
+            await removeMyExercise(exerciseId);
+            setSuccessMessage('운동이 삭제되었습니다.');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            setDeleteId(null);
+        } catch (err) {
+            console.error('Failed to delete exercise:', err);
+            alert('운동 삭제에 실패했습니다.');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    // ✅ 제거: loading state 관련 UI 삭제 (App.jsx에서 관리)
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-100 pb-20">
@@ -28,16 +51,44 @@ const MyExercisePage = ({ myExercises }) => {
                 </div>
             </header>
 
+            {successMessage && (
+                <div style={{
+                    position: 'fixed',
+                    top: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    zIndex: 50,
+                }}>
+                    {successMessage}
+                </div>
+            )}
+
             <main className="flex-grow p-4">
                 <div className="max-w-4xl mx-auto">
+                    {/* ✅ 수정: App.jsx에서 받은 myExercises props 사용 */}
                     {myExercises && myExercises.length > 0 ? (
                         <div className="space-y-4">
                             {myExercises.map((exercise) => (
                                 <div
                                     key={exercise.exercise_id}
-                                    className="bg-white rounded-xl p-6 shadow-md border border-gray-200"
+                                    className="bg-white rounded-xl p-6 shadow-md border border-gray-200 relative"
                                 >
-                                    <div className="flex items-start justify-between mb-4">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteId(exercise.exercise_id);
+                                        }}
+                                        className="absolute top-4 right-4 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-5 h-5 text-red-500" />
+                                    </button>
+
+                                    <div className="flex items-start justify-between mb-4 pr-10">
                                         <div className="flex-1">
                                             <h3 className="text-xl font-bold text-gray-900 mb-1">{exercise.name}</h3>
                                             <p className="text-gray-600 text-sm">{exercise.description}</p>
@@ -89,6 +140,121 @@ const MyExercisePage = ({ myExercises }) => {
                     )}
                 </div>
             </main>
+
+            {/* 삭제 확인 모달 */}
+            {deleteId && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 50,
+                    padding: '16px'
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        maxWidth: '400px',
+                        width: '100%'
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px',
+                            backgroundColor: '#fee2e2',
+                            borderRadius: '50%',
+                            margin: '0 auto 16px'
+                        }}>
+                            <Trash2 style={{ width: '24px', height: '24px', color: '#dc2626' }} />
+                        </div>
+                        <h3 style={{
+                            fontSize: '20px',
+                            fontWeight: 'bold',
+                            color: '#111827',
+                            textAlign: 'center',
+                            marginBottom: '8px'
+                        }}>
+                            운동을 삭제하시겠습니까?
+                        </h3>
+                        <p style={{
+                            color: '#6b7280',
+                            textAlign: 'center',
+                            marginBottom: '8px',
+                            fontSize: '14px'
+                        }}>
+                            이 운동 템플릿이 삭제됩니다.
+                        </p>
+                        <p style={{
+                            color: '#3b82f6',
+                            textAlign: 'center',
+                            marginBottom: '24px',
+                            fontSize: '13px',
+                            fontWeight: '500'
+                        }}>
+                            ※ 이미 완료한 운동 기록은 유지됩니다
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                onClick={() => setDeleteId(null)}
+                                disabled={deleting}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 16px',
+                                    backgroundColor: '#e5e7eb',
+                                    color: '#374151',
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    border: 'none',
+                                    cursor: deleting ? 'not-allowed' : 'pointer',
+                                    opacity: deleting ? 0.5 : 1
+                                }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => handleDelete(deleteId)}
+                                disabled={deleting}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 16px',
+                                    backgroundColor: '#ef4444',
+                                    color: 'white',
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    border: 'none',
+                                    cursor: deleting ? 'not-allowed' : 'pointer',
+                                    opacity: deleting ? 0.5 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                {deleting ? (
+                                    <>
+                                        <div style={{
+                                            width: '16px',
+                                            height: '16px',
+                                            border: '2px solid white',
+                                            borderTopColor: 'transparent',
+                                            borderRadius: '50%',
+                                            animation: 'spin 1s linear infinite'
+                                        }}></div>
+                                        삭제 중...
+                                    </>
+                                ) : (
+                                    '삭제'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <BottomNav active="my-exercise" />
         </div>
