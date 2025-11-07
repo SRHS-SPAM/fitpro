@@ -263,7 +263,7 @@ const ExercisePage = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);
+    ctx.translate(-canvas.width, 0);  
 
     const connections = [
       [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
