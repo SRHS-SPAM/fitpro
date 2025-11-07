@@ -102,6 +102,12 @@
     margin: 0 0 1rem 0;
 }
 
+.home-card-subtitle {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0 0 1rem 0;
+}
+
 .home-status-content {
     display: flex;
     flex-direction: column;
@@ -110,7 +116,7 @@
 
 .home-injured-section {
     display: flex;
-    flex-direction: column;
+    /* flex-direction: column; */
     gap: 0.5rem;
 }
 
@@ -118,6 +124,9 @@
     font-size: 0.875rem;
     color: var(--gray-600);
     font-weight: 500;
+
+    display: flex;
+    align-items: center;
 }
 
 .home-tag-container {
@@ -169,6 +178,7 @@
 .home-exercise-card {
     background-color: #ffffff;
     border-radius: 1rem;
+    margin-bottom: 1rem;
     padding: 1.25rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -177,7 +187,7 @@
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--gray-900);
-    margin: 0 0 1.25rem 0;
+    margin: 0 0 0.5rem 0;
 }
 
 /* Error Box */
@@ -459,8 +469,8 @@
 .home-records-card {
     background-color: #ffffff;
     border-radius: 1rem;
-    padding: 1.25rem;
     margin-bottom: 1rem;
+    padding: 1.25rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
