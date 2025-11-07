@@ -217,6 +217,19 @@ async def get_exercise(
             detail="운동을 찾을 수 없습니다."
         )
     
+    # ✨ guide_poses가 없으면 기본 가이드 생성
+    guide_poses = exercise.get("guide_poses", [])
+    if not guide_poses:
+        # 운동 이름 기반으로 기본 가이드 생성
+        from ..services.exercise_generation_service import generate_guide_poses
+        guide_poses = generate_guide_poses(exercise.get("name", "기본 운동"))
+        
+        # DB에 저장 (다음번엔 다시 생성 안 해도 됨)
+        await db.generated_exercises.update_one(
+            {"_id": ObjectId(exercise_id)},
+            {"$set": {"guide_poses": guide_poses}}
+        )
+    
     return ExerciseResponse(
         exercise_id=str(exercise["_id"]),
         name=exercise["name"],
@@ -227,17 +240,10 @@ async def get_exercise(
         sets=exercise["sets"],
         target_parts=exercise["target_parts"],
         safety_warnings=exercise["safety_warnings"],
-        
-        # 1. intensity: .get()을 사용하고, 기본값을 "medium" 등으로 설정
-        intensity=exercise.get("intensity", "medium"), 
-        
-        # 2. silhouette_animation: 기본값을 [] (리스트) 대신 {} (딕셔너리)로 변경
-        silhouette_animation=exercise.get("silhouette_animation", {}), 
-        
-        guide_poses=exercise.get("guide_poses", []), 
-        
-        # 3. created_at: datetime 객체를 .isoformat()을 사용해 문자열로 변환
-        created_at=exercise["created_at"].isoformat() 
+        intensity=exercise.get("intensity", "medium"),
+        silhouette_animation=exercise.get("silhouette_animation", {}),
+        guide_poses=guide_poses,  # ✨ 수정된 guide_poses 사용
+        created_at=exercise["created_at"].isoformat()
     )
 
 
