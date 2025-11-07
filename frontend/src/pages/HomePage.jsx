@@ -74,6 +74,7 @@ function HomePage({ user }) {
 
         <div className="home-exercise-card">
             <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
+            <img src="/home_img.png" alt="운동하는 모습" className='home-img'/>
             <p className="home-card-subtitle">AI가 당신의 현재 상태에 맞춰 운동을<br/> 추천해 드립니다.</p>
             {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
             <button onClick={handleStartExercise} className="home-generate-button">

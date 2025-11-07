@@ -103,9 +103,9 @@
 }
 
 .home-card-subtitle {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: #6b7280;
-    margin: 0 0 1rem 0;
+    margin: 0.4rem 0 1rem 0.5rem;
 }
 
 .home-status-content {
@@ -122,7 +122,7 @@
 
 .home-label {
     font-size: 0.875rem;
-    color: var(--gray-600);
+    color: var(--gray-600);     
     font-weight: 500;
 
     display: flex;
@@ -188,6 +188,10 @@
     font-weight: 700;
     color: var(--gray-900);
     margin: 0 0 0.5rem 0;
+}
+
+.home-img {
+    border-radius: 1rem;
 }
 
 /* Error Box */
