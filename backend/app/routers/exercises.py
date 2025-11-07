@@ -62,6 +62,8 @@ async def get_exercise_recommendations(current_user: dict = Depends(get_current_
             "intensity": intensity,  # ✅ 추가 (최상위 필드)
             "target_parts": rec.get("target_parts", []),
             "safety_warnings": rec.get("safety_warnings", []),
+            "silhouette_animation": rec.get("silhouette_animation", {}),
+            "guide_poses": rec.get("guide_poses", []),
             "customization_params": { "intensity": intensity },
             "recommendation_reason": rec.get("recommendation_reason"),
             "is_saved": False,
@@ -125,11 +127,19 @@ async def save_exercise(
 
 
 @router.post("/generate", response_model=ExerciseResponse)
-async def generate_exercise(request: ExerciseGenerateRequest, current_user: dict = Depends(get_current_user)):
+async def generate_exercise(
+    request: ExerciseGenerateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """사용자 맞춤 운동 생성 (AI 기반)"""
     db = await get_database()
+    
     user = await db.users.find_one({"_id": ObjectId(current_user["user_id"])})
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="사용자를 찾을 수 없습니다."
+        )
     
     try:
         generated_exercise = await generate_personalized_exercise(
@@ -140,54 +150,94 @@ async def generate_exercise(request: ExerciseGenerateRequest, current_user: dict
             db=db
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"운동 생성 중 오류가 발생했습니다: {str(e)}")
-    
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"운동 생성 중 오류가 발생했습니다: {str(e)}"
+        )
+
     exercise_doc = {
         "user_id": ObjectId(current_user["user_id"]),
         "base_template_id": generated_exercise.get("base_template_id"),
-        "name": generated_exercise["name"], "description": generated_exercise["description"],
-        "instructions": generated_exercise["instructions"], "duration_seconds": generated_exercise["duration_seconds"],
-        "repetitions": generated_exercise["repetitions"], "sets": generated_exercise["sets"],
-        "target_parts": generated_exercise["target_parts"], "safety_warnings": generated_exercise["safety_warnings"],
-        "silhouette_animation": generated_exercise.get("silhouette_animation"),
+        "name": generated_exercise["name"],
+        "description": generated_exercise["description"],
+        "instructions": generated_exercise["instructions"],
+        "duration_seconds": generated_exercise["duration_seconds"],
+        "repetitions": generated_exercise["repetitions"],
+        "sets": generated_exercise["sets"],
+        "target_parts": generated_exercise["target_parts"],
+        "safety_warnings": generated_exercise["safety_warnings"],
+        "silhouette_animation": generated_exercise["silhouette_animation"],
+        "guide_poses": generated_exercise.get("guide_poses", []),  # ✨ 추가
         "customization_params": generated_exercise.get("customization_params", {}),
-        "is_saved": True,  # ✅ 추가: 직접 생성한 운동은 바로 저장됨
-        "created_at": datetime.utcnow(), "expires_at": datetime.utcnow() + timedelta(days=7)
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(days=7)
     }
+    
     result = await db.generated_exercises.insert_one(exercise_doc)
     exercise_id = str(result.inserted_id)
     
     return ExerciseResponse(
-        exercise_id=exercise_id, name=generated_exercise["name"], description=generated_exercise["description"],
-        instructions=generated_exercise["instructions"], duration_seconds=generated_exercise["duration_seconds"],
-        repetitions=generated_exercise["repetitions"], sets=generated_exercise["sets"],
-        target_parts=generated_exercise["target_parts"], safety_warnings=generated_exercise["safety_warnings"],
-        intensity=request.intensity, silhouette_animation=generated_exercise["silhouette_animation"],
-        created_at=exercise_doc["created_at"].isoformat()
+        exercise_id=exercise_id,
+        name=generated_exercise["name"],
+        description=generated_exercise["description"],
+        instructions=generated_exercise["instructions"],
+        duration_seconds=generated_exercise["duration_seconds"],
+        repetitions=generated_exercise["repetitions"],
+        sets=generated_exercise["sets"],
+        target_parts=generated_exercise["target_parts"],
+        safety_warnings=generated_exercise["safety_warnings"],
+        silhouette_animation=generated_exercise["silhouette_animation"],
+        guide_poses=generated_exercise.get("guide_poses", []),  # ✨ 추가
+        created_at=exercise_doc["created_at"]
     )
 
 
 @router.get("/{exercise_id}", response_model=ExerciseResponse)
-async def get_exercise(exercise_id: str, current_user: dict = Depends(get_current_user)):
+async def get_exercise(
+    exercise_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """특정 운동 상세 조회"""
     db = await get_database()
-    try:
-        obj_id = ObjectId(exercise_id)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
     
-    exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": ObjectId(current_user["user_id"])})
+    try:
+        exercise = await db.generated_exercises.find_one({
+            "_id": ObjectId(exercise_id),
+            "user_id": ObjectId(current_user["user_id"])
+        })
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="잘못된 운동 ID입니다."
+        )
+    
     if not exercise:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="운동을 찾을 수 없거나 접근 권한이 없습니다.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="운동을 찾을 수 없습니다."
+        )
     
     return ExerciseResponse(
-        exercise_id=str(exercise["_id"]), name=exercise["name"], description=exercise["description"],
-        instructions=exercise["instructions"], duration_seconds=exercise["duration_seconds"],
-        repetitions=exercise["repetitions"], sets=exercise["sets"], target_parts=exercise["target_parts"],
+        exercise_id=str(exercise["_id"]),
+        name=exercise["name"],
+        description=exercise["description"],
+        instructions=exercise["instructions"],
+        duration_seconds=exercise["duration_seconds"],
+        repetitions=exercise["repetitions"],
+        sets=exercise["sets"],
+        target_parts=exercise["target_parts"],
         safety_warnings=exercise["safety_warnings"],
-        intensity=exercise.get("customization_params", {}).get("intensity", "medium"),
-        silhouette_animation=exercise.get("silhouette_animation"),
-        created_at=exercise["created_at"].isoformat(),
-        recommendation_reason=exercise.get("recommendation_reason")
+        
+        # 1. intensity: .get()을 사용하고, 기본값을 "medium" 등으로 설정
+        intensity=exercise.get("intensity", "medium"), 
+        
+        # 2. silhouette_animation: 기본값을 [] (리스트) 대신 {} (딕셔너리)로 변경
+        silhouette_animation=exercise.get("silhouette_animation", {}), 
+        
+        guide_poses=exercise.get("guide_poses", []), 
+        
+        # 3. created_at: datetime 객체를 .isoformat()을 사용해 문자열로 변환
+        created_at=exercise["created_at"].isoformat() 
     )
 
 

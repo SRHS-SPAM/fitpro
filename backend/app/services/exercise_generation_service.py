@@ -10,7 +10,7 @@ client = AsyncOpenAI(
     api_key=settings.OPENAI_API_KEY
 )
 
-# --- 기존 단일 운동 생성 함수 (변경 없음) ---
+# --- 기존 단일 운동 생성 함수 (guide_poses 추가) ---
 async def generate_personalized_exercise(
     user_body_condition: Dict,
     exercise_type: str,
@@ -35,7 +35,7 @@ async def generate_personalized_exercise(
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini", # 모델 변경 안 했음. 약속 지킴.
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "당신은 전문 재활 운동 트레이너입니다. 사용자의 신체 상태에 맞는 안전하고 효과적인 운동 1개를 JSON 형식으로 생성합니다."},
                 {"role": "user", "content": prompt}
@@ -55,6 +55,9 @@ async def generate_personalized_exercise(
         user_limitations=user_body_condition.get("limitations", [])
     )
 
+    # ✨ guide_poses 생성 추가
+    guide_poses = generate_guide_poses(exercise_data.get("name", "기본 운동"))
+
     final_exercise = {
         "base_template_id": base_template.get("_id"),
         "name": exercise_data.get("name", "맞춤 재활 운동"),
@@ -66,6 +69,7 @@ async def generate_personalized_exercise(
         "target_parts": exercise_data.get("target_parts", ["전신"]),
         "safety_warnings": exercise_data.get("safety_warnings", ["통증이 느껴지면 즉시 중단하세요"]),
         "silhouette_animation": customized_animation,
+        "guide_poses": guide_poses,  # ✨ 추가
         "customization_params": {
             "intensity": intensity,
             "speed_multiplier": get_speed_multiplier(intensity),
@@ -75,7 +79,7 @@ async def generate_personalized_exercise(
     }
     return final_exercise
 
-# --- 추가된 부분 시작 ---
+# --- 추천 운동 생성 함수 (guide_poses 추가) ---
 
 def create_recommendations_prompt(user_body_condition: Dict) -> str:
     """
@@ -138,6 +142,7 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
 async def generate_exercise_recommendations(user_body_condition: Dict) -> List[Dict[str, Any]]:
     """
     AI를 사용하여 사용자에게 여러 맞춤 운동을 추천합니다.
+    ✨ 각 추천 운동에 guide_poses 추가
     """
     if not user_body_condition:
         return []
@@ -146,7 +151,7 @@ async def generate_exercise_recommendations(user_body_condition: Dict) -> List[D
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini", # 약속대로 절대 안 바꿨습니다.
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "당신은 사용자의 데이터를 분석하여 맞춤 운동 여러 개를 추천하는 최고의 재활 전문가입니다. 응답은 반드시 지정된 JSON 형식의 리스트로 제공해야 합니다."},
                 {"role": "user", "content": prompt}
@@ -157,21 +162,254 @@ async def generate_exercise_recommendations(user_body_condition: Dict) -> List[D
         )
         
         content = response.choices[0].message.content
-        # OpenAI가 가끔 불필요한 마크다운을 추가하는 경우가 있어 제거
         if content.strip().startswith("```json"):
             content = content.strip()[7:-3]
             
         result = json.loads(content)
-        return result.get("recommendations", [])
+        recommendations = result.get("recommendations", [])
+        
+        # ✨ 각 추천 운동에 guide_poses 추가
+        for rec in recommendations:
+            rec["guide_poses"] = generate_guide_poses(rec.get("name", "기본 운동"))
+        
+        return recommendations
 
     except Exception as e:
         print(f"OpenAI API 오류 (다중 추천): {e}")
-        return [] # 오류 발생 시 빈 리스트 반환
+        return []
 
-# --- 추가된 부분 끝 ---
+
+# ✨ ============ 가이드 포즈 생성 함수 추가 ============
+
+def generate_guide_poses(exercise_name: str) -> List[Dict[str, Dict[str, float]]]:
+    """
+    운동 이름 기반 가이드 포즈 생성
+    
+    Args:
+        exercise_name: 운동 이름 (예: "무릎 보호 스쿼트")
+    
+    Returns:
+        guide_poses: MediaPipe 랜드마크 11-28의 키프레임 배열
+    """
+    # 운동 이름에서 키워드 추출하여 해당 가이드 포즈 반환
+    exercise_name_lower = exercise_name.lower()
+    
+    if "스쿼트" in exercise_name:
+        return get_squat_guide_poses()
+    elif "런지" in exercise_name:
+        return get_lunge_guide_poses()
+    elif "플랭크" in exercise_name:
+        return get_plank_guide_poses()
+    elif "팔굽혀펴기" in exercise_name or "푸시업" in exercise_name:
+        return get_pushup_guide_poses()
+    elif "레그" in exercise_name and "레이즈" in exercise_name:
+        return get_leg_raise_guide_poses()
+    elif "스트레칭" in exercise_name or "스트레치" in exercise_name:
+        return get_stretching_guide_poses()
+    else:
+        return get_default_guide_poses()
+
+
+def get_squat_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """스쿼트 가이드 포즈 (2개 키프레임)"""
+    return [
+        # 프레임 1: 서있는 자세
+        {
+            "11": {"x": 0.4, "y": 0.3},   # 왼쪽 어깨
+            "12": {"x": 0.6, "y": 0.3},   # 오른쪽 어깨
+            "13": {"x": 0.35, "y": 0.5},  # 왼쪽 팔꿈치
+            "14": {"x": 0.65, "y": 0.5},  # 오른쪽 팔꿈치
+            "15": {"x": 0.3, "y": 0.7},   # 왼쪽 손목
+            "16": {"x": 0.7, "y": 0.7},   # 오른쪽 손목
+            "23": {"x": 0.42, "y": 0.6},  # 왼쪽 엉덩이
+            "24": {"x": 0.58, "y": 0.6},  # 오른쪽 엉덩이
+            "25": {"x": 0.4, "y": 0.8},   # 왼쪽 무릎
+            "26": {"x": 0.6, "y": 0.8},   # 오른쪽 무릎
+            "27": {"x": 0.38, "y": 0.95}, # 왼쪽 발목
+            "28": {"x": 0.62, "y": 0.95}  # 오른쪽 발목
+        },
+        # 프레임 2: 앉은 자세 (스쿼트 하단)
+        {
+            "11": {"x": 0.4, "y": 0.4},
+            "12": {"x": 0.6, "y": 0.4},
+            "13": {"x": 0.32, "y": 0.55},
+            "14": {"x": 0.68, "y": 0.55},
+            "15": {"x": 0.25, "y": 0.7},
+            "16": {"x": 0.75, "y": 0.7},
+            "23": {"x": 0.42, "y": 0.75},
+            "24": {"x": 0.58, "y": 0.75},
+            "25": {"x": 0.35, "y": 0.85},
+            "26": {"x": 0.65, "y": 0.85},
+            "27": {"x": 0.33, "y": 0.95},
+            "28": {"x": 0.67, "y": 0.95}
+        }
+    ]
+
+
+def get_lunge_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """런지 가이드 포즈"""
+    return [
+        {
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95}
+        },
+        {
+            "11": {"x": 0.4, "y": 0.35},
+            "12": {"x": 0.6, "y": 0.35},
+            "13": {"x": 0.32, "y": 0.55},
+            "14": {"x": 0.68, "y": 0.55},
+            "15": {"x": 0.28, "y": 0.75},
+            "16": {"x": 0.72, "y": 0.75},
+            "23": {"x": 0.42, "y": 0.65},
+            "24": {"x": 0.58, "y": 0.65},
+            "25": {"x": 0.35, "y": 0.8},
+            "26": {"x": 0.65, "y": 0.85},
+            "27": {"x": 0.33, "y": 0.92},
+            "28": {"x": 0.67, "y": 0.97}
+        }
+    ]
+
+
+def get_plank_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """플랭크 가이드 포즈"""
+    return [
+        {
+            "11": {"x": 0.35, "y": 0.45},
+            "12": {"x": 0.65, "y": 0.45},
+            "13": {"x": 0.25, "y": 0.5},
+            "14": {"x": 0.75, "y": 0.5},
+            "15": {"x": 0.2, "y": 0.55},
+            "16": {"x": 0.8, "y": 0.55},
+            "23": {"x": 0.38, "y": 0.55},
+            "24": {"x": 0.62, "y": 0.55},
+            "25": {"x": 0.4, "y": 0.65},
+            "26": {"x": 0.6, "y": 0.65},
+            "27": {"x": 0.42, "y": 0.75},
+            "28": {"x": 0.58, "y": 0.75}
+        }
+    ]
+
+
+def get_pushup_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """팔굽혀펴기 가이드 포즈"""
+    return [
+        {
+            "11": {"x": 0.35, "y": 0.4},
+            "12": {"x": 0.65, "y": 0.4},
+            "13": {"x": 0.25, "y": 0.45},
+            "14": {"x": 0.75, "y": 0.45},
+            "15": {"x": 0.2, "y": 0.5},
+            "16": {"x": 0.8, "y": 0.5},
+            "23": {"x": 0.38, "y": 0.5},
+            "24": {"x": 0.62, "y": 0.5},
+            "25": {"x": 0.4, "y": 0.6},
+            "26": {"x": 0.6, "y": 0.6},
+            "27": {"x": 0.42, "y": 0.7},
+            "28": {"x": 0.58, "y": 0.7}
+        },
+        {
+            "11": {"x": 0.35, "y": 0.52},
+            "12": {"x": 0.65, "y": 0.52},
+            "13": {"x": 0.28, "y": 0.54},
+            "14": {"x": 0.72, "y": 0.54},
+            "15": {"x": 0.2, "y": 0.55},
+            "16": {"x": 0.8, "y": 0.55},
+            "23": {"x": 0.38, "y": 0.58},
+            "24": {"x": 0.62, "y": 0.58},
+            "25": {"x": 0.4, "y": 0.68},
+            "26": {"x": 0.6, "y": 0.68},
+            "27": {"x": 0.42, "y": 0.78},
+            "28": {"x": 0.58, "y": 0.78}
+        }
+    ]
+
+
+def get_leg_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """레그 레이즈 가이드 포즈"""
+    return [
+        {
+            "11": {"x": 0.45, "y": 0.3},
+            "12": {"x": 0.55, "y": 0.3},
+            "13": {"x": 0.4, "y": 0.5},
+            "14": {"x": 0.6, "y": 0.5},
+            "15": {"x": 0.35, "y": 0.7},
+            "16": {"x": 0.65, "y": 0.7},
+            "23": {"x": 0.48, "y": 0.6},
+            "24": {"x": 0.52, "y": 0.6},
+            "25": {"x": 0.48, "y": 0.8},
+            "26": {"x": 0.52, "y": 0.8},
+            "27": {"x": 0.48, "y": 0.95},
+            "28": {"x": 0.52, "y": 0.95}
+        },
+        {
+            "11": {"x": 0.45, "y": 0.3},
+            "12": {"x": 0.55, "y": 0.3},
+            "13": {"x": 0.4, "y": 0.5},
+            "14": {"x": 0.6, "y": 0.5},
+            "15": {"x": 0.35, "y": 0.7},
+            "16": {"x": 0.65, "y": 0.7},
+            "23": {"x": 0.48, "y": 0.6},
+            "24": {"x": 0.52, "y": 0.6},
+            "25": {"x": 0.35, "y": 0.65},
+            "26": {"x": 0.52, "y": 0.8},
+            "27": {"x": 0.25, "y": 0.7},
+            "28": {"x": 0.52, "y": 0.95}
+        }
+    ]
+
+
+def get_stretching_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """스트레칭 가이드 포즈"""
+    return [
+        {
+            "11": {"x": 0.4, "y": 0.35},
+            "12": {"x": 0.6, "y": 0.35},
+            "13": {"x": 0.3, "y": 0.4},
+            "14": {"x": 0.7, "y": 0.4},
+            "15": {"x": 0.2, "y": 0.45},
+            "16": {"x": 0.8, "y": 0.45},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95}
+        }
+    ]
+
+
+def get_default_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """기본 가이드 포즈 (서있는 자세)"""
+    return [
+        {
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95}
+        }
+    ]
 
 
 # --- 아래는 기존 헬퍼 함수들 (변경 없음) ---
+
 async def get_base_template(db, exercise_type: str, user_body_condition: Dict) -> Dict:
     injured_parts = user_body_condition.get("injured_parts", [])
     query = {

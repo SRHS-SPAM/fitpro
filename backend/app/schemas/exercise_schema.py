@@ -54,11 +54,12 @@ class ExerciseResponse(BaseModel):
     intensity: str
     silhouette_animation: Optional[Dict[str, Any]] = None
     customization_params: Optional[CustomizationParams] = None
+    guide_poses: List[Dict[str, Dict[str, float]]] = Field(
+        default=[],
+        description="운동 가이드 스켈레톤 키프레임 배열 (MediaPipe 랜드마크 11-28)"
+    )  # ✨ 추가
     created_at: str
     expires_at: Optional[str] = None
-    # --- [수정] 추천 이유 필드 추가 ---
-    recommendation_reason: Optional[str] = Field(None, description="AI가 이 운동을 추천한 이유")
-
 
 class ExerciseListResponse(BaseModel):
     """운동 목록 응답"""

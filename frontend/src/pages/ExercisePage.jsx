@@ -30,37 +30,6 @@ const ExercisePage = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [guidePoses, setGuidePoses] = useState([]);
 
-  // 운동별 가이드 포즈 데이터
-  // const guidePoses = {
-  //   squat: [
-  //     {
-  //       11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 },
-  //       13: { x: 0.35, y: 0.5 }, 14: { x: 0.65, y: 0.5 },
-  //       15: { x: 0.3, y: 0.7 }, 16: { x: 0.7, y: 0.7 },
-  //       23: { x: 0.42, y: 0.6 }, 24: { x: 0.58, y: 0.6 },
-  //       25: { x: 0.4, y: 0.8 }, 26: { x: 0.6, y: 0.8 },
-  //       27: { x: 0.38, y: 0.95 }, 28: { x: 0.62, y: 0.95 }
-  //     },
-  //     {
-  //       11: { x: 0.4, y: 0.4 }, 12: { x: 0.6, y: 0.4 },
-  //       13: { x: 0.32, y: 0.55 }, 14: { x: 0.68, y: 0.55 },
-  //       15: { x: 0.25, y: 0.7 }, 16: { x: 0.75, y: 0.7 },
-  //       23: { x: 0.42, y: 0.75 }, 24: { x: 0.58, y: 0.75 },
-  //       25: { x: 0.35, y: 0.85 }, 26: { x: 0.65, y: 0.85 },
-  //       27: { x: 0.33, y: 0.95 }, 28: { x: 0.67, y: 0.95 }
-  //     }
-  //   ],
-  //   plank: [
-  //     {
-  //       11: { x: 0.35, y: 0.4 }, 12: { x: 0.65, y: 0.4 },
-  //       13: { x: 0.25, y: 0.45 }, 14: { x: 0.75, y: 0.45 },
-  //       15: { x: 0.2, y: 0.5 }, 16: { x: 0.8, y: 0.5 },
-  //       23: { x: 0.38, y: 0.55 }, 24: { x: 0.62, y: 0.55 },
-  //       25: { x: 0.35, y: 0.75 }, 26: { x: 0.65, y: 0.75 },
-  //       27: { x: 0.33, y: 0.9 }, 28: { x: 0.67, y: 0.9 }
-  //     }
-  //   ]
-  // };
 
   // 운동 정보 불러오기
   useEffect(() => {
@@ -250,7 +219,74 @@ const ExercisePage = () => {
     }
   };
 
-  // 스켈레톤 그리기
+  const drawGuideSilhouette = (guidePose) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !guidePose) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    // 몸통 그리기 (키포인트 정의)
+    const shoulder_left = guidePose["11"];
+    const shoulder_right = guidePose["12"];
+    const hip_left = guidePose["23"];
+    const hip_right = guidePose["24"];
+
+    // 1. 몸통 (반투명 채우기)
+    if (shoulder_left && shoulder_right && hip_left && hip_right) {
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)'; // 파란색 30% 투명도
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)'; // 파란색 테두리
+      ctx.lineWidth = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(shoulder_left.x * canvas.width, shoulder_left.y * canvas.height);
+      ctx.lineTo(shoulder_right.x * canvas.width, shoulder_right.y * canvas.height);
+      ctx.lineTo(hip_right.x * canvas.width, hip_right.y * canvas.height);
+      ctx.lineTo(hip_left.x * canvas.width, hip_left.y * canvas.height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 2. 팔다리 (굵은 선)
+    const drawLimb = (start, middle, end) => {
+      if (guidePose[start] && guidePose[middle] && guidePose[end]) {
+        ctx.lineWidth = 15; // 굵게
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)'; // 몸통보다 연하게
+        
+        ctx.beginPath();
+        ctx.moveTo(guidePose[start].x * canvas.width, guidePose[start].y * canvas.height);
+        ctx.lineTo(guidePose[middle].x * canvas.width, guidePose[middle].y * canvas.height);
+        ctx.lineTo(guidePose[end].x * canvas.width, guidePose[end].y * canvas.height);
+        ctx.stroke();
+      }
+    };
+
+    drawLimb("11", "13", "15"); // 왼팔
+    drawLimb("12", "14", "16"); // 오른팔
+    drawLimb("23", "25", "27"); // 왼다리
+    drawLimb("24", "26", "28"); // 오른다리
+
+    // 3. 머리 (원)
+    if (shoulder_left && shoulder_right) {
+      const neckX = (shoulder_left.x + shoulder_right.x) / 2;
+      const neckY = (shoulder_left.y + shoulder_right.y) / 2;
+      
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.beginPath();
+      ctx.arc(
+        neckX * canvas.width,
+        (neckY - 0.08) * canvas.height, // 목 위쪽에 머리
+        20, // 머리 크기
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+    }
+  };
+  
+
+  // 스켈레톤 그리기 (메인 함수)
   const drawSkeleton = (results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -262,59 +298,30 @@ const ExercisePage = () => {
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // ✨ 1. (복원) 캔버스 좌우 반전 (웹캠 미러 모드와 일치)
     ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);  
+    ctx.translate(-canvas.width, 0);
 
-    const connections = [
-      [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-      [11, 23], [12, 24], [23, 24],
-      [23, 25], [25, 27], [24, 26], [26, 28]
-    ];
-
-    // --- 1. 가이드 스켈레톤 그리기 (파란색) ---
+    // ✨ 2. 가이드 실루엣 그리기 (뒤쪽)
+    // 컴포넌트의 state (showGuide, guidePoses, guideFrame)를 사용합니다.
     if (showGuide && !isCompleted && guidePoses.length > 0) {
-      // API 응답이 유효한지, guideFrame이 배열 범위 내에 있는지 확인
       if (guideFrame < guidePoses.length && guidePoses[guideFrame]) {
-        const guidePose = guidePoses[guideFrame];
-
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
-        ctx.lineWidth = 4;
-
-        // 가이드 라인
-        connections.forEach(([start, end]) => {
-          const startPoint = guidePose[start];
-          const endPoint = guidePose[end];
-
-          if (startPoint && endPoint) {
-            ctx.beginPath();
-            ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
-            ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
-            ctx.stroke();
-          }
-        });
-
-        // 가이드 점
-        Object.values(guidePose).forEach((landmark) => {
-          ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
-          ctx.beginPath();
-          ctx.arc(
-            landmark.x * canvas.width,
-            landmark.y * canvas.height,
-            7,
-            0,
-            2 * Math.PI
-          );
-          ctx.fill();
-        });
+        // 위에서 정의한 헬퍼 함수 호출
+        drawGuideSilhouette(guidePoses[guideFrame]);
       }
     }
 
-    // --- 2. 사용자 스켈레톤 그리기 (초록/빨강) ---
-    // (이 로직은 if(showGuide...) 블록 *바깥*에 있어야 합니다)
+    // ✨ 3. 사용자 스켈레톤 그리기 (앞쪽) (중복 코드 제거됨)
     if (results.poseLandmarks) {
+      const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+        [11, 23], [12, 24], [23, 24],
+        [23, 25], [25, 27], [24, 26], [26, 28]
+      ];
+
       // 사용자 라인 (초록색)
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3; // 3px로 통일
 
       connections.forEach(([start, end]) => {
         const startPoint = results.poseLandmarks[start];
@@ -335,7 +342,7 @@ const ExercisePage = () => {
         ctx.arc(
           landmark.x * canvas.width,
           landmark.y * canvas.height,
-          6,
+          6, // 6px로 통일
           0,
           2 * Math.PI
         );
