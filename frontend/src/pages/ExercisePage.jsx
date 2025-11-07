@@ -28,38 +28,39 @@ const ExercisePage = () => {
   const [showGuide, setShowGuide] = useState(true);
   const [guideFrame, setGuideFrame] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [guidePoses, setGuidePoses] = useState([]);
 
   // 운동별 가이드 포즈 데이터
-  const guidePoses = {
-    squat: [
-      {
-        11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 },
-        13: { x: 0.35, y: 0.5 }, 14: { x: 0.65, y: 0.5 },
-        15: { x: 0.3, y: 0.7 }, 16: { x: 0.7, y: 0.7 },
-        23: { x: 0.42, y: 0.6 }, 24: { x: 0.58, y: 0.6 },
-        25: { x: 0.4, y: 0.8 }, 26: { x: 0.6, y: 0.8 },
-        27: { x: 0.38, y: 0.95 }, 28: { x: 0.62, y: 0.95 }
-      },
-      {
-        11: { x: 0.4, y: 0.4 }, 12: { x: 0.6, y: 0.4 },
-        13: { x: 0.32, y: 0.55 }, 14: { x: 0.68, y: 0.55 },
-        15: { x: 0.25, y: 0.7 }, 16: { x: 0.75, y: 0.7 },
-        23: { x: 0.42, y: 0.75 }, 24: { x: 0.58, y: 0.75 },
-        25: { x: 0.35, y: 0.85 }, 26: { x: 0.65, y: 0.85 },
-        27: { x: 0.33, y: 0.95 }, 28: { x: 0.67, y: 0.95 }
-      }
-    ],
-    plank: [
-      {
-        11: { x: 0.35, y: 0.4 }, 12: { x: 0.65, y: 0.4 },
-        13: { x: 0.25, y: 0.45 }, 14: { x: 0.75, y: 0.45 },
-        15: { x: 0.2, y: 0.5 }, 16: { x: 0.8, y: 0.5 },
-        23: { x: 0.38, y: 0.55 }, 24: { x: 0.62, y: 0.55 },
-        25: { x: 0.35, y: 0.75 }, 26: { x: 0.65, y: 0.75 },
-        27: { x: 0.33, y: 0.9 }, 28: { x: 0.67, y: 0.9 }
-      }
-    ]
-  };
+  // const guidePoses = {
+  //   squat: [
+  //     {
+  //       11: { x: 0.4, y: 0.3 }, 12: { x: 0.6, y: 0.3 },
+  //       13: { x: 0.35, y: 0.5 }, 14: { x: 0.65, y: 0.5 },
+  //       15: { x: 0.3, y: 0.7 }, 16: { x: 0.7, y: 0.7 },
+  //       23: { x: 0.42, y: 0.6 }, 24: { x: 0.58, y: 0.6 },
+  //       25: { x: 0.4, y: 0.8 }, 26: { x: 0.6, y: 0.8 },
+  //       27: { x: 0.38, y: 0.95 }, 28: { x: 0.62, y: 0.95 }
+  //     },
+  //     {
+  //       11: { x: 0.4, y: 0.4 }, 12: { x: 0.6, y: 0.4 },
+  //       13: { x: 0.32, y: 0.55 }, 14: { x: 0.68, y: 0.55 },
+  //       15: { x: 0.25, y: 0.7 }, 16: { x: 0.75, y: 0.7 },
+  //       23: { x: 0.42, y: 0.75 }, 24: { x: 0.58, y: 0.75 },
+  //       25: { x: 0.35, y: 0.85 }, 26: { x: 0.65, y: 0.85 },
+  //       27: { x: 0.33, y: 0.95 }, 28: { x: 0.67, y: 0.95 }
+  //     }
+  //   ],
+  //   plank: [
+  //     {
+  //       11: { x: 0.35, y: 0.4 }, 12: { x: 0.65, y: 0.4 },
+  //       13: { x: 0.25, y: 0.45 }, 14: { x: 0.75, y: 0.45 },
+  //       15: { x: 0.2, y: 0.5 }, 16: { x: 0.8, y: 0.5 },
+  //       23: { x: 0.38, y: 0.55 }, 24: { x: 0.62, y: 0.55 },
+  //       25: { x: 0.35, y: 0.75 }, 26: { x: 0.65, y: 0.75 },
+  //       27: { x: 0.33, y: 0.9 }, 28: { x: 0.67, y: 0.9 }
+  //     }
+  //   ]
+  // };
 
   // 운동 정보 불러오기
   useEffect(() => {
@@ -78,6 +79,7 @@ const ExercisePage = () => {
         );
         
         setExercise(response.data);
+        setGuidePoses(response.data.guide_poses || []); // API가 guide_poses를 주지 않을 경우 빈 배열로 방어
         setTimeRemaining(response.data.duration_seconds);
         setLoading(false);
       } catch (error) {
@@ -93,19 +95,21 @@ const ExercisePage = () => {
   }, [exerciseId]);
 
   // 가이드 프레임 애니메이션
+  // 가이드 프레임 애니메이션
   useEffect(() => {
-    if (!isStarted || isPaused || !showGuide || isCompleted) return;
+    // ✨ 5. state(guidePoses)를 직접 사용하고, 의존성 배열에 추가합니다.
+    if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) return;
 
     const interval = setInterval(() => {
       setGuideFrame(prev => {
-        const exerciseType = exercise?.name?.toLowerCase() || 'squat';
-        const poses = guidePoses[exerciseType] || guidePoses.squat;
-        return (prev + 1) % poses.length;
+        // ✨ 6. 더 이상 exerciseType을 찾을 필요 없이 state 배열의 길이로 계산
+        return (prev + 1) % guidePoses.length; 
       });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isStarted, isPaused, showGuide, exercise, isCompleted]);
+    // ✨ 7. 의존성 배열에 guidePoses 추가
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]);
 
   // MediaPipe Pose 초기화
   useEffect(() => {
@@ -264,41 +268,48 @@ const ExercisePage = () => {
       [23, 25], [25, 27], [24, 26], [26, 28]
     ];
 
-    if (showGuide && !isCompleted) {
-      const exerciseType = exercise?.name?.toLowerCase() || 'squat';
-      const poses = guidePoses[exerciseType] || guidePoses.squat;
-      const guidePose = poses[guideFrame];
+    // --- 1. 가이드 스켈레톤 그리기 (파란색) ---
+    if (showGuide && !isCompleted && guidePoses.length > 0) {
+      // API 응답이 유효한지, guideFrame이 배열 범위 내에 있는지 확인
+      if (guideFrame < guidePoses.length && guidePoses[guideFrame]) {
+        const guidePose = guidePoses[guideFrame];
 
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
-      ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+        ctx.lineWidth = 4;
 
-      connections.forEach(([start, end]) => {
-        const startPoint = guidePose[start];
-        const endPoint = guidePose[end];
+        // 가이드 라인
+        connections.forEach(([start, end]) => {
+          const startPoint = guidePose[start];
+          const endPoint = guidePose[end];
 
-        if (startPoint && endPoint) {
+          if (startPoint && endPoint) {
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+            ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+            ctx.stroke();
+          }
+        });
+
+        // 가이드 점
+        Object.values(guidePose).forEach((landmark) => {
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
           ctx.beginPath();
-          ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
-          ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
-          ctx.stroke();
-        }
-      });
-
-      Object.values(guidePose).forEach((landmark) => {
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
-        ctx.beginPath();
-        ctx.arc(
-          landmark.x * canvas.width,
-          landmark.y * canvas.height,
-          7,
-          0,
-          2 * Math.PI
-        );
-        ctx.fill();
-      });
+          ctx.arc(
+            landmark.x * canvas.width,
+            landmark.y * canvas.height,
+            7,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
+        });
+      }
     }
 
+    // --- 2. 사용자 스켈레톤 그리기 (초록/빨강) ---
+    // (이 로직은 if(showGuide...) 블록 *바깥*에 있어야 합니다)
     if (results.poseLandmarks) {
+      // 사용자 라인 (초록색)
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 3;
 
@@ -314,6 +325,7 @@ const ExercisePage = () => {
         }
       });
 
+      // 사용자 점 (빨간색)
       results.poseLandmarks.forEach((landmark) => {
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
@@ -358,17 +370,27 @@ const ExercisePage = () => {
 
   // 재시작
   const handleRestart = () => {
-    setIsCompleted(false);
-    setCurrentSet(1);
-    setCurrentRep(0);
-    setScore(100);
-    setTotalScore([]);
-    setTimeRemaining(exercise.duration_seconds);
-    setFeedback('준비하세요');
-    setIsStarted(true);
-    setIsPaused(false);
+    // MediaPipe 리소스 정리
+    if (cameraRef.current) {
+      try {
+        cameraRef.current.stop();
+      } catch (e) {
+        console.error('Camera stop error:', e);
+      }
+      cameraRef.current = null;
+    }
+    if (poseRef.current) {
+      try {
+        poseRef.current.close();
+      } catch (e) {
+        console.error('Pose close error:', e);
+      }
+      poseRef.current = null;
+    }
+    
+    // 페이지 새로고침으로 깔끔하게 재시작
+    window.location.reload();
   };
-
   // 로딩 화면
   if (loading) {
     return (
