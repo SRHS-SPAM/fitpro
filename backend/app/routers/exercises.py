@@ -248,16 +248,63 @@ async def get_exercise(
 
 
 @router.post("/{exercise_id}/analyze-realtime", response_model=PoseAnalysisResponse)
-async def analyze_pose_realtime(exercise_id: str, request: PoseAnalysisRequest, current_user: dict = Depends(get_current_user)):
+async def analyze_pose_realtime(
+    exercise_id: str, 
+    request: PoseAnalysisRequest, 
+    current_user: dict = Depends(get_current_user)
+):
     db = await get_database()
-    try: obj_id = ObjectId(exercise_id)
-    except Exception: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
-    exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": ObjectId(current_user["user_id"])})
-    if not exercise: raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="운동을 찾을 수 없거나 접근 권한이 없습니다.")
-    try: analysis_result = await analyze_pose(pose_landmarks=request.pose_landmarks, exercise_data=exercise, timestamp_ms=request.timestamp_ms)
-    except Exception as e: raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"자세 분석 중 오류가 발생했습니다: {str(e)}")
+    
+    try: 
+        obj_id = ObjectId(exercise_id)
+    except Exception: 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
+    
+    exercise = await db.generated_exercises.find_one({
+        "_id": obj_id, 
+        "user_id": ObjectId(current_user["user_id"])
+    })
+    
+    if not exercise: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="운동을 찾을 수 없거나 접근 권한이 없습니다.")
+    
+    # ✅ 디버깅 추가
+    print(f"\n=== Exercise Data Debug ===")
+    print(f"Exercise ID: {exercise_id}")
+    print(f"Exercise name: {exercise.get('name')}")
+    print(f"Has silhouette_animation: {'silhouette_animation' in exercise}")
+    
+    if 'silhouette_animation' in exercise:
+        anim = exercise['silhouette_animation']
+        print(f"Animation type: {type(anim)}")
+        print(f"Animation keys: {anim.keys() if isinstance(anim, dict) else 'Not a dict'}")
+        
+        if isinstance(anim, dict) and 'keyframes' in anim:
+            keyframes = anim['keyframes']
+            print(f"Keyframes type: {type(keyframes)}")
+            print(f"Keyframes count: {len(keyframes) if isinstance(keyframes, list) else 'Not a list'}")
+            
+            if isinstance(keyframes, list) and len(keyframes) > 0:
+                print(f"First keyframe keys: {keyframes[0].keys()}")
+                print(f"First keyframe timestamp: {keyframes[0].get('timestamp_ms')}")
+                print(f"First keyframe has pose_landmarks: {'pose_landmarks' in keyframes[0]}")
+        else:
+            print(f"⚠️ No 'keyframes' in animation!")
+    else:
+        print(f"⚠️ No 'silhouette_animation' in exercise!")
+    
+    print(f"========================\n")
+    
+    try: 
+        analysis_result = await analyze_pose(
+            pose_landmarks=request.pose_landmarks, 
+            exercise_data=exercise, 
+            timestamp_ms=request.timestamp_ms
+        )
+    except Exception as e: 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"자세 분석 중 오류가 발생했습니다: {str(e)}")
+    
     return PoseAnalysisResponse(**analysis_result)
-
 
 @router.post("/{exercise_id}/complete", response_model=ExerciseCompleteResponse)
 async def complete_exercise(exercise_id: str, request: ExerciseCompleteRequest, current_user: dict = Depends(get_current_user)):

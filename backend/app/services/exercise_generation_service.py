@@ -160,8 +160,20 @@ async def generate_exercise_recommendations(user_body_condition: Dict) -> List[D
         result = json.loads(content)
         recommendations = result.get("recommendations", [])
         
+        # ✅ 각 추천 운동에 guide_poses와 silhouette_animation 추가
         for rec in recommendations:
-            rec["guide_poses"] = generate_guide_poses(rec.get("name", "기본 운동"))
+            exercise_name = rec.get("name", "기본 운동")
+            intensity = rec.get("intensity", "medium")
+            
+            # guide_poses 생성
+            rec["guide_poses"] = generate_guide_poses(exercise_name)
+            
+            # ✨ silhouette_animation 생성 (guide_poses 기반)
+            rec["silhouette_animation"] = generate_silhouette_from_guide_poses(
+                guide_poses=rec["guide_poses"],
+                duration_seconds=rec.get("duration_minutes", 10) * 60,
+                intensity=intensity
+            )
         
         return recommendations
 
@@ -879,3 +891,189 @@ def generate_standing_pose() -> List[Dict]:
 
 def generate_squat_pose() -> List[Dict]:
     return [{"x": 0.5, "y": 0.5 + (i * 0.015) if i > 23 else 0.3 + (i * 0.02), "z": -0.1, "visibility": 0.99} for i in range(33)]
+
+def generate_silhouette_from_guide_poses(
+    guide_poses: List[Dict[str, Dict[str, float]]], 
+    duration_seconds: int,
+    intensity: str
+) -> Dict:
+    """
+    guide_poses를 기반으로 silhouette_animation의 keyframes 생성
+    
+    Args:
+        guide_poses: 가이드 포즈 리스트 (각 프레임의 관절 위치)
+        duration_seconds: 총 운동 시간 (초)
+        intensity: 운동 강도 (속도 결정)
+    
+    Returns:
+        silhouette_animation 딕셔너리
+    """
+    if not guide_poses:
+        # guide_poses가 없으면 기본 자세 1개
+        return {
+            "keyframes": [{
+                "timestamp_ms": 0,
+                "pose_landmarks": convert_guide_pose_to_landmarks(get_default_guide_poses()[0]),
+                "description": "기본 자세"
+            }]
+        }
+    
+    # 강도에 따른 프레임당 시간 조정
+    speed_multiplier = get_speed_multiplier(intensity)
+    
+    # 한 사이클의 기본 시간 (초)
+    # low: 6초, medium: 4초, high: 2.8초
+    base_cycle_time = 4.0 * speed_multiplier
+    
+    # 총 사이클 수 계산
+    total_cycles = max(1, int(duration_seconds / base_cycle_time))
+    
+    # 각 가이드 포즈 사이의 시간 간격
+    time_per_pose = (base_cycle_time * 1000) / len(guide_poses)  # ms 단위
+    
+    keyframes = []
+    current_time = 0
+    
+    # 사이클 반복
+    for cycle in range(total_cycles):
+        for i, guide_pose in enumerate(guide_poses):
+            # guide_pose를 MediaPipe 33개 랜드마크 형식으로 변환
+            landmarks = convert_guide_pose_to_landmarks(guide_pose)
+            
+            keyframe = {
+                "timestamp_ms": int(current_time),
+                "pose_landmarks": landmarks,
+                "description": f"프레임 {i+1}"
+            }
+            keyframes.append(keyframe)
+            current_time += time_per_pose
+    
+    # 마지막에 첫 프레임으로 돌아가기 (자연스러운 반복)
+    if guide_poses:
+        keyframes.append({
+            "timestamp_ms": int(current_time),
+            "pose_landmarks": convert_guide_pose_to_landmarks(guide_poses[0]),
+            "description": "종료 (시작 자세로)"
+        })
+    
+    return {"keyframes": keyframes}
+
+
+def convert_guide_pose_to_landmarks(guide_pose: Dict[str, Dict[str, float]]) -> List[Dict]:
+    """
+    guide_pose (딕셔너리 형식)를 MediaPipe 랜드마크 리스트 (33개)로 변환
+    
+    guide_pose 예시:
+    {
+        "0": {"x": 0.5, "y": 0.15},
+        "11": {"x": 0.4, "y": 0.3},
+        ...
+    }
+    
+    반환 형식:
+    [
+        {"x": 0.5, "y": 0.15, "z": 0, "visibility": 0.99},  # 0: nose
+        {"x": 0.5, "y": 0.14, "z": 0, "visibility": 0.99},  # 1: left_eye_inner
+        ...
+    ]
+    """
+    landmarks = []
+    
+    # MediaPipe는 33개 랜드마크 필요 (0-32)
+    for i in range(33):
+        landmark_key = str(i)
+        
+        if landmark_key in guide_pose:
+            # guide_pose에 정의된 랜드마크
+            pos = guide_pose[landmark_key]
+            landmarks.append({
+                "x": pos.get("x", 0.5),
+                "y": pos.get("y", 0.5),
+                "z": pos.get("z", 0),
+                "visibility": 0.99
+            })
+        else:
+            # guide_pose에 없는 랜드마크는 보간 또는 기본값
+            landmarks.append(interpolate_missing_landmark(i, guide_pose))
+    
+    return landmarks
+
+
+def interpolate_missing_landmark(
+    landmark_index: int, 
+    guide_pose: Dict[str, Dict[str, float]]
+) -> Dict:
+    """
+    guide_pose에 없는 랜드마크를 주변 랜드마크 기반으로 보간
+    """
+    # 얼굴 랜드마크 (1-10): 코(0) 기준으로 약간 조정
+    if 1 <= landmark_index <= 10:
+        if "0" in guide_pose:  # 코
+            nose = guide_pose["0"]
+            offset_map = {
+                1: {"x": 0.01, "y": -0.01},   # left_eye_inner
+                2: {"x": 0.02, "y": -0.01},   # left_eye
+                3: {"x": 0.03, "y": -0.01},   # left_eye_outer
+                4: {"x": -0.01, "y": -0.01},  # right_eye_inner
+                5: {"x": -0.02, "y": -0.01},  # right_eye
+                6: {"x": -0.03, "y": -0.01},  # right_eye_outer
+                7: {"x": 0.04, "y": 0.01},    # left_ear
+                8: {"x": -0.04, "y": 0.01},   # right_ear
+                9: {"x": 0.02, "y": 0.03},    # mouth_left
+                10: {"x": -0.02, "y": 0.03},  # mouth_right
+            }
+            offset = offset_map.get(landmark_index, {"x": 0, "y": 0})
+            return {
+                "x": nose["x"] + offset["x"],
+                "y": nose["y"] + offset["y"],
+                "z": 0,
+                "visibility": 0.99
+            }
+    
+    # 손가락 랜드마크 (17-22): 손목 기준으로 조정
+    if 17 <= landmark_index <= 22:
+        wrist_key = "15" if landmark_index in [17, 19, 21] else "16"  # 왼손/오른손
+        if wrist_key in guide_pose:
+            wrist = guide_pose[wrist_key]
+            finger_offset_map = {
+                17: {"x": -0.02, "y": 0.02},  # left_pinky
+                18: {"x": 0.02, "y": 0.02},   # right_pinky
+                19: {"x": -0.04, "y": 0.01},  # left_index
+                20: {"x": 0.04, "y": 0.01},   # right_index
+                21: {"x": -0.01, "y": 0.03},  # left_thumb
+                22: {"x": 0.01, "y": 0.03},   # right_thumb
+            }
+            offset = finger_offset_map.get(landmark_index, {"x": 0, "y": 0})
+            return {
+                "x": wrist["x"] + offset["x"],
+                "y": wrist["y"] + offset["y"],
+                "z": 0,
+                "visibility": 0.99
+            }
+    
+    # 발 랜드마크 (29-32): 발목 기준으로 조정
+    if 29 <= landmark_index <= 32:
+        ankle_key = "27" if landmark_index in [29, 31] else "28"  # 왼발/오른발
+        if ankle_key in guide_pose:
+            ankle = guide_pose[ankle_key]
+            foot_offset_map = {
+                29: {"x": -0.02, "y": 0.02},  # left_heel
+                30: {"x": 0.02, "y": 0.02},   # right_heel
+                31: {"x": -0.02, "y": 0.03},  # left_foot_index
+                32: {"x": 0.02, "y": 0.03},   # right_foot_index
+            }
+            offset = foot_offset_map.get(landmark_index, {"x": 0, "y": 0})
+            return {
+                "x": ankle["x"] + offset["x"],
+                "y": ankle["y"] + offset["y"],
+                "z": 0,
+                "visibility": 0.99
+            }
+    
+    # 기본값 (중앙)
+    return {
+        "x": 0.5,
+        "y": 0.5,
+        "z": 0,
+        "visibility": 0.5  # 낮은 visibility로 표시
+    }
