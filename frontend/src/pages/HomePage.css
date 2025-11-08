@@ -1,545 +1,625 @@
 /* HomePage Variables - LoginPage와 통일 */
 :root {
-    --primary-color: #3b82f6; /* Blue 500 */
-    --primary-dark: #2563eb; /* Blue 600 */
-    --primary-light: #eff6ff; /* Blue 50 */
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-900: #111827;
-    --orange-100: #ffedd5;
-    --orange-600: #ea580c;
-    --red-50: #fef2f2;
-    --red-200: #fecaca;
-    --red-500: #ef4444;
-    --red-700: #b91c1c;
-    font-family: 'Inter', sans-serif;
+  --primary-color: #3b82f6; /* Blue 500 */
+  --primary-dark: #2563eb; /* Blue 600 */
+  --primary-light: #eff6ff; /* Blue 50 */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-900: #111827;
+  --orange-100: #ffedd5;
+  --orange-600: #ea580c;
+  --red-50: #fef2f2;
+  --red-200: #fecaca;
+  --red-500: #ef4444;
+  --red-700: #b91c1c;
+  /* --- MODIFIED --- */
+  /* font-family 정의는 :root 대신 body 태그에 적용하는 것이 더 일반적입니다. */
+}
+
+/* --- NEW --- */
+/* 기본 페이지 스타일 및 폰트 적용 */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--gray-100); /* 스크롤 시 배경색 통일 */
+  margin: 0;
 }
 
 /* Page Wrapper */
 .home-page-wrapper {
-    min-height: 100vh;
-    background: linear-gradient(to bottom right, var(--primary-light), var(--gray-100));
-    font-family: 'Inter', sans-serif;
-    max-width: 393px;
-    margin: 0 auto;
-    position: relative;
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, var(--primary-light), var(--gray-100));
+  font-family: 'Inter', sans-serif; /* body에서 상속받지만, 명시적으로 유지 */
+  max-width: 393px;
+  margin: 0 auto;
+  position: relative;
 }
 
 /* Header */
 .home-header {
-    background-color: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .home-header-content {
-    padding: 1rem 1.25rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3rem;
 }
 
 .home-logo-section {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .home-logo-icon {
-    width: 3rem;
-    height: 3rem;
-    background-color: var(--primary-color);
-    border-radius: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  width: 3rem;
+  height: 3rem;
+  background-color: var(--primary-color);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 .home-logo-icon-svg {
-    width: 1.75rem;
-    height: 1.75rem;
-    color: #ffffff;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: #ffffff;
 }
 
 .home-logo-text {
-    font-size: 1.375rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0;
 }
 
 .home-user-text {
-    font-size: 0.8125rem;
-    color: var(--gray-600);
-    margin: 0;
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  margin: 0;
+}
+
+/* 헤더용 현재 상태 카드 (컴팩트) */
+.home-status-card-header {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.home-status-content-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+
+.home-injured-section-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.home-label-compact {
+  font-size: 0.625rem;
+  color: var(--gray-600);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.home-tag-container-compact {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  position: relative; 
+}
+
+
+.home-tag-container-compact::after {
+  content: '...';
+  position: absolute;
+  right: 0;
+  top: 0;
+  
+  font-size: 0.625rem;
+  font-weight: 500;
+
+  color: var(--gray-600);
+
+  padding-left: 1rem;
+  background: linear-gradient(to right, 
+    rgba(239, 246, 255, 0) 0%,
+    rgba(239, 246, 255, 1) 50% 
+  );
+ 
+  padding-top: 0.125rem;
+  height: 100%;
+  box-sizing: border-box; /* 패딩을 높이에 포함 */
+}
+
+.home-tag-compact {
+  background-color: var(--orange-100);
+  color: var(--orange-600);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  font-size: 0.625rem;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.home-pain-level-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.home-pain-value-compact {
+  font-weight: 700;
+  color: var(--red-500);
+  font-size: 0.75rem;
 }
 
 /* Main Content */
 .home-main-content {
-    padding: 1rem;
-    padding-bottom: 5.625rem;
+  padding: 0.5rem 0.7rem;
+  padding-bottom: 5.625rem;
 }
 
 /* Status Card */
 .home-status-card {
-    background-color: #ffffff;
-    border-radius: 1rem;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .home-card-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 1rem 0;
 }
 
 .home-card-subtitle {
-    font-size: 0.95rem;
-    color: #6b7280;
-    margin: 0.4rem 0 1rem 0.5rem;
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0.4rem 0 1rem 0.5rem;
 }
 
 .home-status-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .home-injured-section {
-    display: flex;
-    /* flex-direction: column; */
-    gap: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .home-label {
-    font-size: 0.875rem;
-    color: var(--gray-600);     
-    font-weight: 500;
-
-    display: flex;
-    align-items: center;
+  font-size: 0.875rem;
+  color: var(--gray-600);   
+  font-weight: 500;
+  display: flex;
+  align-items: center;
 }
 
 .home-tag-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
 }
 
 .home-tag {
-    padding: 0.375rem 0.75rem;
-    background-color: var(--orange-100);
-    color: var(--orange-600);
-    border-radius: 1rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  background-color: var(--orange-100);
+  color: var(--orange-600);
+  border-radius: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .home-pain-level {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .home-pain-value {
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--primary-color);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--primary-color);
 }
 
 .home-edit-button {
-    margin-top: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--primary-color);
-    background: none;
-    border: none;
-    padding: 0;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.15s ease-in-out;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--primary-color);
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease-in-out;
 }
 
 .home-edit-button:hover {
-    color: var(--primary-dark);
-    text-decoration: underline;
+  color: var(--primary-dark);
+  text-decoration: underline;
 }
 
 /* Exercise Card */
 .home-exercise-card {
-    background-color: #ffffff;
-    border-radius: 1rem;
-    margin-bottom: 1rem;
-    padding: 1.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  border-radius: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .home-main-card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--gray-900);
-    margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 0.5rem 0;
 }
 
 .home-img {
-    border-radius: 1rem;
+  border-radius: 1rem;
 }
 
 /* Error Box */
 .home-error-box {
-    margin-bottom: 1rem;
-    padding: 0.875rem;
-    background-color: var(--red-50);
-    border: 1px solid var(--red-200);
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.625rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem;
+  background-color: var(--red-50);
+  border: 1px solid var(--red-200);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
 }
 
 .home-error-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--red-500);
-    flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--red-500);
+  flex-shrink: 0;
 }
 
 .home-error-text {
-    font-size: 0.875rem;
-    color: var(--red-700);
-    margin: 0;
-    line-height: 1.5;
+  font-size: 0.875rem;
+  color: var(--red-700);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Section */
 .home-section {
-    margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .home-section-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--gray-700);
-    margin-bottom: 0.75rem;
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: 0.75rem;
+}
+
+/* --- MODIFIED --- */
+/* Type, Intensity, Time 버튼의 공통 스타일을 그룹화하여 중복을 제거합니다. */
+.home-type-button,
+.home-intensity-button,
+.home-time-button {
+  border-radius: 0.5rem;
+  border: 1px solid var(--gray-300);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.home-type-button:hover,
+.home-intensity-button:hover,
+.home-time-button:hover {
+  border-color: var(--gray-400);
+}
+
+.home-type-button.active,
+.home-intensity-button.active,
+.home-time-button.active {
+  border-color: var(--primary-color);
+  background-color: var(--primary-light);
 }
 
 /* Type Grid */
 .home-type-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
 }
 
 .home-type-button {
-    padding: 1rem 0.5rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--gray-300);
-    background-color: #ffffff;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.375rem;
+  padding: 1rem 0.5rem;
+  gap: 0.375rem;
+  /* 공통 스타일은 위로 이동 */
 }
 
-.home-type-button:hover {
-    border-color: var(--gray-400);
-}
-
-.home-type-button.active {
-    border-color: var(--primary-color);
-    background-color: var(--primary-light);
-}
+/* .home-type-button:hover, .home-type-button.active 는 공통 스타일로 이동 */
 
 .home-type-icon {
-    font-size: 1.75rem;
+  font-size: 1.75rem;
 }
 
 .home-type-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--gray-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
 }
 
 .home-type-button.active .home-type-label {
-    color: var(--primary-color);
-    font-weight: 600;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 /* Intensity Grid */
 .home-intensity-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
 }
 
 .home-intensity-button {
-    padding: 0.875rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--gray-300);
-    background-color: #ffffff;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+  padding: 0.875rem;
+  gap: 0.25rem;
+  /* 공통 스타일은 위로 이동 */
 }
 
-.home-intensity-button:hover {
-    border-color: var(--gray-400);
-}
-
-.home-intensity-button.active {
-    border-color: var(--primary-color);
-    background-color: var(--primary-light);
-}
+/* .home-intensity-button:hover, .home-intensity-button.active 는 공통 스타일로 이동 */
 
 .home-intensity-emoji {
-    font-size: 1.25rem;
+  font-size: 1.25rem;
 }
 
 .home-intensity-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--gray-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
 }
 
 .home-intensity-button.active .home-intensity-label {
-    color: var(--primary-color);
-    font-weight: 600;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 /* Time Grid */
 .home-time-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
 }
 
 .home-time-button {
-    padding: 0.75rem 0.25rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--gray-300);
-    background-color: #ffffff;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+  padding: 0.75rem 0.25rem;
+  gap: 0.25rem;
+  /* 공통 스타일은 위로 이동 */
 }
 
-.home-time-button:hover {
-    border-color: var(--gray-400);
-}
-
-.home-time-button.active {
-    border-color: var(--primary-color);
-    background-color: var(--primary-light);
-}
+/* .home-time-button:hover, .home-time-button.active 는 공통 스타일로 이동 */
 
 .home-time-icon {
-    width: 1rem;
-    height: 1rem;
-    color: var(--gray-400);
+  width: 1rem;
+  height: 1rem;
+  color: var(--gray-400);
 }
 
 .home-time-button.active .home-time-icon {
-    color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .home-time-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--gray-700);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-700);
 }
 
 .home-time-button.active .home-time-label {
-    color: var(--primary-color);
-    font-weight: 600;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 /* Generate Button */
 .home-generate-button {
-    width: 100%;
-    padding: 0.875rem;
-    background-color: var(--primary-color);
-    color: #ffffff;
-    border-radius: 0.5rem;
-    border: none;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
+  width: 100%;
+  padding: 0.875rem;
+  background-color: var(--primary-color);
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .home-generate-button:hover:not(.disabled) {
-    background-color: var(--primary-dark);
+  background-color: var(--primary-dark);
 }
 
 .home-generate-button.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .home-generating-text {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .home-spinner {
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid #ffffff;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+/* @keyframes spin 은 CSS 파일 하단으로 이동 */
 
 /* Bottom Navigation */
 .home-bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 393px;
-    background-color: #ffffff;
-    display: flex;
-    justify-content: space-around;
-    padding: 0.5rem 0 1.25rem 0;
-    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
-    border-top: 1px solid var(--gray-200);
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 393px;
+  background-color: #ffffff;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.5rem 0 1.25rem 0;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+  border-top: 1px solid var(--gray-200);
 }
 
 .home-nav-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
 }
 
 .home-nav-button.active {
-    transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .home-nav-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-    color: var(--gray-400);
-    transition: color 0.15s ease-in-out;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--gray-400);
+  transition: color 0.15s ease-in-out;
 }
 
 .home-nav-button.active .home-nav-icon {
-    color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .home-nav-label {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    color: var(--gray-600);
-    transition: color 0.15s ease-in-out;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--gray-600);
+  transition: color 0.15s ease-in-out;
 }
 
 .home-nav-button.active .home-nav-label {
-    color: var(--primary-color);
-    font-weight: 600;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 .home-records-card {
-    background-color: #ffffff;
-    border-radius: 1rem;
-    margin-bottom: 1rem;
-    padding: 1.25rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  border-radius: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .home-records-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .home-record-item {
-    padding: 0.875rem;
-    background-color: var(--gray-50);
-    border-radius: 0.5rem;
-    border: 1px solid var(--gray-200);
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
+  padding: 0.875rem;
+  background-color: var(--gray-50);
+  border-radius: 0.5rem;
+  border: 1px solid var(--gray-200);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .home-record-item:hover {
-    border-color: var(--primary-color);
-    background-color: var(--primary-light);
+  border-color: var(--primary-color);
+  background-color: var(--primary-light);
 }
 
 .record-exercise-name {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--gray-900);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 150px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* --- MODIFIED --- */
+  /* max-width 대신 min-width: 0; 를 사용하여 flex 환경에서 
+    텍스트가 올바르게 잘리도록(ellipsis) 수정합니다. */
+  min-width: 0; 
 }
 
 .record-date {
-    font-size: 0.75rem;
-    color: var(--gray-500);
-    white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  white-space: nowrap;
 }
 
 .record-score {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--primary-color);
-    background-color: var(--primary-light);
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  white-space: nowrap;
 }
 
-.home-bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 393px;
-    background-color: #ffffff;
-    display: flex;
-    justify-content: space-around;
-    padding: 0.5rem 0 1.25rem 0;
-    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
-    border-top: 1px solid var(--gray-200);
+/* --- MOVED --- */
+/* @keyframes는 CSS 파일의 최상단이나 최하단에 두는 것이 관례입니다. */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

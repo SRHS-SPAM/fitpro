@@ -44,44 +44,44 @@ function HomePage({ user }) {
               <p className="home-user-text">{user?.name || '사용자'}님</p>
             </div>
           </div>
+
+          {/* 현재 상태를 헤더 오른쪽에 배치 */}
+          {user?.body_condition && (
+            <div className="home-status-card-header">
+              <div className="home-status-content-compact">
+                {(user.body_condition.injured_parts?.length > 0 || user.body_condition.injured_parts_detail) && (
+                  <div className="home-injured-section-compact">
+                    <span className="home-label-compact">불편 부위:</span>
+                    <div className="home-tag-container-compact">
+                      {user.body_condition.injured_parts.map(part => ( 
+                        <span key={part} className="home-tag-compact">{part}</span> 
+                      ))}
+                      {user.body_condition.injured_parts_detail && ( 
+                        <span className="home-tag-compact detail">{user.body_condition.injured_parts_detail}</span> 
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="home-pain-level-compact">
+                  <span className="home-label-compact">통증:</span>
+                  <span className="home-pain-value-compact">{user.body_condition.pain_level}/10</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="home-main-content">
-        {user?.body_condition && (
-            <div className="home-status-card">
-              <h2 className="home-card-title">💪 현재 상태</h2>
-              <div className="home-status-content">
-                  {(user.body_condition.injured_parts?.length > 0 || user.body_condition.injured_parts_detail) && (
-                  <div className="home-injured-section">
-                      <span className="home-label">불편 부위:</span>
-                      <div className="home-tag-container">
-                      {user.body_condition.injured_parts.map(part => ( <span key={part} className="home-tag">{part}</span> ))}
-                      {user.body_condition.injured_parts_detail && ( <span className="home-tag detail">{user.body_condition.injured_parts_detail}</span> )}
-                      </div>
-                  </div>
-                  )}
-                  <div className="home-pain-level">
-                      <span className="home-label">통증 수준:</span>
-                      <span className="home-pain-value">{user.body_condition.pain_level}/10</span>
-                  </div>
-              </div>
-              <button onClick={() => navigate('/onboarding')} className="home-edit-button">
-                  정보 수정하기 →
-              </button>
-            </div>
-        )}
-
         <div className="home-exercise-card">
             <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
             <img src="/home_img.png" alt="운동하는 모습" className='home-img'/>
-            <p className="home-card-subtitle">AI가 당신의 현재 상태에 맞춰 운동을<br/> 추천해 드립니다.</p>
+            <p className="home-card-subtitle">AI가 상태에 맞춰 운동을 추천해 드립니다.</p>
             {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
             <button onClick={handleStartExercise} className="home-generate-button">
               ✨ AI 맞춤 운동 추천받기
             </button>
         </div>
-
 
         <div className="home-records-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -123,8 +123,6 @@ function HomePage({ user }) {
             ) : (<p>아직 운동 기록이 없습니다.</p>)}
         </div>
       </div>
-
-      
       
       <BottomNav active="home" />
     </div>
