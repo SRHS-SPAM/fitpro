@@ -23,6 +23,8 @@ function App() {
     checkAuth(); 
   }, []);
 
+  
+
   const checkAuth = async () => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -43,7 +45,10 @@ function App() {
   // ✅ 새로 추가: DB에서 '내 운동' 목록 불러오기
   const loadMyExercises = async () => {
     try {
-      const response = await exerciseAPI.getMyExercises();
+      // 👇 [수정] 인자(1, 100) 제거
+      const response = await exerciseAPI.getMyExercises(); 
+      
+      // 백엔드 응답이 { "exercises": [...] } 형태이므로 이 부분은 올바릅니다.
       setMyExercises(response.data.exercises || []);
     } catch (error) {
       console.error('Failed to load my exercises:', error);
