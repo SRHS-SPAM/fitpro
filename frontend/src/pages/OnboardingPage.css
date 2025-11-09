@@ -353,3 +353,307 @@
     background-color: #ef4444;
     color: white;
 }
+
+/* 기존 스타일은 그대로 유지하고 아래 스타일을 추가하세요 */
+
+.voice-input-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: #4f46e5;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  z-index: 10;
+}
+
+.voice-input-button:hover {
+  background: #4338ca;
+  transform: scale(1.05);
+}
+
+.voice-input-button:active {
+  transform: scale(0.95);
+}
+
+.voice-input-button.recording {
+  background: #ef4444;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.voice-input-button.recording:hover {
+  background: #dc2626;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 20px rgba(239, 68, 68, 0.6);
+  }
+}
+
+/* textarea 우측 하단에 버튼을 위한 padding 추가 */
+.onboarding-textarea {
+  padding-right: 60px !important;
+}
+
+/* 음성인식 모달 오버레이 */
+.voice-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 모달 컨텐츠 */
+.voice-modal-content {
+  background: white;
+  border-radius: 24px;
+  padding: 40px 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* 마이크 아이콘 컨테이너 */
+.voice-modal-mic-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+  width: 100px;
+  height: 100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 파동 효과 */
+.voice-modal-wave {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid #ef4444;
+  opacity: 0;
+  animation: waveAnimation 2s ease-out infinite;
+}
+
+.voice-modal-wave.wave-1 {
+  animation-delay: 0s;
+}
+
+.voice-modal-wave.wave-2 {
+  animation-delay: 0.7s;
+}
+
+.voice-modal-wave.wave-3 {
+  animation-delay: 1.4s;
+}
+
+.voice-modal-mic-icon {
+  position: relative;
+  z-index: 10;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+  animation: micPulse 2s ease-in-out infinite;
+}
+
+/* 모달 제목 */
+.voice-modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+}
+
+/* 모달 메시지 */
+.voice-modal-message {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* 실시간 인식 텍스트 표시 - 편집 가능 */
+.voice-modal-transcript-editable {
+  width: 100%;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 120px;
+  max-height: 200px;
+  margin: 0 0 24px 0;
+  font-size: 15px;
+  color: #1f2937;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.voice-modal-transcript-editable:focus {
+  outline: none;
+  border-color: #ef4444;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.voice-modal-transcript-editable::placeholder {
+  color: #9ca3af;
+}
+
+/* 실시간 인식 텍스트 표시 */
+.voice-modal-transcript {
+  background: #f3f4f6;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 80px;
+  max-height: 150px;
+  overflow-y: auto;
+  margin: 0 0 24px 0;
+  font-size: 15px;
+  color: #1f2937;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.voice-modal-transcript:empty::before {
+  content: '말씀하시면 여기에 표시됩니다';
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* 스크롤바 스타일 */
+.voice-modal-transcript::-webkit-scrollbar,
+.voice-modal-transcript-editable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.voice-modal-transcript::-webkit-scrollbar-track,
+.voice-modal-transcript-editable::-webkit-scrollbar-track {
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+
+.voice-modal-transcript::-webkit-scrollbar-thumb,
+.voice-modal-transcript-editable::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}
+
+.voice-modal-transcript::-webkit-scrollbar-thumb:hover,
+.voice-modal-transcript-editable::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* 중지 버튼 */
+.voice-modal-stop-button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.voice-modal-stop-button:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.voice-modal-stop-button:active {
+  transform: translateY(0);
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes micPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 12px 32px rgba(239, 68, 68, 0.6);
+  }
+}
+
+@keyframes waveAnimation {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

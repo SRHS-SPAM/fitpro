@@ -35,7 +35,7 @@ async def generate_personalized_exercise(
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini", # 모델 변경 안 했음. 약속 지킴.
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "당신은 전문 재활 운동 트레이너입니다. 사용자의 신체 상태에 맞는 안전하고 효과적인 운동 1개를 JSON 형식으로 생성합니다."},
                 {"role": "user", "content": prompt}
@@ -80,6 +80,7 @@ async def generate_personalized_exercise(
 def create_recommendations_prompt(user_body_condition: Dict) -> str:
     """
     OpenAI API용 프롬프트 생성 (여러 운동 추천용)
+    ✅ 수정: instructions, safety_warnings, target_parts 추가 요청
     """
     injured_parts = user_body_condition.get("injured_parts", [])
     pain_level = user_body_condition.get("pain_level", 0)
@@ -100,6 +101,18 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
     {{
       "name": "추천 운동 1 이름 (예: 벽 대고 천천히 스쿼트)",
       "description": "이 운동이 왜 사용자에게 좋은지에 대한 간단한 설명 (1-2 문장)",
+      "instructions": [
+        "1단계: 시작 자세를 구체적으로 설명 (예: 벽에서 30cm 떨어져 서세요)",
+        "2단계: 운동 동작을 구체적으로 설명 (예: 무릎을 천천히 구부리며 앉으세요)",
+        "3단계: 호흡법 또는 주의사항 (예: 숨을 내쉬며 천천히 일어나세요)",
+        "4단계: 마무리 동작 (예: 시작 자세로 돌아와 잠시 휴식하세요)"
+      ],
+      "safety_warnings": [
+        "무릎이 발끝을 넘지 않도록 주의하세요",
+        "통증이 느껴지면 즉시 중단하세요",
+        "천천히 움직이며 무리하지 마세요"
+      ],
+      "target_parts": ["무릎", "허벅지", "엉덩이"],
       "duration_minutes": 10,
       "intensity": "low",
       "sets": 3,
@@ -109,6 +122,9 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
     {{
       "name": "추천 운동 2 이름 (예: 의자에 앉아 다리 뻗기)",
       "description": "...",
+      "instructions": ["1단계: ...", "2단계: ...", "3단계: ...", "4단계: ..."],
+      "safety_warnings": ["주의사항1", "주의사항2", "주의사항3"],
+      "target_parts": ["부위1", "부위2"],
       "duration_minutes": 15,
       "intensity": "low",
       "sets": 3,
@@ -118,6 +134,9 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
     {{
       "name": "추천 운동 3 이름 (예: 폼롤러 햄스트링 스트레칭)",
       "description": "...",
+      "instructions": ["1단계: ...", "2단계: ...", "3단계: ...", "4단계: ..."],
+      "safety_warnings": ["주의사항1", "주의사항2", "주의사항3"],
+      "target_parts": ["부위1", "부위2"],
       "duration_minutes": 5,
       "intensity": "stretching",
       "sets": 2,
@@ -130,8 +149,12 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
 **중요 지침:**
 1.  **3개의 운동**을 반드시 생성해야 합니다.
 2.  운동 강도(intensity)는 'low', 'medium', 'high', 'stretching' 중에서 선택하세요.
-3.  `recommendation_reason`은 사용자 정보와 운동을 연결하여 매우 구체적이고 설득력 있게 작성해주세요.
-4.  모든 텍스트는 한국어로 작성해주세요.
+3.  **instructions는 반드시 3-4개의 구체적인 단계**로 작성하세요 (시작 자세 → 운동 동작 → 호흡/주의 → 마무리).
+4.  **safety_warnings는 반드시 2-3개의 구체적인 주의사항**을 작성하세요.
+5.  **target_parts는 실제 운동하는 신체 부위**를 정확하게 나열하세요 (예: 무릎, 허벅지, 엉덩이, 어깨, 등).
+6.  `recommendation_reason`은 사용자 정보와 운동을 연결하여 매우 구체적이고 설득력 있게 작성해주세요.
+7.  모든 텍스트는 한국어로 작성해주세요.
+8.  각 운동은 서로 다른 종류여야 하며, 다양성을 가져야 합니다.
 """
     return prompt
 
@@ -146,9 +169,9 @@ async def generate_exercise_recommendations(user_body_condition: Dict) -> List[D
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini", # 약속대로 절대 안 바꿨습니다.
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "당신은 사용자의 데이터를 분석하여 맞춤 운동 여러 개를 추천하는 최고의 재활 전문가입니다. 응답은 반드시 지정된 JSON 형식의 리스트로 제공해야 합니다."},
+                {"role": "system", "content": "당신은 사용자의 데이터를 분석하여 맞춤 운동 여러 개를 추천하는 최고의 재활 전문가입니다. 응답은 반드시 지정된 JSON 형식의 리스트로 제공해야 합니다. instructions, safety_warnings, target_parts를 반드시 포함하세요."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
