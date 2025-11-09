@@ -107,17 +107,61 @@ export default function InfoPage({ user, onLogout }) {
 
                 <section className="space-y-4">
                     <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">신체 정보</h2>
-                    <div className="p-4 bg-gray-50 rounded-lg shadow-inner text-center">
-                        <p className="text-gray-700 mb-4">
-                            입력된 신체 정보는 홈 화면 또는 정보 수정 페이지에서 확인 및 변경할 수 있습니다.
-                        </p>
-                        <button 
-                            onClick={() => navigate('/onboarding')} 
-                            className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
-                        >
-                            상태 정보 수정하기
-                        </button>
-                    </div>
+                    {user.body_condition ? (
+                        <div className="p-4 bg-gray-50 rounded-lg shadow-inner space-y-4">
+                            {(user.body_condition.injured_parts?.length > 0 || user.body_condition.injured_parts_detail) && (
+                                <div className="space-y-2">
+                                    <p className="font-semibold text-gray-700">불편 부위</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {user.body_condition.injured_parts.map(part => (
+                                            <span key={part} className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
+                                                {part}
+                                            </span>
+                                        ))}
+                                        {user.body_condition.injured_parts_detail && (
+                                            <span className="px-3 py-1 bg-indigo-200 text-indigo-900 rounded-full text-sm font-medium">
+                                                {user.body_condition.injured_parts_detail}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                                <p className="font-semibold text-gray-700">통증 수준</p>
+                                <div className="flex items-center space-x-3">
+                                    <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 transition-all duration-300"
+                                            style={{ width: `${(user.body_condition.pain_level / 10) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <span className="text-2xl font-bold text-gray-900">
+                                        {user.body_condition.pain_level}/10
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={() => navigate('/onboarding')} 
+                                className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                            >
+                                상태 정보 수정하기
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-gray-50 rounded-lg shadow-inner text-center">
+                            <p className="text-gray-700 mb-4">
+                                아직 신체 정보가 입력되지 않았습니다.
+                            </p>
+                            <button 
+                                onClick={() => navigate('/onboarding')} 
+                                className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                            >
+                                상태 정보 입력하기
+                            </button>
+                        </div>
+                    )}
                 </section>
 
                 <section className="space-y-4 pt-4 border-t">
