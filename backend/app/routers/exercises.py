@@ -39,7 +39,18 @@ async def get_exercise_recommendations(current_user: dict = Depends(get_current_
         )
 
     try:
-        recommendations = await exercise_generation_service.generate_exercise_recommendations(body_condition)
+        # ✅ 추가: 최근 24시간 내 생성된 운동 이름 가져오기 (중복 방지)
+        recent_exercises = await db.generated_exercises.find({
+            "user_id": user_id,
+            "created_at": {"$gte": datetime.utcnow() - timedelta(hours=24)}
+        }).to_list(length=None)
+        
+        exclude_names = [ex.get("name") for ex in recent_exercises if ex.get("name")]
+        
+        recommendations = await exercise_generation_service.generate_exercise_recommendations(
+            body_condition,
+            exclude_exercises=exclude_names  # ✅ 이전 운동 제외!
+        )
         if not recommendations:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI 추천 서버에서 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.")
     except Exception as e:

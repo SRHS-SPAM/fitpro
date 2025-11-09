@@ -79,16 +79,22 @@ async def generate_personalized_exercise(
     }
     return final_exercise
 
-# --- 추천 운동 생성 함수 (guide_poses 추가) ---
+# --- 추천 운동 생성 함수 (guide_poses + 새로고침 기능 추가) ---
 
-def create_recommendations_prompt(user_body_condition: Dict) -> str:
+def create_recommendations_prompt(user_body_condition: Dict, exclude_exercises: List[str] = None) -> str:
     """
     OpenAI API용 프롬프트 생성 (여러 운동 추천용)
     ✅ 수정: instructions, safety_warnings, target_parts 추가 요청
+    ✅ 추가: exclude_exercises로 이전 운동 제외
     """
     injured_parts = user_body_condition.get("injured_parts", [])
     pain_level = user_body_condition.get("pain_level", 0)
     limitations = user_body_condition.get("limitations", [])
+    
+    # ✅ 제외할 운동 리스트
+    exclude_text = ""
+    if exclude_exercises and len(exclude_exercises) > 0:
+        exclude_text = f"\n\n**중요: 다음 운동들은 이미 추천했으므로 절대 포함하지 마세요:**\n- {', '.join(exclude_exercises)}\n**반드시 새롭고 다른 운동을 추천해야 합니다!**"
 
     return f"""
 다음 사용자 정보를 바탕으로, 맞춤 재활 운동 **3가지**를 추천해주세요.
@@ -97,7 +103,7 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
 **사용자 정보:**
 - 부상 부위: {', '.join(injured_parts) if injured_parts else '없음'}
 - 통증 수준 (0-10): {pain_level}
-- 움직임 제한 사항: {', '.join(limitations) if limitations else '없음'}
+- 움직임 제한 사항: {', '.join(limitations) if limitations else '없음'}{exclude_text}
 
 **생성할 JSON 형식:**
 {{
@@ -161,11 +167,18 @@ def create_recommendations_prompt(user_body_condition: Dict) -> str:
 8.  각 운동은 서로 다른 종류여야 하며, 다양성을 가져야 합니다.
 """
 
-async def generate_exercise_recommendations(user_body_condition: Dict) -> List[Dict[str, Any]]:
+async def generate_exercise_recommendations(user_body_condition: Dict, exclude_exercises: List[str] = None) -> List[Dict[str, Any]]:
+    """
+    AI를 사용하여 사용자에게 여러 맞춤 운동을 추천합니다.
+    
+    Args:
+        user_body_condition: 사용자 신체 정보
+        exclude_exercises: 제외할 운동 이름 리스트 (새로고침 시 이전 운동 제외)
+    """
     if not user_body_condition:
         return []
 
-    prompt = create_recommendations_prompt(user_body_condition)
+    prompt = create_recommendations_prompt(user_body_condition, exclude_exercises)
 
     try:
         response = await client.chat.completions.create(
@@ -242,13 +255,13 @@ def generate_guide_poses(exercise_name: str) -> List[Dict[str, Dict[str, float]]
         return get_leg_raise_guide_poses()
     elif "손목" in exercise_name:
         return get_wrist_guide_poses()
-    elif "발목" in exercise_name:  # ✨ 추가
+    elif "발목" in exercise_name:
         return get_ankle_guide_poses()
     elif "어깨" in exercise_name:
         return get_shoulder_guide_poses()
     elif "팔" in exercise_name and ("벌리기" in exercise_name or "들기" in exercise_name):
         return get_arm_raise_guide_poses()
-    elif "종아리" in exercise_name or "카프" in exercise_name:  # ✨ 추가
+    elif "종아리" in exercise_name or "카프" in exercise_name:
         return get_calf_raise_guide_poses()
     elif "스트레칭" in exercise_name or "스트레치" in exercise_name:
         return get_stretching_guide_poses()
@@ -266,11 +279,11 @@ def get_wrist_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "12": {"x": 0.6, "y": 0.3},
             "13": {"x": 0.35, "y": 0.45},
             "14": {"x": 0.65, "y": 0.45},
-            "15": {"x": 0.32, "y": 0.6},   # 손목
+            "15": {"x": 0.32, "y": 0.6},
             "16": {"x": 0.68, "y": 0.6},
-            "19": {"x": 0.3, "y": 0.65},   # 검지 - 위쪽
+            "19": {"x": 0.3, "y": 0.65},
             "20": {"x": 0.7, "y": 0.65},
-            "21": {"x": 0.28, "y": 0.63},  # 엄지
+            "21": {"x": 0.28, "y": 0.63},
             "22": {"x": 0.72, "y": 0.63},
             "23": {"x": 0.42, "y": 0.6},
             "24": {"x": 0.58, "y": 0.6},
@@ -290,7 +303,7 @@ def get_wrist_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "14": {"x": 0.65, "y": 0.45},
             "15": {"x": 0.32, "y": 0.6},
             "16": {"x": 0.68, "y": 0.6},
-            "19": {"x": 0.35, "y": 0.6},   # 검지 - 오른쪽
+            "19": {"x": 0.35, "y": 0.6},
             "20": {"x": 0.73, "y": 0.6},
             "21": {"x": 0.3, "y": 0.58},
             "22": {"x": 0.7, "y": 0.58},
@@ -312,7 +325,7 @@ def get_wrist_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "14": {"x": 0.65, "y": 0.45},
             "15": {"x": 0.32, "y": 0.6},
             "16": {"x": 0.68, "y": 0.6},
-            "19": {"x": 0.3, "y": 0.55},   # 검지 - 아래쪽
+            "19": {"x": 0.3, "y": 0.55},
             "20": {"x": 0.7, "y": 0.55},
             "21": {"x": 0.28, "y": 0.57},
             "22": {"x": 0.72, "y": 0.57},
@@ -334,7 +347,7 @@ def get_wrist_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "14": {"x": 0.65, "y": 0.45},
             "15": {"x": 0.32, "y": 0.6},
             "16": {"x": 0.68, "y": 0.6},
-            "19": {"x": 0.27, "y": 0.6},   # 검지 - 왼쪽
+            "19": {"x": 0.27, "y": 0.6},
             "20": {"x": 0.65, "y": 0.6},
             "21": {"x": 0.3, "y": 0.62},
             "22": {"x": 0.68, "y": 0.62},
@@ -356,7 +369,7 @@ def get_shoulder_guide_poses() -> List[Dict[str, Dict[str, float]]]:
         # 프레임 1: 어깨 내림
         {
             "0": {"x": 0.5, "y": 0.15},
-            "11": {"x": 0.4, "y": 0.35},   # 어깨 낮게
+            "11": {"x": 0.4, "y": 0.35},
             "12": {"x": 0.6, "y": 0.35},
             "13": {"x": 0.35, "y": 0.5},
             "14": {"x": 0.65, "y": 0.5},
@@ -376,7 +389,7 @@ def get_shoulder_guide_poses() -> List[Dict[str, Dict[str, float]]]:
         # 프레임 2: 어깨 올림 (으쓱)
         {
             "0": {"x": 0.5, "y": 0.15},
-            "11": {"x": 0.4, "y": 0.25},   # 어깨 높게
+            "11": {"x": 0.4, "y": 0.25},
             "12": {"x": 0.6, "y": 0.25},
             "13": {"x": 0.35, "y": 0.4},
             "14": {"x": 0.65, "y": 0.4},
@@ -424,11 +437,11 @@ def get_arm_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "0": {"x": 0.5, "y": 0.15},
             "11": {"x": 0.4, "y": 0.3},
             "12": {"x": 0.6, "y": 0.3},
-            "13": {"x": 0.25, "y": 0.35},  # 팔꿈치 옆으로
+            "13": {"x": 0.25, "y": 0.35},
             "14": {"x": 0.75, "y": 0.35},
-            "15": {"x": 0.15, "y": 0.35},  # 손목 완전히 옆으로
+            "15": {"x": 0.15, "y": 0.35},
             "16": {"x": 0.85, "y": 0.35},
-            "19": {"x": 0.12, "y": 0.35},  # 검지
+            "19": {"x": 0.12, "y": 0.35},
             "20": {"x": 0.88, "y": 0.35},
             "23": {"x": 0.42, "y": 0.6},
             "24": {"x": 0.58, "y": 0.6},
@@ -459,11 +472,11 @@ def get_ankle_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "24": {"x": 0.58, "y": 0.6},
             "25": {"x": 0.4, "y": 0.8},
             "26": {"x": 0.6, "y": 0.8},
-            "27": {"x": 0.38, "y": 0.92},  # 발목
+            "27": {"x": 0.38, "y": 0.92},
             "28": {"x": 0.62, "y": 0.92},
-            "29": {"x": 0.36, "y": 0.93},  # 발뒤꿈치
+            "29": {"x": 0.36, "y": 0.93},
             "30": {"x": 0.64, "y": 0.93},
-            "31": {"x": 0.38, "y": 0.95},  # 발끝 - 중앙
+            "31": {"x": 0.38, "y": 0.95},
             "32": {"x": 0.62, "y": 0.95}
         },
         # 프레임 2: 발끝 위로 (발목 굽힘)
@@ -483,9 +496,9 @@ def get_ankle_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "26": {"x": 0.6, "y": 0.8},
             "27": {"x": 0.38, "y": 0.92},
             "28": {"x": 0.62, "y": 0.92},
-            "29": {"x": 0.36, "y": 0.95},  # 발뒤꿈치 아래로
+            "29": {"x": 0.36, "y": 0.95},
             "30": {"x": 0.64, "y": 0.95},
-            "31": {"x": 0.38, "y": 0.88},  # 발끝 위로
+            "31": {"x": 0.38, "y": 0.88},
             "32": {"x": 0.62, "y": 0.88}
         },
         # 프레임 3: 발끝 오른쪽으로
@@ -507,8 +520,8 @@ def get_ankle_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "28": {"x": 0.62, "y": 0.92},
             "29": {"x": 0.34, "y": 0.93},
             "30": {"x": 0.6, "y": 0.93},
-            "31": {"x": 0.32, "y": 0.95},  # 발끝 왼쪽으로
-            "32": {"x": 0.66, "y": 0.95}   # 발끝 오른쪽으로
+            "31": {"x": 0.32, "y": 0.95},
+            "32": {"x": 0.66, "y": 0.95}
         },
         # 프레임 4: 발끝 아래로 (발목 펴기)
         {
@@ -527,9 +540,9 @@ def get_ankle_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "26": {"x": 0.6, "y": 0.8},
             "27": {"x": 0.38, "y": 0.92},
             "28": {"x": 0.62, "y": 0.92},
-            "29": {"x": 0.36, "y": 0.9},   # 발뒤꿈치 위로
+            "29": {"x": 0.36, "y": 0.9},
             "30": {"x": 0.64, "y": 0.9},
-            "31": {"x": 0.38, "y": 0.98},  # 발끝 아래로 (발레 자세)
+            "31": {"x": 0.38, "y": 0.98},
             "32": {"x": 0.62, "y": 0.98}
         }
     ]
@@ -554,16 +567,16 @@ def get_calf_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "24": {"x": 0.58, "y": 0.6},
             "25": {"x": 0.4, "y": 0.8},
             "26": {"x": 0.6, "y": 0.8},
-            "27": {"x": 0.38, "y": 0.95},  # 발목
+            "27": {"x": 0.38, "y": 0.95},
             "28": {"x": 0.62, "y": 0.95},
-            "29": {"x": 0.36, "y": 0.97},  # 발뒤꿈치 낮게
+            "29": {"x": 0.36, "y": 0.97},
             "30": {"x": 0.64, "y": 0.97},
-            "31": {"x": 0.38, "y": 0.98},  # 발끝
+            "31": {"x": 0.38, "y": 0.98},
             "32": {"x": 0.62, "y": 0.98}
         },
         # 프레임 2: 발뒤꿈치 올림 (까치발)
         {
-            "0": {"x": 0.5, "y": 0.1},   # 전체적으로 위로
+            "0": {"x": 0.5, "y": 0.1},
             "11": {"x": 0.4, "y": 0.25},
             "12": {"x": 0.6, "y": 0.25},
             "13": {"x": 0.35, "y": 0.45},
@@ -576,11 +589,11 @@ def get_calf_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "24": {"x": 0.58, "y": 0.55},
             "25": {"x": 0.4, "y": 0.75},
             "26": {"x": 0.6, "y": 0.75},
-            "27": {"x": 0.38, "y": 0.88},  # 발목 위로
+            "27": {"x": 0.38, "y": 0.88},
             "28": {"x": 0.62, "y": 0.88},
-            "29": {"x": 0.36, "y": 0.85},  # 발뒤꿈치 높게
+            "29": {"x": 0.36, "y": 0.85},
             "30": {"x": 0.64, "y": 0.85},
-            "31": {"x": 0.38, "y": 0.98},  # 발끝은 그대로
+            "31": {"x": 0.38, "y": 0.98},
             "32": {"x": 0.62, "y": 0.98}
         }
     ]
@@ -591,23 +604,23 @@ def get_squat_guide_poses() -> List[Dict[str, Dict[str, float]]]:
     return [
         # 프레임 1: 서있는 자세
         {
-            "0": {"x": 0.5, "y": 0.15},    # 코
-            "11": {"x": 0.4, "y": 0.3},    # 왼쪽 어깨
-            "12": {"x": 0.6, "y": 0.3},    # 오른쪽 어깨
-            "13": {"x": 0.35, "y": 0.5},   # 왼쪽 팔꿈치
-            "14": {"x": 0.65, "y": 0.5},   # 오른쪽 팔꿈치
-            "15": {"x": 0.3, "y": 0.7},    # 왼쪽 손목
-            "16": {"x": 0.7, "y": 0.7},    # 오른쪽 손목
-            "19": {"x": 0.28, "y": 0.72},  # 왼쪽 검지
-            "20": {"x": 0.72, "y": 0.72},  # 오른쪽 검지
-            "23": {"x": 0.42, "y": 0.6},   # 왼쪽 엉덩이
-            "24": {"x": 0.58, "y": 0.6},   # 오른쪽 엉덩이
-            "25": {"x": 0.4, "y": 0.8},    # 왼쪽 무릎
-            "26": {"x": 0.6, "y": 0.8},    # 오른쪽 무릎
-            "27": {"x": 0.38, "y": 0.95},  # 왼쪽 발목
-            "28": {"x": 0.62, "y": 0.95},  # 오른쪽 발목
-            "31": {"x": 0.36, "y": 0.98},  # 왼쪽 발끝
-            "32": {"x": 0.64, "y": 0.98}   # 오른쪽 발끝
+            "0": {"x": 0.5, "y": 0.15},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
         },
         # 프레임 2: 앉은 자세
         {
@@ -935,7 +948,6 @@ def generate_silhouette_from_guide_poses(
         silhouette_animation 딕셔너리
     """
     if not guide_poses:
-        # guide_poses가 없으면 기본 자세 1개
         return {
             "keyframes": [{
                 "timestamp_ms": 0,
@@ -944,28 +956,17 @@ def generate_silhouette_from_guide_poses(
             }]
         }
     
-    # 강도에 따른 프레임당 시간 조정
     speed_multiplier = get_speed_multiplier(intensity)
-    
-    # 한 사이클의 기본 시간 (초)
-    # low: 6초, medium: 4초, high: 2.8초
     base_cycle_time = 4.0 * speed_multiplier
-    
-    # 총 사이클 수 계산
     total_cycles = max(1, int(duration_seconds / base_cycle_time))
-    
-    # 각 가이드 포즈 사이의 시간 간격
-    time_per_pose = (base_cycle_time * 1000) / len(guide_poses)  # ms 단위
+    time_per_pose = (base_cycle_time * 1000) / len(guide_poses)
     
     keyframes = []
     current_time = 0
     
-    # 사이클 반복
     for cycle in range(total_cycles):
         for i, guide_pose in enumerate(guide_poses):
-            # guide_pose를 MediaPipe 33개 랜드마크 형식으로 변환
             landmarks = convert_guide_pose_to_landmarks(guide_pose)
-            
             keyframe = {
                 "timestamp_ms": int(current_time),
                 "pose_landmarks": landmarks,
@@ -974,7 +975,6 @@ def generate_silhouette_from_guide_poses(
             keyframes.append(keyframe)
             current_time += time_per_pose
     
-    # 마지막에 첫 프레임으로 돌아가기 (자연스러운 반복)
     if guide_poses:
         keyframes.append({
             "timestamp_ms": int(current_time),
@@ -986,31 +986,11 @@ def generate_silhouette_from_guide_poses(
 
 
 def convert_guide_pose_to_landmarks(guide_pose: Dict[str, Dict[str, float]]) -> List[Dict]:
-    """
-    guide_pose (딕셔너리 형식)를 MediaPipe 랜드마크 리스트 (33개)로 변환
-    
-    guide_pose 예시:
-    {
-        "0": {"x": 0.5, "y": 0.15},
-        "11": {"x": 0.4, "y": 0.3},
-        ...
-    }
-    
-    반환 형식:
-    [
-        {"x": 0.5, "y": 0.15, "z": 0, "visibility": 0.99},  # 0: nose
-        {"x": 0.5, "y": 0.14, "z": 0, "visibility": 0.99},  # 1: left_eye_inner
-        ...
-    ]
-    """
+    """guide_pose (딕셔너리)를 MediaPipe 랜드마크 리스트 (33개)로 변환"""
     landmarks = []
-    
-    # MediaPipe는 33개 랜드마크 필요 (0-32)
     for i in range(33):
         landmark_key = str(i)
-        
         if landmark_key in guide_pose:
-            # guide_pose에 정의된 랜드마크
             pos = guide_pose[landmark_key]
             landmarks.append({
                 "x": pos.get("x", 0.5),
@@ -1019,87 +999,45 @@ def convert_guide_pose_to_landmarks(guide_pose: Dict[str, Dict[str, float]]) -> 
                 "visibility": 0.99
             })
         else:
-            # guide_pose에 없는 랜드마크는 보간 또는 기본값
             landmarks.append(interpolate_missing_landmark(i, guide_pose))
-    
     return landmarks
 
 
-def interpolate_missing_landmark(
-    landmark_index: int, 
-    guide_pose: Dict[str, Dict[str, float]]
-) -> Dict:
-    """
-    guide_pose에 없는 랜드마크를 주변 랜드마크 기반으로 보간
-    """
-    # 얼굴 랜드마크 (1-10): 코(0) 기준으로 약간 조정
+def interpolate_missing_landmark(landmark_index: int, guide_pose: Dict[str, Dict[str, float]]) -> Dict:
+    """guide_pose에 없는 랜드마크를 주변 랜드마크 기반으로 보간"""
     if 1 <= landmark_index <= 10:
-        if "0" in guide_pose:  # 코
+        if "0" in guide_pose:
             nose = guide_pose["0"]
             offset_map = {
-                1: {"x": 0.01, "y": -0.01},   # left_eye_inner
-                2: {"x": 0.02, "y": -0.01},   # left_eye
-                3: {"x": 0.03, "y": -0.01},   # left_eye_outer
-                4: {"x": -0.01, "y": -0.01},  # right_eye_inner
-                5: {"x": -0.02, "y": -0.01},  # right_eye
-                6: {"x": -0.03, "y": -0.01},  # right_eye_outer
-                7: {"x": 0.04, "y": 0.01},    # left_ear
-                8: {"x": -0.04, "y": 0.01},   # right_ear
-                9: {"x": 0.02, "y": 0.03},    # mouth_left
-                10: {"x": -0.02, "y": 0.03},  # mouth_right
+                1: {"x": 0.01, "y": -0.01}, 2: {"x": 0.02, "y": -0.01}, 3: {"x": 0.03, "y": -0.01},
+                4: {"x": -0.01, "y": -0.01}, 5: {"x": -0.02, "y": -0.01}, 6: {"x": -0.03, "y": -0.01},
+                7: {"x": 0.04, "y": 0.01}, 8: {"x": -0.04, "y": 0.01},
+                9: {"x": 0.02, "y": 0.03}, 10: {"x": -0.02, "y": 0.03},
             }
             offset = offset_map.get(landmark_index, {"x": 0, "y": 0})
-            return {
-                "x": nose["x"] + offset["x"],
-                "y": nose["y"] + offset["y"],
-                "z": 0,
-                "visibility": 0.99
-            }
+            return {"x": nose["x"] + offset["x"], "y": nose["y"] + offset["y"], "z": 0, "visibility": 0.99}
     
-    # 손가락 랜드마크 (17-22): 손목 기준으로 조정
     if 17 <= landmark_index <= 22:
-        wrist_key = "15" if landmark_index in [17, 19, 21] else "16"  # 왼손/오른손
+        wrist_key = "15" if landmark_index in [17, 19, 21] else "16"
         if wrist_key in guide_pose:
             wrist = guide_pose[wrist_key]
             finger_offset_map = {
-                17: {"x": -0.02, "y": 0.02},  # left_pinky
-                18: {"x": 0.02, "y": 0.02},   # right_pinky
-                19: {"x": -0.04, "y": 0.01},  # left_index
-                20: {"x": 0.04, "y": 0.01},   # right_index
-                21: {"x": -0.01, "y": 0.03},  # left_thumb
-                22: {"x": 0.01, "y": 0.03},   # right_thumb
+                17: {"x": -0.02, "y": 0.02}, 18: {"x": 0.02, "y": 0.02},
+                19: {"x": -0.04, "y": 0.01}, 20: {"x": 0.04, "y": 0.01},
+                21: {"x": -0.01, "y": 0.03}, 22: {"x": 0.01, "y": 0.03},
             }
             offset = finger_offset_map.get(landmark_index, {"x": 0, "y": 0})
-            return {
-                "x": wrist["x"] + offset["x"],
-                "y": wrist["y"] + offset["y"],
-                "z": 0,
-                "visibility": 0.99
-            }
+            return {"x": wrist["x"] + offset["x"], "y": wrist["y"] + offset["y"], "z": 0, "visibility": 0.99}
     
-    # 발 랜드마크 (29-32): 발목 기준으로 조정
     if 29 <= landmark_index <= 32:
-        ankle_key = "27" if landmark_index in [29, 31] else "28"  # 왼발/오른발
+        ankle_key = "27" if landmark_index in [29, 31] else "28"
         if ankle_key in guide_pose:
             ankle = guide_pose[ankle_key]
             foot_offset_map = {
-                29: {"x": -0.02, "y": 0.02},  # left_heel
-                30: {"x": 0.02, "y": 0.02},   # right_heel
-                31: {"x": -0.02, "y": 0.03},  # left_foot_index
-                32: {"x": 0.02, "y": 0.03},   # right_foot_index
+                29: {"x": -0.02, "y": 0.02}, 30: {"x": 0.02, "y": 0.02},
+                31: {"x": -0.02, "y": 0.03}, 32: {"x": 0.02, "y": 0.03},
             }
             offset = foot_offset_map.get(landmark_index, {"x": 0, "y": 0})
-            return {
-                "x": ankle["x"] + offset["x"],
-                "y": ankle["y"] + offset["y"],
-                "z": 0,
-                "visibility": 0.99
-            }
+            return {"x": ankle["x"] + offset["x"], "y": ankle["y"] + offset["y"], "z": 0, "visibility": 0.99}
     
-    # 기본값 (중앙)
-    return {
-        "x": 0.5,
-        "y": 0.5,
-        "z": 0,
-        "visibility": 0.5  # 낮은 visibility로 표시
-    }
+    return {"x": 0.5, "y": 0.5, "z": 0, "visibility": 0.5}

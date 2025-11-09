@@ -45,13 +45,9 @@ function OnboardingPage({ user, setUser }) {
 
       recognitionRef1.current.onresult = (event) => {
         let transcript = '';
-
-        // 가장 최근 결과만 가져오기
         for (let i = event.resultIndex; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-
-        // 실시간으로 전체 transcript 업데이트 (중복 방지)
         setLiveTranscript1(transcript);
       };
 
@@ -72,13 +68,9 @@ function OnboardingPage({ user, setUser }) {
 
       recognitionRef2.current.onresult = (event) => {
         let transcript = '';
-
-        // 가장 최근 결과만 가져오기
         for (let i = event.resultIndex; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-
-        // 실시간으로 전체 transcript 업데이트 (중복 방지)
         setLiveTranscript2(transcript);
       };
 
@@ -126,7 +118,7 @@ function OnboardingPage({ user, setUser }) {
       if (liveTranscript1.trim()) {
         setFormData(prev => ({
           ...prev,
-          injured_parts_detail: prev.injured_parts_detail + liveTranscript1
+          injured_parts_detail: prev.injured_parts_detail + ' ' + liveTranscript1
         }));
       }
       setLiveTranscript1('');
@@ -159,7 +151,7 @@ function OnboardingPage({ user, setUser }) {
       if (liveTranscript2.trim()) {
         setFormData(prev => ({
           ...prev,
-          limitations_detail: prev.limitations_detail + liveTranscript2
+          limitations_detail: prev.limitations_detail + ' ' + liveTranscript2
         }));
       }
       setLiveTranscript2('');
@@ -177,15 +169,49 @@ function OnboardingPage({ user, setUser }) {
     }
   };
 
+  // ✅ 추가: 텍스트를 배열로 변환하는 함수
+  const parseTextToArray = (text) => {
+    if (!text || text.trim() === '') return [];
+    
+    // 쉼표, 마침표, 세미콜론, 줄바꿈으로 분리
+    return text
+      .split(/[,.\n;]+/)
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+  };
+
   const handleSubmit = async () => {
     setError('');
     setLoading(true);
 
     try {
-      const response = await authAPI.updateBodyCondition(formData);
+      // ✅ 수정: 텍스트 입력을 배열로 변환하여 전송
+      const detailParts = parseTextToArray(formData.injured_parts_detail);
+      const detailLimitations = parseTextToArray(formData.limitations_detail);
+
+      // 버튼으로 선택한 부위 + 직접 입력한 부위 합치기
+      const allInjuredParts = [
+        ...formData.injured_parts,
+        ...detailParts
+      ];
+
+      // 중복 제거
+      const uniqueInjuredParts = [...new Set(allInjuredParts)];
+      const uniqueLimitations = [...new Set(detailLimitations)];
+
+      const dataToSend = {
+        injured_parts: uniqueInjuredParts,
+        pain_level: formData.pain_level,
+        limitations: uniqueLimitations
+      };
+
+      console.log('🚀 전송할 데이터:', dataToSend); // 디버깅용
+
+      const response = await authAPI.updateBodyCondition(dataToSend);
       setUser({ ...user, body_condition: response.data.body_condition });
       navigate('/');
     } catch (err) {
+      console.error('저장 실패:', err);
       setError(err.response?.data?.detail || '저장에 실패했습니다.');
     } finally {
       setLoading(false);
@@ -234,7 +260,9 @@ function OnboardingPage({ user, setUser }) {
                   <textarea
                     value={formData.injured_parts_detail}
                     onChange={(e) => setFormData({ ...formData, injured_parts_detail: e.target.value })}
-                    placeholder="상세한 내용을 직접 입력해주세요 (예: 인후통, 두통, 관절염)"
+                    placeholder="상세한 내용을 직접 입력해주세요
+예: 인후통, 두통, 관절염
+여러 개는 쉼표로 구분해주세요"
                     className="onboarding-textarea"
                     rows="4"
                   />
@@ -309,7 +337,8 @@ function OnboardingPage({ user, setUser }) {
                   <textarea
                     value={formData.limitations_detail}
                     onChange={(e) => setFormData({ ...formData, limitations_detail: e.target.value })}
-                    placeholder="예: 쪼그려 앉기 어려움, 팔을 머리 위로 올리기 힘듦"
+                    placeholder="예: 쪼그려 앉기 어려움, 팔을 머리 위로 올리기 힘듦
+여러 개는 쉼표로 구분해주세요"
                     className="onboarding-textarea"
                     rows="4"
                   />
