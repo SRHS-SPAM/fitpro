@@ -80,17 +80,17 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4 pb-24">
       <button 
         onClick={() => navigate('/')} 
-        className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
+        className="mb-3 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
       </button>
 
       <div className="max-w-4xl mx-auto pt-2 pb-8">
-        <div className="flex items-center justify-between mb-3">
+        <div className="items-center justify-between mb-3">
           <div className="flex-1">
             <h1 className="text-4xl font-bold mb-3">🤖 AI 맞춤 운동 추천</h1>
-            <p className="text-gray-400 text-lg">당신의 상태에 맞는 운동을 선택하세요</p>
+            <p className="text-gray-400 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
           </div>
           
           {/* ✅ 새로고침 버튼 */}

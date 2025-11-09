@@ -181,6 +181,7 @@ class ExerciseCompleteResponse(BaseModel):
     overall_score: int = Field(..., ge=0, le=100, description="전체 점수")
     feedback: ExerciseFeedback = Field(..., description="피드백")
     calories_burned: int = Field(..., ge=0, description="소모 칼로리")
+    score_history: Optional[List[int]] = Field(default=[], description="시간대별 점수 배열")
 
     class Config:
         schema_extra = {

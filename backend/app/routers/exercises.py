@@ -334,7 +334,8 @@ async def complete_exercise(
         "calories_burned": calories_burned,
         "pain_level_before": request.pain_level_before, 
         "pain_level_after": request.pain_level_after,
-        "feedback": feedback
+        "feedback": feedback,
+        "score_history": request.score_history 
     }
     result = await db.records.insert_one(record_doc)
     
