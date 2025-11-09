@@ -1,22 +1,69 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, LogOut, ArrowLeft } from 'lucide-react';
+import { UserCircle, LogOut, ArrowLeft, AlertTriangle, X } from 'lucide-react';
 
-// App.jsx로부터 user와 onLogout 함수만 받습니다. (setUser는 이제 불필요)
 export default function InfoPage({ user, onLogout }) {
     const navigate = useNavigate();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [password, setPassword] = useState('');
+    const [confirmText, setConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState('');
 
     const handleLogout = () => {
         if (onLogout) {
             onLogout();
         } else {
-            // 비상시 로직
             localStorage.removeItem('access_token');
             navigate('/');
         }
     };
 
-    // 사용자가 없는 경우를 대비한 가드
+    const handleDeleteAccount = async () => {
+        if (!password) {
+            setError('비밀번호를 입력해주세요.');
+            return;
+        }
+
+        if (confirmText !== '삭제합니다') {
+            setError('확인 문구를 정확히 입력해주세요.');
+            return;
+        }
+
+        setIsDeleting(true);
+        setError('');
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost:8000/api/v1/users/me', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    password: password,
+                    confirm_text: confirmText
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message || '계정이 성공적으로 삭제되었습니다.');
+                // onLogout을 호출하여 user 상태도 초기화
+                handleLogout();
+            } else {
+                setError(data.detail || '계정 삭제에 실패했습니다.');
+            }
+        } catch (err) {
+            setError('서버 연결에 실패했습니다. 다시 시도해주세요.');
+            console.error('Delete account error:', err);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     if (!user) {
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
@@ -38,7 +85,6 @@ export default function InfoPage({ user, onLogout }) {
                     <h1 className="text-3xl font-extrabold text-gray-900">내 정보</h1>
                 </header>
 
-                {/* 기본 정보 표시 섹션 */}
                 <section className="space-y-4 p-4 bg-indigo-50 rounded-lg shadow-inner">
                     <div className="flex justify-between items-center">
                         <h2 className="text-xl font-bold text-indigo-800">계정 정보</h2>
@@ -59,7 +105,6 @@ export default function InfoPage({ user, onLogout }) {
                     </div>
                 </section>
 
-                {/* 신체 정보 확인 및 수정 안내 섹션 */}
                 <section className="space-y-4">
                     <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">신체 정보</h2>
                     <div className="p-4 bg-gray-50 rounded-lg shadow-inner text-center">
@@ -74,11 +119,126 @@ export default function InfoPage({ user, onLogout }) {
                         </button>
                     </div>
                 </section>
+
+                <section className="space-y-4 pt-4 border-t">
+                    <h2 className="text-xl font-bold text-red-700">위험 구역</h2>
+                    <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                        <div className="flex items-start space-x-3 mb-3">
+                            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-red-800 mb-1">계정 삭제</h3>
+                                <p className="text-sm text-red-700 mb-3">
+                                    계정을 삭제하면 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowDeleteModal(true)}
+                            className="w-full px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition duration-150"
+                        >
+                            계정 삭제하기
+                        </button>
+                    </div>
+                </section>
                 
                 <button onClick={() => navigate('/')} className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-sm text-gray-700 border border-gray-300 bg-gray-100 hover:bg-gray-200 transition duration-150">
                     <ArrowLeft className="h-5 w-5 mr-2" /> 홈으로 돌아가기
                 </button>
             </div>
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-2">
+                                <AlertTriangle className="w-6 h-6 text-red-600" />
+                                <h2 className="text-xl font-bold text-gray-900">계정 삭제 확인</h2>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPassword('');
+                                    setConfirmText('');
+                                    setError('');
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p className="text-sm text-red-800 font-medium mb-2">
+                                ⚠️ 다음 데이터가 영구적으로 삭제됩니다:
+                            </p>
+                            <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                                <li>계정 정보 및 프로필</li>
+                                <li>생성한 모든 운동</li>
+                                <li>운동 기록</li>
+                            </ul>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-lg text-sm">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    비밀번호 확인
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="비밀번호를 입력하세요"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    확인 문구 입력
+                                </label>
+                                <input
+                                    type="text"
+                                    value={confirmText}
+                                    onChange={(e) => setConfirmText(e.target.value)}
+                                    placeholder="삭제합니다"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    "삭제합니다"를 정확히 입력해주세요
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-3 pt-2">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPassword('');
+                                    setConfirmText('');
+                                    setError('');
+                                }}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150"
+                                disabled={isDeleting}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isDeleting ? '삭제 중...' : '영구 삭제'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

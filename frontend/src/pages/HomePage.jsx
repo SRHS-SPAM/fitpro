@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recordsAPI } from '../services/api';
-import { Activity, AlertCircle } from 'lucide-react';
-// --- [수정] BottomNav 컴포넌트의 import 경로를 수정합니다. ---
+import { Activity, AlertCircle, ChevronRight } from 'lucide-react';
 import BottomNav from '../components/BottomNav'; 
 import './HomePage.css';
 
@@ -16,7 +15,8 @@ function HomePage({ user }) {
     const fetchRecords = async () => {
       setRecordsLoading(true);
       try {
-        const response = await recordsAPI.getRecords(1, 3); 
+        // 최근 기록 1개만 가져오기
+        const response = await recordsAPI.getRecords(1, 1); 
         setRecords(response.data.records);
       } catch (err) {
         console.error("운동 기록을 불러오는 데 실패했습니다:", err);
@@ -44,36 +44,71 @@ function HomePage({ user }) {
               <p className="home-user-text">{user?.name || '사용자'}님</p>
             </div>
           </div>
+
+          {/* 현재 상태를 헤더 오른쪽에 배치 */}
+          {user?.body_condition && (
+            <div className="home-status-card-header">
+              <div className="home-status-content-compact">
+                {(user.body_condition.injured_parts?.length > 0 || user.body_condition.injured_parts_detail) && (
+                  <div className="home-injured-section-compact">
+                    <span className="home-label-compact">불편 부위:</span>
+                    <div className="home-tag-container-compact">
+                      {user.body_condition.injured_parts.map(part => ( 
+                        <span key={part} className="home-tag-compact">{part}</span> 
+                      ))}
+                      {user.body_condition.injured_parts_detail && ( 
+                        <span className="home-tag-compact detail">{user.body_condition.injured_parts_detail}</span> 
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="home-pain-level-compact">
+                  <span className="home-label-compact">통증:</span>
+                  <span className="home-pain-value-compact">{user.body_condition.pain_level}/10</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="home-main-content">
-        {user?.body_condition && (
-            <div className="home-status-card">
-              <h2 className="home-card-title">💪 현재 상태</h2>
-              <div className="home-status-content">
-                  {(user.body_condition.injured_parts?.length > 0 || user.body_condition.injured_parts_detail) && (
-                  <div className="home-injured-section">
-                      <span className="home-label">불편 부위:</span>
-                      <div className="home-tag-container">
-                      {user.body_condition.injured_parts.map(part => ( <span key={part} className="home-tag">{part}</span> ))}
-                      {user.body_condition.injured_parts_detail && ( <span className="home-tag detail">{user.body_condition.injured_parts_detail}</span> )}
-                      </div>
-                  </div>
-                  )}
-                  <div className="home-pain-level">
-                      <span className="home-label">통증 수준:</span>
-                      <span className="home-pain-value">{user.body_condition.pain_level}/10</span>
-                  </div>
-              </div>
-              <button onClick={() => navigate('/onboarding')} className="home-edit-button">
-                  정보 수정하기 →
-              </button>
-            </div>
-        )}
+        <div className="home-exercise-card">
+            <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
+            <img src="/home_img.png" alt="운동하는 모습" className='home-img'/>
+            <p className="home-card-subtitle">AI가 상태에 맞춰 운동을 추천해 드립니다.</p>
+            {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
+            <button onClick={handleStartExercise} className="home-generate-button">
+              ✨ AI 맞춤 운동 추천받기
+            </button>
+        </div>
 
         <div className="home-records-card">
-            <h2 className="home-main-card-title">📖 최근 운동 기록</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 className="home-main-card-title" style={{ margin: 0 }}>📖 최근 운동 기록</h2>
+              <button 
+                onClick={() => navigate('/records')}
+                className="home-see-more-button"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.875rem',
+                  color: '#6366f1',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#4f46e5'}
+                onMouseLeave={(e) => e.target.style.color = '#6366f1'}
+              >
+                더보기
+                <ChevronRight size={16} />
+              </button>
+            </div>
             {recordsLoading ? (<p>기록을 불러오는 중...</p>) 
             : records && records.length > 0 ? (
             <div className="home-records-list">
@@ -86,15 +121,6 @@ function HomePage({ user }) {
                 ))}
             </div>
             ) : (<p>아직 운동 기록이 없습니다.</p>)}
-        </div>
-
-        <div className="home-exercise-card">
-            <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
-            <p className="home-card-subtitle">AI가 당신의 현재 상태에 맞춰 운동을 추천해 드립니다.</p>
-            {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
-            <button onClick={handleStartExercise} className="home-generate-button">
-              ✨ AI 맞춤 운동 추천받기
-            </button>
         </div>
       </div>
       
