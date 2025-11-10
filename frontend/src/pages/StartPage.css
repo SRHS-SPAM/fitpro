@@ -1,0 +1,134 @@
+    /* Start Page Wrapper - iPhone 16 크기 (393px × 852px) */
+    .start-page-wrapper {
+    min-height: 100vh;
+    max-width: 393px; /* ✅ iPhone 16 너비 */
+    margin: 0 auto; /* ✅ 중앙 정렬 */
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* ✅ 양옆 그림자 */
+    }
+
+    /* Header - 상단 로고 영역 */
+    .start-header {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    max-height: 60vh; /* ✅ 로고 영역 최대 높이 제한 */
+    }
+
+    .start-logo {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4ade80; /* 녹색 */
+    margin: 0;
+    letter-spacing: -0.02em;
+    }
+
+    /* Card - 하단 녹색 그라데이션 카드 */
+    .start-card {
+    background: linear-gradient(to bottom, rgba(134, 239, 172, 0.4), rgba(134, 239, 172, 0.8));
+    border-radius: 2rem 2rem 0 0;
+    padding: 2.5rem 1.5rem 2rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    min-height: 400px; /* ✅ 최소 높이 설정 */
+    }
+
+    .start-card-content {
+    max-width: 100%;
+    margin: 0 auto;
+    }
+
+    /* Title */
+    .start-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #374151;
+    text-align: center;
+    margin: 0 0 1rem 0;
+    }
+
+    /* Description */
+    .start-description {
+    font-size: 0.95rem;
+    color: #4b5563;
+    text-align: center;
+    line-height: 1.6;
+    margin: 0 0 2rem 0;
+    }
+
+    /* 회원가입 버튼 */
+    .start-signup-button {
+    width: 100%;
+    height: 3rem;
+    background-color: white;
+    color: #374151;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+    }
+
+    .start-signup-button:hover {
+    background-color: #f9fafb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+    }
+
+    .start-signup-button:active {
+    transform: translateY(0);
+    }
+
+    /* 로그인 링크 */
+    .start-login-link {
+    width: 100%;
+    height: 3rem;
+    background-color: transparent;
+    color: #374151;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    }
+
+    .start-login-link:hover {
+    color: #1f2937;
+    text-decoration: underline;
+    }
+
+    /* 더 작은 화면 대응 (iPhone SE 등) */
+    @media (max-width: 375px) {
+    .start-page-wrapper {
+        max-width: 375px;
+    }
+    
+    .start-logo {
+        font-size: 2.25rem;
+    }
+    
+    .start-card {
+        padding: 2rem 1.25rem 1.5rem;
+    }
+    
+    .start-title {
+        font-size: 1.35rem;
+    }
+    
+    .start-description {
+        font-size: 0.9rem;
+    }
+    }
+
+    @media (min-width: 394px) {
+    .start-page-wrapper {
+        max-width: 393px;
+    }
+    }
