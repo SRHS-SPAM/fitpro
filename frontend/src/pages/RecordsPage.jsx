@@ -272,8 +272,8 @@ function RecordsPage() {
           {records.length === 0 ? (
             <div className="records-empty">
               <Calendar />
-              <h3 className="records-empty-title">아직 운동 기록이 없습니다</h3>
-              <p className="records-empty-text">첫 운동을 시작해보세요!</p>
+              <h3 className="records-empty-title">운동 기록이 없습니다</h3>
+              <p className="records-empty-text">운동을 시작해보세요!</p>
               <button onClick={() => navigate('/exercise-selection')} className="records-empty-button">
                 AI 추천 받기
               </button>
@@ -420,7 +420,6 @@ function RecordsPage() {
               fontSize: '13px',
               fontWeight: '500'
             }}>
-              ※ 전체 누적 통계는 유지됩니다
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
