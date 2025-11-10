@@ -1,8 +1,8 @@
 /* HomePage Variables - LoginPage와 통일 */
 :root {
-  --primary-color: #3b82f6; /* Blue 500 */
-  --primary-dark: #2563eb; /* Blue 600 */
-  --primary-light: #eff6ff; /* Blue 50 */
+  --primary-color: #4CAF50;
+  --primary-dark: #499c4c;  
+  --primary-light: #effff2;
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
   --gray-200: #e5e7eb;

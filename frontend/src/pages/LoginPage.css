@@ -1,8 +1,8 @@
 /* Variables */
 :root {
-    --primary-color: #3b82f6; /* Blue 500 */
-    --primary-dark: #2563eb; /* Blue 600 */
-    --primary-light: #eff6ff; /* Blue 50 */
+    --primary-color: #4CAF50;
+    --primary-dark: #499c4c;  
+    --primary-light: #effff2;
     --gray-100: #f3f4f6;
     --gray-300: #d1d5db;
     --gray-400: #9ca3af;
@@ -44,7 +44,7 @@
     justify-content: center;
     width: 4rem; 
     height: 4rem; 
-    background-color: var(--primary-color);
+    background-color: #4CAF50;
     border-radius: 1rem; 
     margin-bottom: 0.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -60,7 +60,7 @@
     margin: 10px 0;
     font-size: 1.875rem; 
     font-weight: 700; 
-    color: var(--gray-900);
+    color: #4CAF50;
 }
 
 .app-subtitle {

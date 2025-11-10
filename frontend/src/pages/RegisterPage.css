@@ -1,8 +1,8 @@
 /* Variables */
 :root {
-    --primary-color: #3b82f6; /* Blue 500 */
-    --primary-dark: #2563eb;  /* Blue 600 */
-    --primary-light: #eff6ff; /* Blue 50 */
+    --primary-color: #4CAF50;
+    --primary-dark: #499c4c;  
+    --primary-light: #effff2;
     --gray-50: #f9fafb;
     --gray-100: #f3f4f6;
     --gray-400: #9ca3af;
@@ -141,7 +141,7 @@
 }
 
 .input-field {
-    width: 80%;
+    width: 100%;
     padding: 0.75rem 1rem 0.75rem 2.5rem; /* py-3, pl-10 */
     border: 1px solid var(--gray-300);
     border-radius: 0.5rem;
