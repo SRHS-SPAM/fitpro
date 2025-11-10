@@ -57,9 +57,10 @@ class ExerciseResponse(BaseModel):
     guide_poses: List[Dict[str, Dict[str, float]]] = Field(
         default=[],
         description="운동 가이드 스켈레톤 키프레임 배열 (MediaPipe 랜드마크 11-28)"
-    )  # ✨ 추가
+    )
     created_at: str
     expires_at: Optional[str] = None
+    recommendation_reason: Optional[str] = None  # ✅ 추가: 추천 이유
 
 class ExerciseListResponse(BaseModel):
     """운동 목록 응답"""
@@ -145,6 +146,7 @@ class ExerciseCompleteRequest(BaseModel):
     pain_level_before: Optional[int] = Field(None, ge=0, le=10, description="운동 전 통증 수준")
     pain_level_after: int = Field(..., ge=0, le=10, description="운동 후 통증 수준")
     duration_minutes: int = Field(..., gt=0, description="실제 운동 시간 (분)")
+    score_history: Optional[List[int]] = Field(default=[], description="시간대별 점수 배열")  # ✅ 추가!
 
     class Config:
         schema_extra = {
@@ -154,7 +156,8 @@ class ExerciseCompleteRequest(BaseModel):
                 "average_score": 82,
                 "pain_level_before": 3,
                 "pain_level_after": 2,
-                "duration_minutes": 15
+                "duration_minutes": 15,
+                "score_history": [75, 80, 85, 82, 84]  # ✅ 추가!
             }
         }
 
@@ -193,6 +196,7 @@ class ExerciseCompleteResponse(BaseModel):
                     "improvements": ["무릎 각도 주의"],
                     "strengths": ["속도 조절 우수"]
                 },
-                "calories_burned": 45
+                "calories_burned": 45,
+                "score_history": [75, 80, 85, 82, 84]  # ✅ 추가!
             }
         }
