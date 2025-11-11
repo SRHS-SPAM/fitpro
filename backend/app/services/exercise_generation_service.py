@@ -10,6 +10,47 @@ client = AsyncOpenAI(
     api_key=settings.OPENAI_API_KEY
 )
 
+def debug_print_animation(silhouette_animation: Dict, exercise_name: str):
+    """생성된 애니메이션 데이터를 출력하여 확인"""
+    print(f"\n{'='*60}")
+    print(f"🎬 [{exercise_name}] 애니메이션 데이터 확인")
+    print(f"{'='*60}")
+    
+    keyframes = silhouette_animation.get("keyframes", [])
+    print(f"📊 총 키프레임 수: {len(keyframes)}")
+    
+    if len(keyframes) > 0:
+        print(f"\n🔍 첫 번째 키프레임:")
+        first_frame = keyframes[0]
+        print(f"  - timestamp_ms: {first_frame.get('timestamp_ms')}")
+        print(f"  - description: {first_frame.get('description')}")
+        print(f"  - 랜드마크 수: {len(first_frame.get('pose_landmarks', []))}")
+        
+        # 주요 관절 위치 확인
+        landmarks = first_frame.get('pose_landmarks', [])
+        if len(landmarks) >= 33:
+            print(f"\n📍 주요 관절 위치 (첫 번째 프레임):")
+            print(f"  - 코(0): x={landmarks[0]['x']:.3f}, y={landmarks[0]['y']:.3f}")
+            print(f"  - 왼쪽 어깨(11): x={landmarks[11]['x']:.3f}, y={landmarks[11]['y']:.3f}")
+            print(f"  - 오른쪽 어깨(12): x={landmarks[12]['x']:.3f}, y={landmarks[12]['y']:.3f}")
+            print(f"  - 왼쪽 엉덩이(23): x={landmarks[23]['x']:.3f}, y={landmarks[23]['y']:.3f}")
+            print(f"  - 왼쪽 무릎(25): x={landmarks[25]['x']:.3f}, y={landmarks[25]['y']:.3f}")
+            print(f"  - 왼쪽 발목(27): x={landmarks[27]['x']:.3f}, y={landmarks[27]['y']:.3f}")
+    
+    if len(keyframes) > 1:
+        print(f"\n🔍 두 번째 키프레임:")
+        second_frame = keyframes[1]
+        print(f"  - timestamp_ms: {second_frame.get('timestamp_ms')}")
+        print(f"  - description: {second_frame.get('description')}")
+        
+        landmarks = second_frame.get('pose_landmarks', [])
+        if len(landmarks) >= 33:
+            print(f"\n📍 주요 관절 위치 (두 번째 프레임):")
+            print(f"  - 코(0): x={landmarks[0]['x']:.3f}, y={landmarks[0]['y']:.3f}")
+            print(f"  - 왼쪽 무릎(25): x={landmarks[25]['x']:.3f}, y={landmarks[25]['y']:.3f}")
+    
+    print(f"{'='*60}\n")
+
 # --- 기존 단일 운동 생성 함수 (guide_poses 추가) ---
 async def generate_personalized_exercise(
     user_body_condition: Dict,
@@ -21,43 +62,61 @@ async def generate_personalized_exercise(
     """
     사용자 신체 상태 기반 AI 맞춤 운동 생성 (단일)
     """
-    base_template = await get_base_template(db, exercise_type, user_body_condition)
-    if not base_template:
-        base_template = await create_default_template()
-
-    prompt = create_exercise_prompt(
-        user_body_condition=user_body_condition,
-        base_template=base_template,
-        exercise_type=exercise_type,
-        intensity=intensity,
-        duration_minutes=duration_minutes
-    )
-
+    
+    # ✅ 1. OpenAI API 호출 추가
+    prompt = create_exercise_prompt(user_body_condition, {}, exercise_type, intensity, duration_minutes)
+    
     try:
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "당신은 전문 재활 운동 트레이너입니다. 사용자의 신체 상태에 맞는 안전하고 효과적인 운동 1개를 JSON 형식으로 생성합니다."},
+                {"role": "system", "content": "당신은 재활 운동 전문가입니다. 응답은 반드시 JSON 형식이어야 합니다."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
             temperature=0.7,
             max_tokens=2000
         )
-        exercise_data = json.loads(response.choices[0].message.content)
+        
+        content = response.choices[0].message.content
+        if content.strip().startswith("```json"):
+            content = content.strip()[7:-3]
+        
+        exercise_data = json.loads(content)
+        
     except Exception as e:
-        print(f"OpenAI API 오류 (단일 생성): {e}")
-        exercise_data = create_fallback_exercise(base_template, intensity, duration_minutes)
-
-    customized_animation = customize_animation(
-        base_animation=base_template.get("base_animation", {}),
-        intensity=intensity,
-        user_limitations=user_body_condition.get("limitations", [])
+        print(f"❌ OpenAI API 오류: {e}")
+        exercise_data = {
+            "name": "기본 재활 운동",
+            "description": "안전한 기본 운동입니다.",
+            "instructions": ["천천히 시작하세요", "통증이 있으면 멈추세요"],
+            "repetitions": 10,
+            "sets": 3,
+            "target_parts": ["전신"],
+            "safety_warnings": ["무리하지 마세요"]
+        }
+    
+    exercise_name = exercise_data.get("name", "기본 운동")
+    
+    # ✅ 2. base_template 가져오기
+    base_template = await get_base_template(db, exercise_type, user_body_condition)
+    if not base_template:
+        base_template = await create_default_template(exercise_name)
+    
+    # ✅ 3. guide_poses 생성 (await 추가)
+    guide_poses = await generate_guide_poses(exercise_name)
+    print(f"✅ [{exercise_name}] guide_poses 생성: {len(guide_poses)}개 프레임")
+    
+    # ✅ 4. silhouette_animation 생성
+    silhouette_animation = generate_silhouette_from_guide_poses(
+        guide_poses=guide_poses,
+        duration_seconds=duration_minutes * 60,
+        intensity=intensity
     )
+    
+    print(f"✅ silhouette_animation 생성 완료: {len(silhouette_animation.get('keyframes', []))}개 키프레임")
 
-    # ✨ guide_poses 생성 추가
-    guide_poses = generate_guide_poses(exercise_data.get("name", "기본 운동"))
-
+    # ✅ 5. 최종 운동 데이터 반환
     final_exercise = {
         "base_template_id": base_template.get("_id"),
         "name": exercise_data.get("name", "맞춤 재활 운동"),
@@ -68,7 +127,7 @@ async def generate_personalized_exercise(
         "sets": exercise_data.get("sets", 3),
         "target_parts": exercise_data.get("target_parts", ["전신"]),
         "safety_warnings": exercise_data.get("safety_warnings", ["통증이 느껴지면 즉시 중단하세요"]),
-        "silhouette_animation": customized_animation,
+        "silhouette_animation": silhouette_animation,
         "guide_poses": guide_poses,
         "customization_params": {
             "intensity": intensity,
@@ -78,7 +137,6 @@ async def generate_personalized_exercise(
         }
     }
     return final_exercise
-
 # --- 추천 운동 생성 함수 (guide_poses + 새로고침 기능 추가) ---
 
 def create_recommendations_prompt(user_body_condition: Dict, exclude_exercises: List[str] = None) -> str:
@@ -167,13 +225,13 @@ def create_recommendations_prompt(user_body_condition: Dict, exclude_exercises: 
 8.  각 운동은 서로 다른 종류여야 하며, 다양성을 가져야 합니다.
 """
 
-async def generate_exercise_recommendations(user_body_condition: Dict, exclude_exercises: List[str] = None) -> List[Dict[str, Any]]:
+async def generate_exercise_recommendations(
+    user_body_condition: Dict, 
+    exclude_exercises: List[str] = None
+) -> List[Dict[str, Any]]:
     """
-    AI를 사용하여 사용자에게 여러 맞춤 운동을 추천합니다.
-    
-    Args:
-        user_body_condition: 사용자 신체 정보
-        exclude_exercises: 제외할 운동 이름 리스트 (새로고침 시 이전 운동 제외)
+    AI를 사용하여 사용자에게 여러 맞춤 운동을 추천
+    ✅ 수정: guide_poses 생성 실패 시 기본 포즈 사용
     """
     if not user_body_condition:
         return []
@@ -184,7 +242,7 @@ async def generate_exercise_recommendations(user_body_condition: Dict, exclude_e
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "당신은 사용자의 데이터를 분석하여 맞춤 운동 여러 개를 추천하는 최고의 재활 전문가입니다. 응답은 반드시 지정된 JSON 형식의 리스트로 제공해야 합니다. instructions, safety_warnings, target_parts를 반드시 포함하세요."},
+                {"role": "system", "content": "당신은 재활 전문가입니다. JSON 형식으로 3개의 운동을 추천하세요."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -199,76 +257,344 @@ async def generate_exercise_recommendations(user_body_condition: Dict, exclude_e
         result = json.loads(content)
         recommendations = result.get("recommendations", [])
         
+        print(f"\n🎯 추천 운동 {len(recommendations)}개 생성됨")
+        
         # ✅ 각 추천 운동에 guide_poses와 silhouette_animation 추가
-        for rec in recommendations:
+        for idx, rec in enumerate(recommendations):
             exercise_name = rec.get("name", "기본 운동")
             intensity = rec.get("intensity", "medium")
             
-            # guide_poses 생성
-            rec["guide_poses"] = generate_guide_poses(exercise_name)
+            print(f"\n[{idx+1}] {exercise_name} 처리 중...")
             
-            # ✨ silhouette_animation 생성 (guide_poses 기반)
-            rec["silhouette_animation"] = generate_silhouette_from_guide_poses(
-                guide_poses=rec["guide_poses"],
-                duration_seconds=rec.get("duration_minutes", 10) * 60,
-                intensity=intensity
-            )
+            # guide_poses 생성
+            try:
+                rec["guide_poses"] = await generate_guide_poses(exercise_name)
+                
+                if not rec["guide_poses"] or len(rec["guide_poses"]) < 2:
+                    print(f"⚠️ guide_poses 부족! 기본 애니메이션 사용")
+                    rec["guide_poses"] = get_default_guide_poses_with_animation()
+                
+                print(f"✅ guide_poses: {len(rec['guide_poses'])}개 프레임")
+                
+            except Exception as e:
+                print(f"❌ guide_poses 생성 실패: {e}")
+                rec["guide_poses"] = get_default_guide_poses_with_animation()
+            
+            # silhouette_animation 생성
+            try:
+                rec["silhouette_animation"] = generate_silhouette_from_guide_poses(
+                    guide_poses=rec["guide_poses"],
+                    duration_seconds=rec.get("duration_minutes", 10) * 60,
+                    intensity=intensity
+                )
+                print(f"✅ silhouette_animation: {len(rec['silhouette_animation']['keyframes'])}개 키프레임")
+                
+            except Exception as e:
+                print(f"❌ silhouette_animation 생성 실패: {e}")
+                # 최소한의 애니메이션
+                rec["silhouette_animation"] = {
+                    "fps": 30,
+                    "keyframes": [
+                        {
+                            "timestamp_ms": 0,
+                            "pose_landmarks": convert_guide_pose_to_landmarks(rec["guide_poses"][0]),
+                            "description": "시작"
+                        }
+                    ]
+                }
         
         return recommendations
 
     except Exception as e:
-        print(f"OpenAI API 오류 (다중 추천): {e}")
+        print(f"❌ OpenAI API 오류: {e}")
         return []
 
-
-# ✨ ============ 가이드 포즈 생성 함수 (세밀한 관절 추가) ============
-
-def generate_guide_poses(exercise_name: str) -> List[Dict[str, Dict[str, float]]]:
+# ✅ async 추가 및 await 추가
+async def generate_poses_with_ai(exercise_name: str) -> List[Dict[str, Dict[str, float]]]:
     """
-    운동 이름 기반 가이드 포즈 생성 (손목, 발목까지 세밀하게)
+    AI를 사용하여 운동 포즈 생성
     
-    MediaPipe Pose 랜드마크:
-    0: 코, 1-10: 얼굴
-    11: 왼쪽 어깨, 12: 오른쪽 어깨
-    13: 왼쪽 팔꿈치, 14: 오른쪽 팔꿈치
-    15: 왼쪽 손목, 16: 오른쪽 손목
-    17: 왼쪽 새끼손가락, 18: 오른쪽 새끼손가락
-    19: 왼쪽 검지, 20: 오른쪽 검지
-    21: 왼쪽 엄지, 22: 오른쪽 엄지
-    23: 왼쪽 엉덩이, 24: 오른쪽 엉덩이
-    25: 왼쪽 무릎, 26: 오른쪽 무릎
-    27: 왼쪽 발목, 28: 오른쪽 발목
-    29: 왼쪽 발뒤꿈치, 30: 오른쪽 발뒤꿈치
-    31: 왼쪽 발끝, 32: 오른쪽 발끝
+    Args:
+        exercise_name: 운동 이름 (예: "벽 대고 팔 굽히기")
+    
+    Returns:
+        MediaPipe 33개 랜드마크 포즈 리스트 (2-4개 프레임)
     """
-    exercise_name_lower = exercise_name.lower()
-    
-    if "스쿼트" in exercise_name:
-        return get_squat_guide_poses()
-    elif "런지" in exercise_name:
-        return get_lunge_guide_poses()
-    elif "플랭크" in exercise_name:
-        return get_plank_guide_poses()
-    elif "팔굽혀펴기" in exercise_name or "푸시업" in exercise_name:
-        return get_pushup_guide_poses()
-    elif "레그" in exercise_name and "레이즈" in exercise_name:
-        return get_leg_raise_guide_poses()
-    elif "손목" in exercise_name:
-        return get_wrist_guide_poses()
-    elif "발목" in exercise_name:
-        return get_ankle_guide_poses()
-    elif "어깨" in exercise_name:
-        return get_shoulder_guide_poses()
-    elif "팔" in exercise_name and ("벌리기" in exercise_name or "들기" in exercise_name):
-        return get_arm_raise_guide_poses()
-    elif "종아리" in exercise_name or "카프" in exercise_name:
-        return get_calf_raise_guide_poses()
-    elif "스트레칭" in exercise_name or "스트레치" in exercise_name:
-        return get_stretching_guide_poses()
-    else:
-        return get_default_guide_poses()
-    
+    prompt = f"""
+당신은 운동 동작 전문가입니다. 다음 운동의 **MediaPipe Pose 랜드마크 좌표**를 생성해주세요.
+
+**운동 이름:** {exercise_name}
+
+**MediaPipe Pose 랜드마크 정보:**
+- 0: 코 (nose)
+- 11: 왼쪽 어깨 (left shoulder)
+- 12: 오른쪽 어깨 (right shoulder)
+- 13: 왼쪽 팔꿈치 (left elbow)
+- 14: 오른쪽 팔꿈치 (right elbow)
+- 15: 왼쪽 손목 (left wrist)
+- 16: 오른쪽 손목 (right wrist)
+- 19: 왼쪽 검지 (left index)
+- 20: 오른쪽 검지 (right index)
+- 23: 왼쪽 엉덩이 (left hip)
+- 24: 오른쪽 엉덩이 (right hip)
+- 25: 왼쪽 무릎 (left knee)
+- 26: 오른쪽 무릎 (right knee)
+- 27: 왼쪽 발목 (left ankle)
+- 28: 오른쪽 발목 (right ankle)
+- 31: 왼쪽 발끝 (left foot index)
+- 32: 오른쪽 발끝 (right foot index)
+
+**좌표 규칙:**
+- x: 0.0 (왼쪽) ~ 1.0 (오른쪽), 중앙은 0.5
+- y: 0.0 (위) ~ 1.0 (아래), 머리는 0.1-0.2, 발은 0.95-0.98
+- 서있는 자세: 머리 y=0.15, 어깨 y=0.3, 엉덩이 y=0.6, 무릎 y=0.8, 발목 y=0.95
+- 앉은 자세: 머리 y=0.25, 어깨 y=0.35, 엉덩이 y=0.65, 무릎 y=0.8, 발목 y=0.95
+
+**생성 요청:**
+이 운동의 핵심 동작을 **2-4개 프레임**으로 표현해주세요.
+예: 스쿼트는 "서있기 → 앉기" 2프레임, 팔 돌리기는 "위 → 오른쪽 → 아래 → 왼쪽" 4프레임
+
+**응답 JSON 형식:**
+{{
+  "frames": [
+    {{
+      "0": {{"x": 0.5, "y": 0.15}},
+      "11": {{"x": 0.4, "y": 0.3}},
+      "12": {{"x": 0.6, "y": 0.3}},
+      "13": {{"x": 0.35, "y": 0.5}},
+      "14": {{"x": 0.65, "y": 0.5}},
+      "15": {{"x": 0.3, "y": 0.7}},
+      "16": {{"x": 0.7, "y": 0.7}},
+      "19": {{"x": 0.28, "y": 0.72}},
+      "20": {{"x": 0.72, "y": 0.72}},
+      "23": {{"x": 0.42, "y": 0.6}},
+      "24": {{"x": 0.58, "y": 0.6}},
+      "25": {{"x": 0.4, "y": 0.8}},
+      "26": {{"x": 0.6, "y": 0.8}},
+      "27": {{"x": 0.38, "y": 0.95}},
+      "28": {{"x": 0.62, "y": 0.95}},
+      "31": {{"x": 0.36, "y": 0.98}},
+      "32": {{"x": 0.64, "y": 0.98}}
+    }},
+    {{
+      "0": {{"x": 0.5, "y": 0.25}},
+      "11": {{"x": 0.4, "y": 0.4}},
+      ...
+    }}
+  ]
+}}
+
+**중요:**
+1. 반드시 최소한 랜드마크 0, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32를 포함하세요.
+2. 좌표는 0.0-1.0 범위 내에서만!
+3. 자연스러운 사람 동작으로!
+4. JSON만 응답하세요 (다른 텍스트 없이).
+"""
+
+    try:
+        # ✅ await 추가
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "당신은 운동 동작을 MediaPipe Pose 좌표로 변환하는 전문가입니다. 항상 유효한 JSON만 반환하세요."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            max_tokens=2500
+        )
+        
+        content = response.choices[0].message.content
+        if content.strip().startswith("```json"):
+            content = content.strip()[7:-3]
+        
+        result = json.loads(content)
+        frames = result.get("frames", [])
+        
+        if frames and len(frames) >= 2:
+            print(f"✅ AI 포즈 생성 성공: {len(frames)}개 프레임")
+            return frames
+        else:
+            print(f"⚠️ AI 포즈 생성 실패: 프레임 부족")
+            return None
+            
+    except Exception as e:
+        print(f"❌ AI 포즈 생성 오류: {e}")
+        return None
+
+# ... (나머지 모든 함수들은 동일하게 유지)
 # ✨ 손목 운동 가이드 포즈 추가
+def get_neck_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """목 돌리기/숙이기 가이드 포즈 (4개 프레임으로 회전 표현)"""
+    return [
+        # 프레임 1: 목 중앙 (시작)
+        {
+            "0": {"x": 0.5, "y": 0.15},   # 코 중앙
+            "1": {"x": 0.51, "y": 0.14},  # 얼굴 랜드마크
+            "2": {"x": 0.52, "y": 0.14},
+            "3": {"x": 0.53, "y": 0.14},
+            "4": {"x": 0.49, "y": 0.14},
+            "5": {"x": 0.48, "y": 0.14},
+            "6": {"x": 0.47, "y": 0.14},
+            "7": {"x": 0.54, "y": 0.16},  # 귀
+            "8": {"x": 0.46, "y": 0.16},
+            "9": {"x": 0.51, "y": 0.18},  # 입
+            "10": {"x": 0.49, "y": 0.18},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        },
+        # 프레임 2: 목 왼쪽으로 기울이기
+        {
+            "0": {"x": 0.45, "y": 0.15},   # 코 왼쪽으로
+            "1": {"x": 0.46, "y": 0.14},
+            "2": {"x": 0.47, "y": 0.14},
+            "3": {"x": 0.48, "y": 0.14},
+            "4": {"x": 0.44, "y": 0.14},
+            "5": {"x": 0.43, "y": 0.14},
+            "6": {"x": 0.42, "y": 0.14},
+            "7": {"x": 0.49, "y": 0.16},
+            "8": {"x": 0.41, "y": 0.16},
+            "9": {"x": 0.46, "y": 0.18},
+            "10": {"x": 0.44, "y": 0.18},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        },
+        # 프레임 3: 목 아래로 숙이기
+        {
+            "0": {"x": 0.5, "y": 0.2},    # 코 아래로
+            "1": {"x": 0.51, "y": 0.19},
+            "2": {"x": 0.52, "y": 0.19},
+            "3": {"x": 0.53, "y": 0.19},
+            "4": {"x": 0.49, "y": 0.19},
+            "5": {"x": 0.48, "y": 0.19},
+            "6": {"x": 0.47, "y": 0.19},
+            "7": {"x": 0.54, "y": 0.21},
+            "8": {"x": 0.46, "y": 0.21},
+            "9": {"x": 0.51, "y": 0.23},
+            "10": {"x": 0.49, "y": 0.23},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        },
+        # 프레임 4: 목 오른쪽으로 기울이기
+        {
+            "0": {"x": 0.55, "y": 0.15},   # 코 오른쪽으로
+            "1": {"x": 0.56, "y": 0.14},
+            "2": {"x": 0.57, "y": 0.14},
+            "3": {"x": 0.58, "y": 0.14},
+            "4": {"x": 0.54, "y": 0.14},
+            "5": {"x": 0.53, "y": 0.14},
+            "6": {"x": 0.52, "y": 0.14},
+            "7": {"x": 0.59, "y": 0.16},
+            "8": {"x": 0.51, "y": 0.16},
+            "9": {"x": 0.56, "y": 0.18},
+            "10": {"x": 0.54, "y": 0.18},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        }
+    ]
+
+# ✅ 의자에 앉아 하는 운동 가이드 포즈 추가
+def get_sitting_guide_poses() -> List[Dict[str, Dict[str, float]]]:
+    """의자에 앉아 하는 운동 가이드 포즈 (앉은 자세 기본)"""
+    return [
+        # 프레임 1: 앉아서 팔 내림
+        {
+            "0": {"x": 0.5, "y": 0.25},    # 앉은 자세 - 머리 위치
+            "11": {"x": 0.4, "y": 0.35},   # 어깨
+            "12": {"x": 0.6, "y": 0.35},
+            "13": {"x": 0.35, "y": 0.5},   # 팔꿈치
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.65},   # 손목
+            "16": {"x": 0.7, "y": 0.65},
+            "19": {"x": 0.28, "y": 0.67},
+            "20": {"x": 0.72, "y": 0.67},
+            "23": {"x": 0.42, "y": 0.65},  # 엉덩이 (앉은 위치)
+            "24": {"x": 0.58, "y": 0.65},
+            "25": {"x": 0.38, "y": 0.8},   # 무릎 (90도 굽힘)
+            "26": {"x": 0.62, "y": 0.8},
+            "27": {"x": 0.36, "y": 0.95},  # 발목
+            "28": {"x": 0.64, "y": 0.95},
+            "31": {"x": 0.34, "y": 0.98},  # 발끝
+            "32": {"x": 0.66, "y": 0.98}
+        },
+        # 프레임 2: 앉아서 팔 들기 또는 다리 뻗기
+        {
+            "0": {"x": 0.5, "y": 0.25},
+            "11": {"x": 0.4, "y": 0.35},
+            "12": {"x": 0.6, "y": 0.35},
+            "13": {"x": 0.3, "y": 0.4},    # 팔 위로
+            "14": {"x": 0.7, "y": 0.4},
+            "15": {"x": 0.25, "y": 0.35},  # 손 위로
+            "16": {"x": 0.75, "y": 0.35},
+            "19": {"x": 0.23, "y": 0.34},
+            "20": {"x": 0.77, "y": 0.34},
+            "23": {"x": 0.42, "y": 0.65},
+            "24": {"x": 0.58, "y": 0.65},
+            "25": {"x": 0.38, "y": 0.75},  # 다리 약간 펴기
+            "26": {"x": 0.62, "y": 0.75},
+            "27": {"x": 0.36, "y": 0.9},
+            "28": {"x": 0.64, "y": 0.9},
+            "31": {"x": 0.34, "y": 0.93},
+            "32": {"x": 0.66, "y": 0.93}
+        }
+    ]
+
 def get_wrist_guide_poses() -> List[Dict[str, Dict[str, float]]]:
     """손목 돌리기/굽히기 가이드 포즈 (4개 프레임으로 회전 표현)"""
     return [
@@ -757,8 +1083,12 @@ def get_pushup_guide_poses() -> List[Dict[str, Dict[str, float]]]:
 
 
 def get_leg_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
-    """레그 레이즈 가이드 포즈"""
+    """
+    레그 레이즈 (하체 올리기) 가이드 포즈
+    ✅ 수정: 더 명확한 다리 올리기 동작
+    """
     return [
+        # 프레임 1: 다리 내림 (시작)
         {
             "0": {"x": 0.5, "y": 0.15},
             "11": {"x": 0.45, "y": 0.3},
@@ -767,6 +1097,8 @@ def get_leg_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "14": {"x": 0.6, "y": 0.5},
             "15": {"x": 0.35, "y": 0.7},
             "16": {"x": 0.65, "y": 0.7},
+            "19": {"x": 0.33, "y": 0.72},
+            "20": {"x": 0.67, "y": 0.72},
             "23": {"x": 0.48, "y": 0.6},
             "24": {"x": 0.52, "y": 0.6},
             "25": {"x": 0.48, "y": 0.8},
@@ -776,6 +1108,7 @@ def get_leg_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "31": {"x": 0.48, "y": 0.98},
             "32": {"x": 0.52, "y": 0.98}
         },
+        # 프레임 2: 왼쪽 다리 올리기
         {
             "0": {"x": 0.5, "y": 0.15},
             "11": {"x": 0.45, "y": 0.3},
@@ -784,18 +1117,38 @@ def get_leg_raise_guide_poses() -> List[Dict[str, Dict[str, float]]]:
             "14": {"x": 0.6, "y": 0.5},
             "15": {"x": 0.35, "y": 0.7},
             "16": {"x": 0.65, "y": 0.7},
+            "19": {"x": 0.33, "y": 0.72},
+            "20": {"x": 0.67, "y": 0.72},
             "23": {"x": 0.48, "y": 0.6},
             "24": {"x": 0.52, "y": 0.6},
-            "25": {"x": 0.35, "y": 0.65},
-            "26": {"x": 0.52, "y": 0.8},
-            "27": {"x": 0.25, "y": 0.7},
+            "25": {"x": 0.35, "y": 0.65},  # 왼쪽 무릎 올라감
+            "26": {"x": 0.52, "y": 0.8},   # 오른쪽 다리는 그대로
+            "27": {"x": 0.25, "y": 0.7},   # 왼쪽 발목 올라감
             "28": {"x": 0.52, "y": 0.95},
-            "29": {"x": 0.24, "y": 0.71},
-            "31": {"x": 0.22, "y": 0.73},
+            "31": {"x": 0.22, "y": 0.73},  # 왼쪽 발끝 올라감
+            "32": {"x": 0.52, "y": 0.98}
+        },
+        # 프레임 3: 다시 내림
+        {
+            "0": {"x": 0.5, "y": 0.15},
+            "11": {"x": 0.45, "y": 0.3},
+            "12": {"x": 0.55, "y": 0.3},
+            "13": {"x": 0.4, "y": 0.5},
+            "14": {"x": 0.6, "y": 0.5},
+            "15": {"x": 0.35, "y": 0.7},
+            "16": {"x": 0.65, "y": 0.7},
+            "19": {"x": 0.33, "y": 0.72},
+            "20": {"x": 0.67, "y": 0.72},
+            "23": {"x": 0.48, "y": 0.6},
+            "24": {"x": 0.52, "y": 0.6},
+            "25": {"x": 0.48, "y": 0.8},
+            "26": {"x": 0.52, "y": 0.8},
+            "27": {"x": 0.48, "y": 0.95},
+            "28": {"x": 0.52, "y": 0.95},
+            "31": {"x": 0.48, "y": 0.98},
             "32": {"x": 0.52, "y": 0.98}
         }
     ]
-
 
 def get_stretching_guide_poses() -> List[Dict[str, Dict[str, float]]]:
     """스트레칭 가이드 포즈"""
@@ -822,9 +1175,53 @@ def get_stretching_guide_poses() -> List[Dict[str, Dict[str, float]]]:
     ]
 
 
-def get_default_guide_poses() -> List[Dict[str, Dict[str, float]]]:
-    """기본 가이드 포즈 (서있는 자세)"""
+def get_default_guide_poses_with_animation() -> List[Dict[str, Dict[str, float]]]:
+    """
+    기본 가이드 포즈 (서있는 자세 → 팔 올리기 → 서있는 자세)
+    ✅ 반드시 3개 이상의 프레임으로 애니메이션 가능하게!
+    """
     return [
+        # 프레임 1: 서있는 자세
+        {
+            "0": {"x": 0.5, "y": 0.15},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.35, "y": 0.5},
+            "14": {"x": 0.65, "y": 0.5},
+            "15": {"x": 0.3, "y": 0.7},
+            "16": {"x": 0.7, "y": 0.7},
+            "19": {"x": 0.28, "y": 0.72},
+            "20": {"x": 0.72, "y": 0.72},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        },
+        # 프레임 2: 팔 옆으로 올리기
+        {
+            "0": {"x": 0.5, "y": 0.15},
+            "11": {"x": 0.4, "y": 0.3},
+            "12": {"x": 0.6, "y": 0.3},
+            "13": {"x": 0.25, "y": 0.35},
+            "14": {"x": 0.75, "y": 0.35},
+            "15": {"x": 0.15, "y": 0.35},
+            "16": {"x": 0.85, "y": 0.35},
+            "19": {"x": 0.12, "y": 0.35},
+            "20": {"x": 0.88, "y": 0.35},
+            "23": {"x": 0.42, "y": 0.6},
+            "24": {"x": 0.58, "y": 0.6},
+            "25": {"x": 0.4, "y": 0.8},
+            "26": {"x": 0.6, "y": 0.8},
+            "27": {"x": 0.38, "y": 0.95},
+            "28": {"x": 0.62, "y": 0.95},
+            "31": {"x": 0.36, "y": 0.98},
+            "32": {"x": 0.64, "y": 0.98}
+        },
+        # 프레임 3: 다시 팔 내리기
         {
             "0": {"x": 0.5, "y": 0.15},
             "11": {"x": 0.4, "y": 0.3},
@@ -846,7 +1243,6 @@ def get_default_guide_poses() -> List[Dict[str, Dict[str, float]]]:
         }
     ]
 
-
 # --- 아래는 기존 헬퍼 함수들 ---
 
 async def get_base_template(db, exercise_type: str, user_body_condition: Dict) -> Dict:
@@ -854,17 +1250,218 @@ async def get_base_template(db, exercise_type: str, user_body_condition: Dict) -
     query = {"category": exercise_type, "contraindications": {"$not": {"$in": injured_parts}} if injured_parts else {}}
     return await db.exercise_templates.find_one(query)
 
-async def create_default_template() -> Dict:
-    return {
-        "_id": None, "name": "기본 스쿼트", "category": "rehabilitation",
-        "target_parts": ["무릎", "허벅지", "엉덩이"], "contraindications": [],
-        "base_animation": {"fps": 30, "keyframes": [
-            {"frame_number": 0, "timestamp_ms": 0, "pose_landmarks": generate_standing_pose(), "description": "시작 자세"},
-            {"frame_number": 60, "timestamp_ms": 2000, "pose_landmarks": generate_squat_pose(), "description": "무릎 90도 굽힘"},
-            {"frame_number": 120, "timestamp_ms": 4000, "pose_landmarks": generate_standing_pose(), "description": "원위치"}
-        ]},
-        "reference_angles": {"left_knee_min": 160, "left_knee_max": 90, "right_knee_min": 160, "right_knee_max": 90}
-    }
+async def create_default_template(exercise_name: str = None) -> Dict:
+    """
+    운동 이름에 따라 적절한 기본 템플릿 반환
+    """
+    
+    # 운동 이름이 없으면 기본 서있는 자세
+    if not exercise_name:
+        return {
+            "_id": None,
+            "name": "기본 운동",
+            "category": "rehabilitation",
+            "target_parts": ["전신"],
+            "contraindications": [],
+            "base_animation": {
+                "fps": 30,
+                "keyframes": [
+                    {
+                        "frame_number": 0,
+                        "timestamp_ms": 0,
+                        "pose_landmarks": generate_standing_pose(),
+                        "description": "시작 자세"
+                    }
+                ]
+            },
+            "reference_angles": {}
+        }
+    
+    exercise_name_lower = exercise_name.lower()
+    
+    # 스쿼트 계열
+    if "스쿼트" in exercise_name_lower or "squat" in exercise_name_lower:
+        return {
+            "_id": None,
+            "name": "기본 스쿼트",
+            "category": "rehabilitation",
+            "target_parts": ["무릎", "허벅지", "엉덩이"],
+            "contraindications": [],
+            "base_animation": {
+                "fps": 30,
+                "keyframes": [
+                    {
+                        "frame_number": 0,
+                        "timestamp_ms": 0,
+                        "pose_landmarks": generate_standing_pose(),
+                        "description": "시작 자세"
+                    },
+                    {
+                        "frame_number": 60,
+                        "timestamp_ms": 2000,
+                        "pose_landmarks": generate_squat_pose(),
+                        "description": "무릎 90도 굽힘"
+                    },
+                    {
+                        "frame_number": 120,
+                        "timestamp_ms": 4000,
+                        "pose_landmarks": generate_standing_pose(),
+                        "description": "원위치"
+                    }
+                ]
+            },
+            "reference_angles": {
+                "left_knee_min": 160,
+                "left_knee_max": 90,
+                "right_knee_min": 160,
+                "right_knee_max": 90
+            }
+        }
+    
+    # 의자 운동
+    elif "의자" in exercise_name_lower or "앉아" in exercise_name_lower:
+        return {
+            "_id": None,
+            "name": "의자 운동",
+            "category": "rehabilitation",
+            "target_parts": ["다리", "코어"],
+            "contraindications": [],
+            "base_animation": {
+                "fps": 30,
+                "keyframes": [
+                    {
+                        "frame_number": 0,
+                        "timestamp_ms": 0,
+                        "pose_landmarks": generate_sitting_pose(),
+                        "description": "앉은 자세"
+                    }
+                ]
+            },
+            "reference_angles": {}
+        }
+    
+    # 팔 운동
+    elif "팔" in exercise_name_lower and ("들기" in exercise_name_lower or "벌리기" in exercise_name_lower):
+        return {
+            "_id": None,
+            "name": "팔 운동",
+            "category": "rehabilitation",
+            "target_parts": ["어깨", "팔"],
+            "contraindications": [],
+            "base_animation": {
+                "fps": 30,
+                "keyframes": [
+                    {
+                        "frame_number": 0,
+                        "timestamp_ms": 0,
+                        "pose_landmarks": generate_standing_pose(),
+                        "description": "팔 내린 자세"
+                    },
+                    {
+                        "frame_number": 60,
+                        "timestamp_ms": 2000,
+                        "pose_landmarks": generate_arm_raised_pose(),
+                        "description": "팔 들어올림"
+                    }
+                ]
+            },
+            "reference_angles": {}
+        }
+    
+    # 기본값: 서있는 자세
+    else:
+        return {
+            "_id": None,
+            "name": exercise_name or "기본 운동",
+            "category": "rehabilitation",
+            "target_parts": ["전신"],
+            "contraindications": [],
+            "base_animation": {
+                "fps": 30,
+                "keyframes": [
+                    {
+                        "frame_number": 0,
+                        "timestamp_ms": 0,
+                        "pose_landmarks": generate_standing_pose(),
+                        "description": "기본 자세"
+                    }
+                ]
+            },
+            "reference_angles": {}
+        }
+
+
+# 추가로 필요한 포즈 생성 함수들
+
+def generate_sitting_pose() -> List[Dict]:
+    """앉은 자세 생성"""
+    sitting_landmarks = []
+    for i in range(33):
+        if i == 0:  # nose
+            sitting_landmarks.append({"x": 0.5, "y": 0.25, "z": -0.1, "visibility": 0.99})
+        elif i in [11, 12]:  # shoulders
+            x = 0.4 if i == 11 else 0.6
+            sitting_landmarks.append({"x": x, "y": 0.35, "z": -0.1, "visibility": 0.99})
+        elif i in [13, 14]:  # elbows
+            x = 0.35 if i == 13 else 0.65
+            sitting_landmarks.append({"x": x, "y": 0.5, "z": -0.1, "visibility": 0.99})
+        elif i in [15, 16]:  # wrists
+            x = 0.3 if i == 15 else 0.7
+            sitting_landmarks.append({"x": x, "y": 0.65, "z": -0.1, "visibility": 0.99})
+        elif i in [23, 24]:  # hips (seated)
+            x = 0.42 if i == 23 else 0.58
+            sitting_landmarks.append({"x": x, "y": 0.65, "z": -0.1, "visibility": 0.99})
+        elif i in [25, 26]:  # knees (90 degree bend)
+            x = 0.38 if i == 25 else 0.62
+            sitting_landmarks.append({"x": x, "y": 0.8, "z": -0.1, "visibility": 0.99})
+        elif i in [27, 28]:  # ankles
+            x = 0.36 if i == 27 else 0.64
+            sitting_landmarks.append({"x": x, "y": 0.95, "z": -0.1, "visibility": 0.99})
+        elif i in [31, 32]:  # feet
+            x = 0.34 if i == 31 else 0.66
+            sitting_landmarks.append({"x": x, "y": 0.98, "z": -0.1, "visibility": 0.99})
+        else:
+            # 기타 랜드마크는 대략적인 위치
+            sitting_landmarks.append({"x": 0.5, "y": 0.5, "z": -0.1, "visibility": 0.5})
+    
+    return sitting_landmarks
+
+
+def generate_arm_raised_pose() -> List[Dict]:
+    """팔 들어올린 자세 생성"""
+    arm_raised_landmarks = []
+    for i in range(33):
+        if i == 0:  # nose
+            arm_raised_landmarks.append({"x": 0.5, "y": 0.15, "z": -0.1, "visibility": 0.99})
+        elif i in [11, 12]:  # shoulders
+            x = 0.4 if i == 11 else 0.6
+            arm_raised_landmarks.append({"x": x, "y": 0.3, "z": -0.1, "visibility": 0.99})
+        elif i in [13, 14]:  # elbows (raised)
+            x = 0.25 if i == 13 else 0.75
+            arm_raised_landmarks.append({"x": x, "y": 0.35, "z": -0.1, "visibility": 0.99})
+        elif i in [15, 16]:  # wrists (raised high)
+            x = 0.15 if i == 15 else 0.85
+            arm_raised_landmarks.append({"x": x, "y": 0.35, "z": -0.1, "visibility": 0.99})
+        elif i in [23, 24]:  # hips
+            x = 0.42 if i == 23 else 0.58
+            arm_raised_landmarks.append({"x": x, "y": 0.6, "z": -0.1, "visibility": 0.99})
+        elif i in [25, 26]:  # knees
+            x = 0.4 if i == 25 else 0.6
+            arm_raised_landmarks.append({"x": x, "y": 0.8, "z": -0.1, "visibility": 0.99})
+        elif i in [27, 28]:  # ankles
+            x = 0.38 if i == 27 else 0.62
+            arm_raised_landmarks.append({"x": x, "y": 0.95, "z": -0.1, "visibility": 0.99})
+        elif i in [31, 32]:  # feet
+            x = 0.36 if i == 31 else 0.64
+            arm_raised_landmarks.append({"x": x, "y": 0.98, "z": -0.1, "visibility": 0.99})
+        else:
+            # 기타 랜드마크
+            arm_raised_landmarks.append({"x": 0.5, "y": 0.5, "z": -0.1, "visibility": 0.5})
+    
+    return arm_raised_landmarks
+
+
+
 
 def create_exercise_prompt(user_body_condition: Dict, base_template: Dict, exercise_type: str, intensity: str, duration_minutes: int) -> str:
     injured_parts = user_body_condition.get("injured_parts", [])
@@ -926,10 +1523,93 @@ def adjust_pose_rom(pose_landmarks: List[Dict], user_limitations: List[str]) -> 
     return pose_landmarks
 
 def generate_standing_pose() -> List[Dict]:
-    return [{"x": 0.5, "y": 0.3 + (i * 0.02), "z": -0.1, "visibility": 0.99} for i in range(33)]
+    """제대로 된 서있는 자세 생성 (33개 MediaPipe 랜드마크)"""
+    # 실제 사람이 서있는 자세의 랜드마크 좌표
+    standing_landmarks = [
+        # 얼굴 랜드마크 (0-10)
+        {"x": 0.5, "y": 0.15, "z": -0.1, "visibility": 0.99},  # 0: nose
+        {"x": 0.51, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 1: left eye inner
+        {"x": 0.52, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 2: left eye
+        {"x": 0.53, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 3: left eye outer
+        {"x": 0.49, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 4: right eye inner
+        {"x": 0.48, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 5: right eye
+        {"x": 0.47, "y": 0.14, "z": -0.1, "visibility": 0.99},  # 6: right eye outer
+        {"x": 0.54, "y": 0.16, "z": -0.1, "visibility": 0.99},  # 7: left ear
+        {"x": 0.46, "y": 0.16, "z": -0.1, "visibility": 0.99},  # 8: right ear
+        {"x": 0.51, "y": 0.18, "z": -0.1, "visibility": 0.99},  # 9: mouth left
+        {"x": 0.49, "y": 0.18, "z": -0.1, "visibility": 0.99},  # 10: mouth right
+        
+        # 몸통 랜드마크 (11-24)
+        {"x": 0.4, "y": 0.3, "z": -0.1, "visibility": 0.99},   # 11: left shoulder
+        {"x": 0.6, "y": 0.3, "z": -0.1, "visibility": 0.99},   # 12: right shoulder
+        {"x": 0.35, "y": 0.5, "z": -0.1, "visibility": 0.99},  # 13: left elbow
+        {"x": 0.65, "y": 0.5, "z": -0.1, "visibility": 0.99},  # 14: right elbow
+        {"x": 0.3, "y": 0.7, "z": -0.1, "visibility": 0.99},   # 15: left wrist
+        {"x": 0.7, "y": 0.7, "z": -0.1, "visibility": 0.99},   # 16: right wrist
+        {"x": 0.28, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 17: left pinky
+        {"x": 0.72, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 18: right pinky
+        {"x": 0.28, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 19: left index
+        {"x": 0.72, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 20: right index
+        {"x": 0.28, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 21: left thumb
+        {"x": 0.72, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 22: right thumb
+        {"x": 0.42, "y": 0.6, "z": -0.1, "visibility": 0.99},  # 23: left hip
+        {"x": 0.58, "y": 0.6, "z": -0.1, "visibility": 0.99},  # 24: right hip
+        
+        # 다리 랜드마크 (25-32)
+        {"x": 0.4, "y": 0.8, "z": -0.1, "visibility": 0.99},   # 25: left knee
+        {"x": 0.6, "y": 0.8, "z": -0.1, "visibility": 0.99},   # 26: right knee
+        {"x": 0.38, "y": 0.95, "z": -0.1, "visibility": 0.99}, # 27: left ankle
+        {"x": 0.62, "y": 0.95, "z": -0.1, "visibility": 0.99}, # 28: right ankle
+        {"x": 0.36, "y": 0.97, "z": -0.1, "visibility": 0.99}, # 29: left heel
+        {"x": 0.64, "y": 0.97, "z": -0.1, "visibility": 0.99}, # 30: right heel
+        {"x": 0.36, "y": 0.98, "z": -0.1, "visibility": 0.99}, # 31: left foot index
+        {"x": 0.64, "y": 0.98, "z": -0.1, "visibility": 0.99}  # 32: right foot index
+    ]
+    return standing_landmarks
 
 def generate_squat_pose() -> List[Dict]:
-    return [{"x": 0.5, "y": 0.5 + (i * 0.015) if i > 23 else 0.3 + (i * 0.02), "z": -0.1, "visibility": 0.99} for i in range(33)]
+    """제대로 된 스쿼트 자세 생성 (33개 MediaPipe 랜드마크)"""
+    squat_landmarks = [
+        # 얼굴 랜드마크 (0-10) - 스쿼트 시 머리가 약간 아래로
+        {"x": 0.5, "y": 0.25, "z": -0.1, "visibility": 0.99},  # 0: nose
+        {"x": 0.51, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 1: left eye inner
+        {"x": 0.52, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 2: left eye
+        {"x": 0.53, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 3: left eye outer
+        {"x": 0.49, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 4: right eye inner
+        {"x": 0.48, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 5: right eye
+        {"x": 0.47, "y": 0.24, "z": -0.1, "visibility": 0.99},  # 6: right eye outer
+        {"x": 0.54, "y": 0.26, "z": -0.1, "visibility": 0.99},  # 7: left ear
+        {"x": 0.46, "y": 0.26, "z": -0.1, "visibility": 0.99},  # 8: right ear
+        {"x": 0.51, "y": 0.28, "z": -0.1, "visibility": 0.99},  # 9: mouth left
+        {"x": 0.49, "y": 0.28, "z": -0.1, "visibility": 0.99},  # 10: mouth right
+        
+        # 몸통 랜드마크 (11-24) - 스쿼트 시 상체 약간 앞으로
+        {"x": 0.4, "y": 0.4, "z": -0.1, "visibility": 0.99},   # 11: left shoulder
+        {"x": 0.6, "y": 0.4, "z": -0.1, "visibility": 0.99},   # 12: right shoulder
+        {"x": 0.32, "y": 0.55, "z": -0.1, "visibility": 0.99}, # 13: left elbow
+        {"x": 0.68, "y": 0.55, "z": -0.1, "visibility": 0.99}, # 14: right elbow
+        {"x": 0.25, "y": 0.7, "z": -0.1, "visibility": 0.99},  # 15: left wrist
+        {"x": 0.75, "y": 0.7, "z": -0.1, "visibility": 0.99},  # 16: right wrist
+        {"x": 0.23, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 17: left pinky
+        {"x": 0.77, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 18: right pinky
+        {"x": 0.23, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 19: left index
+        {"x": 0.77, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 20: right index
+        {"x": 0.23, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 21: left thumb
+        {"x": 0.77, "y": 0.72, "z": -0.1, "visibility": 0.99}, # 22: right thumb
+        {"x": 0.42, "y": 0.75, "z": -0.1, "visibility": 0.99}, # 23: left hip (낮아짐)
+        {"x": 0.58, "y": 0.75, "z": -0.1, "visibility": 0.99}, # 24: right hip (낮아짐)
+        
+        # 다리 랜드마크 (25-32) - 무릎 굽히고 벌어짐
+        {"x": 0.35, "y": 0.85, "z": -0.1, "visibility": 0.99}, # 25: left knee (벌어짐)
+        {"x": 0.65, "y": 0.85, "z": -0.1, "visibility": 0.99}, # 26: right knee (벌어짐)
+        {"x": 0.33, "y": 0.95, "z": -0.1, "visibility": 0.99}, # 27: left ankle
+        {"x": 0.67, "y": 0.95, "z": -0.1, "visibility": 0.99}, # 28: right ankle
+        {"x": 0.31, "y": 0.97, "z": -0.1, "visibility": 0.99}, # 29: left heel
+        {"x": 0.69, "y": 0.97, "z": -0.1, "visibility": 0.99}, # 30: right heel
+        {"x": 0.31, "y": 0.98, "z": -0.1, "visibility": 0.99}, # 31: left foot index
+        {"x": 0.69, "y": 0.98, "z": -0.1, "visibility": 0.99}  # 32: right foot index
+    ]
+    return squat_landmarks
 
 def generate_silhouette_from_guide_poses(
     guide_poses: List[Dict[str, Dict[str, float]]], 
@@ -938,28 +1618,30 @@ def generate_silhouette_from_guide_poses(
 ) -> Dict:
     """
     guide_poses를 기반으로 silhouette_animation의 keyframes 생성
-    
-    Args:
-        guide_poses: 가이드 포즈 리스트 (각 프레임의 관절 위치)
-        duration_seconds: 총 운동 시간 (초)
-        intensity: 운동 강도 (속도 결정)
-    
-    Returns:
-        silhouette_animation 딕셔너리
+    ✅ 수정: 디버깅 로그 강화 + 빈 데이터 검증
     """
-    if not guide_poses:
-        return {
-            "keyframes": [{
-                "timestamp_ms": 0,
-                "pose_landmarks": convert_guide_pose_to_landmarks(get_default_guide_poses()[0]),
-                "description": "기본 자세"
-            }]
-        }
+    print(f"\n{'='*60}")
+    print(f"🎬 generate_silhouette_from_guide_poses 호출")
+    print(f"  - guide_poses 개수: {len(guide_poses) if guide_poses else 0}")
+    print(f"  - duration_seconds: {duration_seconds}")
+    print(f"  - intensity: {intensity}")
+    
+    if not guide_poses or len(guide_poses) == 0:
+        print("⚠️ guide_poses가 비어있음! 기본 애니메이션 포즈 사용")
+        guide_poses = get_default_guide_poses_with_animation()
+    
+    if len(guide_poses) < 2:
+        print(f"⚠️ guide_poses가 {len(guide_poses)}개뿐! 최소 2개 필요. 기본 포즈 추가")
+        guide_poses = get_default_guide_poses_with_animation()
     
     speed_multiplier = get_speed_multiplier(intensity)
     base_cycle_time = 4.0 * speed_multiplier
     total_cycles = max(1, int(duration_seconds / base_cycle_time))
     time_per_pose = (base_cycle_time * 1000) / len(guide_poses)
+    
+    print(f"  - 사이클당 시간: {base_cycle_time:.2f}초")
+    print(f"  - 총 사이클: {total_cycles}회")
+    print(f"  - 포즈당 시간: {time_per_pose:.0f}ms")
     
     keyframes = []
     current_time = 0
@@ -967,14 +1649,16 @@ def generate_silhouette_from_guide_poses(
     for cycle in range(total_cycles):
         for i, guide_pose in enumerate(guide_poses):
             landmarks = convert_guide_pose_to_landmarks(guide_pose)
+            
             keyframe = {
                 "timestamp_ms": int(current_time),
                 "pose_landmarks": landmarks,
-                "description": f"프레임 {i+1}"
+                "description": f"사이클 {cycle+1}/{total_cycles} - 프레임 {i+1}/{len(guide_poses)}"
             }
             keyframes.append(keyframe)
             current_time += time_per_pose
     
+    # 마지막 프레임 추가
     if guide_poses:
         keyframes.append({
             "timestamp_ms": int(current_time),
@@ -982,7 +1666,89 @@ def generate_silhouette_from_guide_poses(
             "description": "종료 (시작 자세로)"
         })
     
-    return {"keyframes": keyframes}
+    print(f"✅ 총 {len(keyframes)}개 키프레임 생성 완료")
+    print(f"{'='*60}\n")
+    
+    return {
+        "fps": 30,
+        "keyframes": keyframes
+    }
+async def generate_guide_poses(exercise_name: str) -> List[Dict[str, Dict[str, float]]]:
+    """
+    운동 이름 기반 가이드 포즈 생성
+    ✅ 수정: 반드시 2개 이상의 프레임 반환 보장
+    """
+    exercise_name_lower = exercise_name.lower()
+    
+    print(f"🎯 generate_guide_poses 호출: '{exercise_name}'")
+    
+    # ✅ 핵심 운동 하드코딩
+    hardcoded_exercises = {
+        "스쿼트": get_squat_guide_poses,
+        "런지": get_lunge_guide_poses,
+        "플랭크": get_plank_guide_poses,
+        "팔굽혀펴기": get_pushup_guide_poses,
+        "푸시업": get_pushup_guide_poses,
+    }
+    
+    # 하드코딩된 운동 체크
+    for keyword, pose_func in hardcoded_exercises.items():
+        if keyword in exercise_name:
+            poses = pose_func()
+            print(f"✅ 하드코딩 포즈 사용: {keyword}, {len(poses)}개 프레임")
+            return poses
+    
+    # ✅ 특수 운동
+    if "의자" in exercise_name or "앉아" in exercise_name:
+        poses = get_sitting_guide_poses()
+        print(f"✅ 앉은 자세 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "목" in exercise_name or "경추" in exercise_name:
+        poses = get_neck_guide_poses()
+        print(f"✅ 목 운동 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "손목" in exercise_name:
+        poses = get_wrist_guide_poses()
+        print(f"✅ 손목 운동 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "발목" in exercise_name:
+        poses = get_ankle_guide_poses()
+        print(f"✅ 발목 운동 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "어깨" in exercise_name:
+        poses = get_shoulder_guide_poses()
+        print(f"✅ 어깨 운동 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "팔" in exercise_name and ("벌리기" in exercise_name or "들기" in exercise_name):
+        poses = get_arm_raise_guide_poses()
+        print(f"✅ 팔 들기 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "종아리" in exercise_name or "카프" in exercise_name:
+        poses = get_calf_raise_guide_poses()
+        print(f"✅ 종아리 운동 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "레그" in exercise_name and ("레이즈" in exercise_name or "올리기" in exercise_name):
+        poses = get_leg_raise_guide_poses()
+        print(f"✅ 레그 레이즈 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    elif "스트레칭" in exercise_name or "스트레치" in exercise_name:
+        poses = get_stretching_guide_poses()
+        print(f"✅ 스트레칭 포즈 사용: {len(poses)}개 프레임")
+        return poses
+    
+    # ✅ AI 생성 시도
+    print(f"🤖 AI 포즈 생성 시도: {exercise_name}")
+    ai_poses = await generate_poses_with_ai(exercise_name)
+    
+    if ai_poses and len(ai_poses) >= 2:
+        print(f"✅ AI 포즈 생성 성공: {len(ai_poses)}개 프레임")
+        return ai_poses
+    else:
+        print(f"⚠️ AI 포즈 생성 실패 또는 프레임 부족, 기본 포즈 사용")
+        # ✅ 기본 포즈는 반드시 2개 이상!
+        default = get_default_guide_poses_with_animation()
+        print(f"✅ 기본 애니메이션 포즈 사용: {len(default)}개 프레임")
+        return default
 
 
 def convert_guide_pose_to_landmarks(guide_pose: Dict[str, Dict[str, float]]) -> List[Dict]:

@@ -90,7 +90,7 @@ async def analyze_pose(
     }
 
 
-# ✅ 새로운 함수: 운동 종류별 타겟 관절 결정
+# ✅ 목 운동 추가된 버전
 def determine_target_joints(exercise_name: str) -> List[str]:
     """
     운동 이름을 기반으로 분석할 관절 결정
@@ -99,6 +99,10 @@ def determine_target_joints(exercise_name: str) -> List[str]:
         분석할 관절 리스트 (예: ["left_elbow", "right_elbow"])
     """
     exercise_name_lower = exercise_name.lower()
+    
+    # ✅ 목 운동 (어깨 각도로 간접 측정)
+    if "목" in exercise_name_lower or "경추" in exercise_name_lower or "neck" in exercise_name_lower:
+        return ["left_shoulder", "right_shoulder"]
     
     # 손목 운동
     if "손목" in exercise_name_lower or "wrist" in exercise_name_lower:

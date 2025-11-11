@@ -39,9 +39,29 @@ const ExercisePage = () => {
       
       try {
         const response = await exerciseAPI.getExercise(exerciseId);
+        console.log('Exercise data received:', response.data);
         
         setExercise(response.data);
-        setGuidePoses(response.data.guide_poses || []);
+        
+        // silhouette_animation에서 keyframes 추출
+        if (response.data.silhouette_animation?.keyframes) {
+          const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
+            // pose_landmarks를 객체 형태로 변환
+            const poseObj = {};
+            if (keyframe.pose_landmarks) {
+              keyframe.pose_landmarks.forEach((landmark, index) => {
+                poseObj[index.toString()] = landmark;
+              });
+            }
+            return poseObj;
+          });
+          console.log('Processed guide poses:', poses);
+          setGuidePoses(poses);
+        } else {
+          console.log('No silhouette_animation found');
+          setGuidePoses([]);
+        }
+        
         setTimeRemaining(response.data.duration_seconds);
         setLoading(false);
       } catch (error) {
@@ -102,6 +122,9 @@ const drawGuideSilhouette = useCallback((guidePose) => {
   if (!canvas || !guidePose) return;
 
   const ctx = canvas.getContext('2d');
+  
+  // 디버깅 로그
+  console.log('Drawing guide pose:', guidePose);
   
   const shoulder_left = guidePose["11"];
   const shoulder_right = guidePose["12"];
@@ -190,23 +213,31 @@ const drawSkeleton = useCallback((results) => {
   canvas.width = 640;
   canvas.height = 480;
 
-  ctx.save();
+  // ✅ 전체 캔버스 초기화
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ✅ Transform 적용 (거울 모드)
+  ctx.save();
   ctx.scale(-1, 1);
   ctx.translate(-canvas.width, 0);
 
+  // ✅ 1. 가이드 실루엣 먼저 그리기 (transform 적용된 상태에서)
   if (showGuide && !isCompleted && guidePoses.length > 0) {
     if (guideFrame < guidePoses.length && guidePoses[guideFrame]) {
+      console.log('Drawing guide frame:', guideFrame, 'of', guidePoses.length);
       drawGuideSilhouette(guidePoses[guideFrame]);
     }
   }
 
+  // ✅ 2. 사용자 스켈레톤 그리기 (transform 적용된 상태에서)
   if (results.poseLandmarks) {
     const connections = [
       [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
       [11, 23], [12, 24], [23, 24],
       [23, 25], [25, 27], [24, 26], [26, 28]
     ];
+    
+    // 연결선 그리기
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 3;
     connections.forEach(([start, end]) => {
@@ -219,6 +250,8 @@ const drawSkeleton = useCallback((results) => {
         ctx.stroke();
       }
     });
+    
+    // 관절 점 그리기
     results.poseLandmarks.forEach((landmark) => {
       ctx.fillStyle = '#ff0000';
       ctx.beginPath();
@@ -226,6 +259,8 @@ const drawSkeleton = useCallback((results) => {
       ctx.fill();
     });
   }
+
+  // ✅ Transform 복원
   ctx.restore();
 }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
@@ -520,7 +555,7 @@ const drawSkeleton = useCallback((results) => {
                         : 0}점
                     </div>
                     <p className="text-gray-400">평균 점수</p>
-                </div>
+                  </div>
 
                   <div className="flex gap-4">
                     <button
