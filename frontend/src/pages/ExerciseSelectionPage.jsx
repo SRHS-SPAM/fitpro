@@ -20,7 +20,10 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       const token = localStorage.getItem('access_token');
       const response = await axios.get(
         'http://localhost:8000/api/v1/exercises/recommendations',
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 4 } // ✅ 최소 4개 요청 파라미터 추가!
+        }
       );
       setExercises(response.data.exercises || []);
     } catch (err) {
@@ -28,9 +31,10 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       setError(err.response?.data?.detail || '운동 추천을 불러올 수 없습니다.');
     } finally {
       setLoading(false);
-      setRefreshing(false); // ✅ 새로고침 상태 해제
+      setRefreshing(false);
     }
   };
+
 
   useEffect(() => {
     fetchRecommendations();
@@ -77,7 +81,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4 pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-3 pb-24">
       <button 
         onClick={() => navigate('/')} 
         className="mb-3 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
@@ -89,7 +93,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       <div className="max-w-4xl mx-auto pt-2 pb-8">
         <div className="items-center justify-between mb-3">
           <div className="flex-1">
-            <h1 className="text-4xl font-bold mb-3">🤖 AI 맞춤 운동 추천</h1>
+            <h1 className="text-4xl font-bold mb-3">AI 맞춤 운동 추천</h1>
             <p className="text-gray-400 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
           </div>
           
@@ -100,7 +104,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${
               refreshing 
                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-blue-600  hover:bg-blue-700 text-white'
             }`}
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -109,20 +113,20 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
         </div>
       </div>
       
-      <div className="max-w-4xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto grid grid-cols-2 gap-2">
         {exercises.map((exercise) => {
           const isSaved = savedExerciseIds.has(exercise.exercise_id);
           return (
-            <div key={exercise.exercise_id} className="bg-gray-800 rounded-xl p-6 border-2 border-transparent hover:border-blue-500 transition-colors duration-200">
+            <div key={exercise.exercise_id} className="bg-gray-800 rounded-xl p-2 border-2 border-transparent hover:border-blue-500 transition-colors duration-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-2">{exercise.name}</h3>
                   <p className="text-gray-400 text-sm mb-3">{exercise.description}</p>
                 </div>
-                <Dumbbell className="w-8 h-8 text-blue-400 flex-shrink-0 ml-4" />
+                {/* <Dumbbell className="w-8 h-8 text-blue-400 flex-shrink-0 ml-4" /> */}
               </div>
               
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-rows-3 gap-4 mb-4">
                 <div className="bg-gray-900 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Clock className="w-4 h-4 text-gray-400" />
@@ -154,11 +158,11 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
                 </div>
               )}
               
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-rows-2 gap-2">
                 <button
                   onClick={() => addMyExercise(exercise)}
                   disabled={isSaved}
-                  className={`w-full flex items-center justify-center p-3 rounded-lg font-semibold transition ${
+                  className={`w-full flex items-center justify-center p-3 rounded-lg font-medium transition ${
                     isSaved 
                       ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
                       : 'bg-gray-700 hover:bg-gray-600'
