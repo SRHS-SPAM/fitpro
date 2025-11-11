@@ -1,13 +1,13 @@
-    /* Start Page Wrapper - iPhone 16 크기 (393px × 852px) */
+    /* SiPhone 16 크기： (393px × 852px) */
     .start-page-wrapper {
     min-height: 100vh;
-    max-width: 393px; /* ✅ iPhone 16 너비 */
-    margin: 0 auto; /* ✅ 중앙 정렬 */
+    max-width: 393px; 
+    margin: 0 auto; 
     display: flex;
     flex-direction: column;
     background-color: #f8f9fa;
     position: relative;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* ✅ 양옆 그림자 */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     }
 
     .start-header {
@@ -101,7 +101,7 @@
     text-decoration: underline;
     }
 
-    /* 더 작은 화면 대응 (iPhone SE 등) */
+    /* 작은 화면 반응형 */
     @media (max-width: 375px) {
     .start-page-wrapper {
         max-width: 375px;

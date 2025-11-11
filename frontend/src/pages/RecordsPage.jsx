@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { recordsAPI } from '../services/api';
 import { ArrowLeft, Calendar, Award, TrendingUp, Clock, Flame, Trash2, Trophy } from 'lucide-react';
+import BottomNav from '../components/BottomNav';
 import './RecordsPage.css';
 
 function RecordsPage() {
@@ -60,7 +61,6 @@ function RecordsPage() {
       setSuccessMessage('기록이 삭제되었습니다.');
       setTimeout(() => setSuccessMessage(''), 3000);
       setDeleteId(null);
-      // 누적 통계는 다시 로드하지 않음 (변하지 않으므로)
     } catch (err) {
       console.error('Failed to delete record:', err);
       alert('기록 삭제에 실패했습니다.');
@@ -159,7 +159,7 @@ function RecordsPage() {
       )}
 
       <div className="records-content">
-        {/* 누적 통계 카드 (삭제와 무관) */}
+        {/* 누적 통계 카드 */}
         {cumulativeStats && (
           <div style={{
             backgroundColor: '#f0f9ff',
@@ -365,7 +365,7 @@ function RecordsPage() {
         )}
       </div>
 
-      {/* 삭제 확인 모달 */}
+      {/* 삭제 확인 */}
       {deleteId && (
         <div style={{
           position: 'fixed',
@@ -478,6 +478,7 @@ function RecordsPage() {
           </div>
         </div>
       )}
+      <BottomNav active="records" />
     </div>
   );
 }
