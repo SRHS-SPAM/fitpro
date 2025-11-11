@@ -15,7 +15,7 @@ function HomePage({ user }) {
     const fetchRecords = async () => {
       setRecordsLoading(true);
       try {
-        // 최근 기록 1개만 가져오기
+        // 최근 기록 가져오기
         const response = await recordsAPI.getRecords(1, 1); 
         setRecords(response.data.records);
       } catch (err) {
@@ -45,7 +45,6 @@ function HomePage({ user }) {
             </div>
           </div>
 
-          {/* 현재 상태를 헤더 오른쪽에 배치 */}
           {user?.body_condition && (
             <div className="home-status-card-header">
               <div className="home-status-content-compact">
@@ -74,18 +73,18 @@ function HomePage({ user }) {
 
       <div className="home-main-content">
         <div className="home-exercise-card">
-            <h2 className="home-main-card-title">🚀 운동 시작하기</h2>
+            <h2 className="home-main-card-title">운동 시작하기</h2>
             <img src="/home_img.png" alt="운동하는 모습" className='home-img'/>
             <p className="home-card-subtitle">AI가 상태에 맞춰 운동을 추천해 드립니다.</p>
             {error && (<div className="home-error-box"><AlertCircle className="home-error-icon" /><p className="home-error-text">{error}</p></div>)}
             <button onClick={handleStartExercise} className="home-generate-button">
-              ✨ AI 맞춤 운동 추천받기
+              AI 맞춤 운동 추천받기
             </button>
         </div>
 
         <div className="home-records-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 className="home-main-card-title" style={{ margin: 0 }}>📖 최근 운동 기록</h2>
+              <h2 className="home-main-card-title" style={{ margin: 0 }}>최근 운동 기록</h2>
               <button 
                 onClick={() => navigate('/records')}
                 className="home-see-more-button"

@@ -19,16 +19,15 @@ function LoginPage({ setUser }) {
     setLoading(true);
 
     try {
-      // ⭐ [수정됨] 실제 API를 호출합니다.
       const response = await authAPI.login(formData);
       const { access_token, user } = response.data;
 
       localStorage.setItem('access_token', access_token);
-      // 백엔드가 반환한 user 객체를 상태에 저장합니다.
+      // 백엔드가 반환한 user 객체를 상태에 저장
       setUser(user);
       
-      // 온보딩 완료 여부에 따라 페이지를 이동시킵니다.
-      // body_condition이 없거나, 있더라도 내용이 비어있으면 온보딩으로 이동합니다.
+      // 온보딩 완료 여부에 따라 페이지를 이동
+      // body_condition이 없거나, 있더라도 내용이 비어있으면 온보딩으로 이동
       if (!user.body_condition || user.body_condition.injured_parts.length === 0) {
         navigate('/onboarding');
       } else {
@@ -41,7 +40,6 @@ function LoginPage({ setUser }) {
     }
   };
 
-  // --- JSX 부분은 수정할 필요 없습니다 ---
   return (
     <div className="login-page-wrapper">
       <div className="login-container">

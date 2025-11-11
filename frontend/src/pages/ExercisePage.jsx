@@ -255,11 +255,11 @@ const drawSkeleton = useCallback((results) => {
               setCurrentSet(prevSet => {
                 if (prevSet >= exercise.sets) {
                   setIsCompleted(true);
-                  setFeedback('🏆 모든 세트 완료! 수고하셨습니다!');
+                  setFeedback('모든 세트 완료! 수고하셨습니다!');
                   saveCompletion();
                   return prevSet;
                 } else {
-                  setFeedback(`🎉 ${prevSet}세트 완료! 다음 세트를 시작하세요.`);
+                  setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
                   return prevSet + 1;
                 }
               });
@@ -401,7 +401,7 @@ const drawSkeleton = useCallback((results) => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+        <div className="text-red-500 text-6xl mb-4"></div>
         <div className="text-white text-2xl mb-2">로딩 실패</div>
         <div className="text-gray-400 text-center max-w-md">{error}</div>
         <div className="flex gap-4 mt-6">
@@ -527,13 +527,13 @@ const drawSkeleton = useCallback((results) => {
                       onClick={handleRestart}
                       className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
                     >
-                      🔄 다시 하기
+                      다시 하기
                     </button>
                     <button
                       onClick={() => navigate('/')}
                       className="px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
                     >
-                      🏠 홈으로
+                      홈으로
                     </button>
                   </div>
                 </div>

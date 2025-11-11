@@ -1,4 +1,4 @@
-/* HomePage Variables - LoginPage와 통일 */
+
 :root {
   --primary-color: #4CAF50;
   --primary-dark: #499c4c;  
@@ -18,15 +18,12 @@
   --red-200: #fecaca;
   --red-500: #ef4444;
   --red-700: #b91c1c;
-  /* --- MODIFIED --- */
-  /* font-family 정의는 :root 대신 body 태그에 적용하는 것이 더 일반적입니다. */
 }
 
-/* --- NEW --- */
-/* 기본 페이지 스타일 및 폰트 적용 */
+
 body {
   font-family: 'Inter', sans-serif;
-  background-color: var(--gray-100); /* 스크롤 시 배경색 통일 */
+  background-color: var(--gray-100);
   margin: 0;
 }
 
@@ -34,7 +31,7 @@ body {
 .home-page-wrapper {
   min-height: 100vh;
   background: linear-gradient(to bottom right, var(--primary-light), var(--gray-100));
-  font-family: 'Inter', sans-serif; /* body에서 상속받지만, 명시적으로 유지 */
+  font-family: 'Inter', sans-serif; 
   max-width: 393px;
   margin: 0 auto;
   position: relative;
@@ -158,7 +155,7 @@ body {
  
   padding-top: 0.125rem;
   height: 100%;
-  box-sizing: border-box; /* 패딩을 높이에 포함 */
+  box-sizing: border-box;
 }
 
 .home-tag-compact {
@@ -335,8 +332,6 @@ body {
   margin-bottom: 0.75rem;
 }
 
-/* --- MODIFIED --- */
-/* Type, Intensity, Time 버튼의 공통 스타일을 그룹화하여 중복을 제거합니다. */
 .home-type-button,
 .home-intensity-button,
 .home-time-button {
@@ -373,10 +368,8 @@ body {
 .home-type-button {
   padding: 1rem 0.5rem;
   gap: 0.375rem;
-  /* 공통 스타일은 위로 이동 */
 }
 
-/* .home-type-button:hover, .home-type-button.active 는 공통 스타일로 이동 */
 
 .home-type-icon {
   font-size: 1.75rem;
@@ -403,10 +396,9 @@ body {
 .home-intensity-button {
   padding: 0.875rem;
   gap: 0.25rem;
-  /* 공통 스타일은 위로 이동 */
 }
 
-/* .home-intensity-button:hover, .home-intensity-button.active 는 공통 스타일로 이동 */
+
 
 .home-intensity-emoji {
   font-size: 1.25rem;
@@ -433,10 +425,8 @@ body {
 .home-time-button {
   padding: 0.75rem 0.25rem;
   gap: 0.25rem;
-  /* 공통 스타일은 위로 이동 */
 }
 
-/* .home-time-button:hover, .home-time-button.active 는 공통 스타일로 이동 */
 
 .home-time-icon {
   width: 1rem;
@@ -498,7 +488,6 @@ body {
   animation: spin 1s linear infinite;
 }
 
-/* @keyframes spin 은 CSS 파일 하단으로 이동 */
 
 /* Bottom Navigation */
 .home-bottom-nav {
@@ -595,9 +584,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* --- MODIFIED --- */
-  /* max-width 대신 min-width: 0; 를 사용하여 flex 환경에서 
-    텍스트가 올바르게 잘리도록(ellipsis) 수정합니다. */
   min-width: 0; 
 }
 
@@ -617,8 +603,6 @@ body {
   white-space: nowrap;
 }
 
-/* --- MOVED --- */
-/* @keyframes는 CSS 파일의 최상단이나 최하단에 두는 것이 관례입니다. */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

@@ -103,7 +103,7 @@ function OnboardingPage({ user, setUser }) {
     }));
   };
 
-  // 첫 번째 입력창 음성인식 토글
+  //입력창 음성인식１、２
   const toggleRecording1 = () => {
     if (!recognitionRef1.current) {
       setError('이 브라우저는 음성인식을 지원하지 않습니다.');
@@ -136,7 +136,6 @@ function OnboardingPage({ user, setUser }) {
     }
   };
 
-  // 두 번째 입력창 음성인식 토글
   const toggleRecording2 = () => {
     if (!recognitionRef2.current) {
       setError('이 브라우저는 음성인식을 지원하지 않습니다.');
@@ -169,12 +168,9 @@ function OnboardingPage({ user, setUser }) {
     }
   };
 
-  // ✅ 추가: 텍스트를 배열로 변환하는 함수
   const parseTextToArray = (text) => {
     if (!text || text.trim() === '') return [];
-    
-    // 쉼표, 마침표, 세미콜론, 줄바꿈으로 분리
-    return text
+      return text
       .split(/[,.\n;]+/)
       .map(item => item.trim())
       .filter(item => item.length > 0);
@@ -185,7 +181,6 @@ function OnboardingPage({ user, setUser }) {
     setLoading(true);
 
     try {
-      // ✅ 수정: 텍스트 입력을 배열로 변환하여 전송
       const detailParts = parseTextToArray(formData.injured_parts_detail);
       const detailLimitations = parseTextToArray(formData.limitations_detail);
 

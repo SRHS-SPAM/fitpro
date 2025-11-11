@@ -13,16 +13,12 @@ const getIntensityColor = (intensity) => {
     }
 };
 
-// ✅ 수정: App.jsx에서 myExercises와 removeMyExercise를 props로 받음
 const MyExercisePage = ({ myExercises, removeMyExercise }) => {
     const navigate = useNavigate();
     const [deleteId, setDeleteId] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-    // ✅ 제거: useEffect와 loadMyExercises 함수 삭제 (App.jsx에서 관리)
-
-    // ✅ 수정: App.jsx에서 받은 removeMyExercise 함수 호출
     const handleDelete = async (exerciseId) => {
         setDeleting(true);
         try {
@@ -38,7 +34,6 @@ const MyExercisePage = ({ myExercises, removeMyExercise }) => {
         }
     };
 
-    // ✅ 제거: loading state 관련 UI 삭제 (App.jsx에서 관리)
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-100 pb-20">
@@ -70,7 +65,6 @@ const MyExercisePage = ({ myExercises, removeMyExercise }) => {
 
             <main className="flex-grow p-4">
                 <div className="max-w-4xl mx-auto">
-                    {/* ✅ 수정: App.jsx에서 받은 myExercises props 사용 */}
                     {myExercises && myExercises.length > 0 ? (
                         <div className="space-y-4">
                             {myExercises.map((exercise) => (
@@ -132,7 +126,7 @@ const MyExercisePage = ({ myExercises, removeMyExercise }) => {
                             </p>
                             <button
                                 onClick={() => navigate('/exercise-selection')}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                className="bg-[#4CAF50] hover:bg-[#499c4c] text-white px-6 py-3 rounded-lg font-semibold"
                             >
                                 운동 추천 받으러 가기
                             </button>

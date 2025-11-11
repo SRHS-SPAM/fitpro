@@ -51,7 +51,6 @@ export default function InfoPage({ user, onLogout }) {
 
             if (response.ok) {
                 alert(data.message || '계정이 성공적으로 삭제되었습니다.');
-                // onLogout을 호출하여 user 상태도 초기화
                 handleLogout();
             } else {
                 setError(data.detail || '계정 삭제에 실패했습니다.');
@@ -69,7 +68,7 @@ export default function InfoPage({ user, onLogout }) {
             <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-8 space-y-8 text-center">
                     <p className="text-red-600">사용자 정보를 불러올 수 없습니다. 다시 로그인해주세요.</p>
-                    <button onClick={() => navigate('/login')} className="flex items-center justify-center mx-auto mt-4 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition duration-150">
+                    <button onClick={() => navigate('/login')} className="flex items-center justify-center mx-auto mt-4 px-4 py-2 bg-[#4CAF50] text-white font-medium rounded-lg hover:bg-[#499c4c] transition duration-150">
                         <ArrowLeft className="w-4 h-4 mr-2" /> 로그인 페이지로
                     </button>
                 </div>
@@ -79,15 +78,15 @@ export default function InfoPage({ user, onLogout }) {
 
     return (
         <div className="min-h-screen flex flex-col items-center p-4 bg-gray-50">
-            <div className="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-6 md:p-8 space-y-6">
+            <div className="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-6 md:p-8 space-y-6 bg-green-50">
                 <header className="text-center border-b pb-4 flex items-center justify-center">
-                    <UserCircle className="w-8 h-8 text-indigo-600 mr-3" />
+                    <UserCircle className="w-8 h-8 text-[#4CAF50] mr-3" />
                     <h1 className="text-3xl font-extrabold text-gray-900">내 정보</h1>
                 </header>
 
-                <section className="space-y-4 p-4 bg-indigo-50 rounded-lg shadow-inner">
+                <section className="space-y-4 p-4 bg-green-50 rounded-lg shadow-inner">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-indigo-800">계정 정보</h2>
+                        <h2 className="text-xl font-bold text-[#499c4c]">계정 정보</h2>
                         <button onClick={handleLogout} className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition duration-150">
                             <LogOut className="w-4 h-4 mr-2" />
                             로그아웃
@@ -114,12 +113,12 @@ export default function InfoPage({ user, onLogout }) {
                                     <p className="font-semibold text-gray-700">불편 부위</p>
                                     <div className="flex flex-wrap gap-2">
                                         {user.body_condition.injured_parts.map(part => (
-                                            <span key={part} className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
+                                            <span key={part} className="px-3 py-1 bg-green-100 text-[#499c4c] rounded-full text-sm font-medium">
                                                 {part}
                                             </span>
                                         ))}
                                         {user.body_condition.injured_parts_detail && (
-                                            <span className="px-3 py-1 bg-indigo-200 text-indigo-900 rounded-full text-sm font-medium">
+                                            <span className="px-3 py-1 bg-green-200 text-[#499c4c] rounded-full text-sm font-medium">
                                                 {user.body_condition.injured_parts_detail}
                                             </span>
                                         )}
@@ -132,7 +131,7 @@ export default function InfoPage({ user, onLogout }) {
                                 <div className="flex items-center space-x-3">
                                     <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
                                         <div 
-                                            className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 transition-all duration-300"
+                                            className="h-full bg-gradient-to-r from-[#4CAF50] via-yellow-400 to-red-500 transition-all duration-300"
                                             style={{ width: `${(user.body_condition.pain_level / 10) * 100}%` }}
                                         ></div>
                                     </div>
@@ -144,7 +143,7 @@ export default function InfoPage({ user, onLogout }) {
 
                             <button 
                                 onClick={() => navigate('/onboarding')} 
-                                className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                                className="w-full px-6 py-3 text-base font-semibold rounded-lg shadow-lg bg-[#4CAF50] hover:bg-[#499c4c] text-white transition duration-150"
                             >
                                 상태 정보 수정하기
                             </button>
@@ -156,7 +155,7 @@ export default function InfoPage({ user, onLogout }) {
                             </p>
                             <button 
                                 onClick={() => navigate('/onboarding')} 
-                                className="w-full flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                                className="w-full px-6 py-3 text-base font-semibold rounded-lg shadow-lg bg-[#4CAF50] hover:bg-[#499c4c] text-white transition duration-150"
                             >
                                 상태 정보 입력하기
                             </button>
