@@ -1,541 +1,501 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
-// MediaPipe import - 새로운 방식 사용
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
-const POSE_CONNECTIONS = [
-    [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
-    [9, 10], [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
-    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [11, 23], [12, 24],
-    [23, 24], [23, 25], [25, 27], [27, 29], [29, 31], [24, 26], [26, 28],
-    [28, 30], [30, 32], [27, 31], [28, 32]
-];
-
 const ExercisePage = () => {
-  const { exerciseId } = useParams();
-  const navigate = useNavigate();
-  const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
-  const poseRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const lastAnalysisTime = useRef(0);
-  const canvasDimensions = useRef({ width: 640, height: 480 }); // 캔버스 크기 고정
+  const { exerciseId } = useParams();
+  const navigate = useNavigate();
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const poseRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const lastAnalysisTime = useRef(0);
+  const canvasDimensions = useRef({ width: 640, height: 480 });
+  const lastTimestampRef = useRef(-1); // ✅ 타임스탬프 추적
 
-  const [exercise, setExercise] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isStarted, setIsStarted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentSet, setCurrentSet] = useState(1);
-  const [currentRep, setCurrentRep] = useState(0);
-  const [feedback, setFeedback] = useState('준비하세요');
-  const [score, setScore] = useState(100);
-  const [totalScore, setTotalScore] = useState([]);
-  const [timeRemaining, setTimeRemaining] = useState(0);
-  const [showGuide, setShowGuide] = useState(true);
-  const [guideFrame, setGuideFrame] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [guidePoses, setGuidePoses] = useState([]);
-  const [completionFeedback, setCompletionFeedback] = useState(null);
-  const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
-  // const [isPoseDetecting, setIsPoseDetecting] = useState(false); // ❌ 이 상태 제거
+  const [exercise, setExercise] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isStarted, setIsStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [currentRep, setCurrentRep] = useState(0);
+  const [feedback, setFeedback] = useState('준비하세요');
+  const [score, setScore] = useState(100);
+  const [totalScore, setTotalScore] = useState([]);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [showGuide, setShowGuide] = useState(true);
+  const [guideFrame, setGuideFrame] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [guidePoses, setGuidePoses] = useState([]);
+  const [completionFeedback, setCompletionFeedback] = useState(null);
+  const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
 
-  // 운동 정보 불러오기 (생략 - 원본 유지)
-  useEffect(() => {
+  // 운동 정보 불러오기
+  useEffect(() => {
     const fetchExercise = async () => {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await exerciseAPI.getExercise(exerciseId);
+        setExercise(response.data);
         
-        try {
-            const response = await exerciseAPI.getExercise(exerciseId);
-            
-            setExercise(response.data);
-            
-            if (response.data.silhouette_animation?.keyframes) {
-                const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
-                    const poseObj = {};
-                    if (keyframe.pose_landmarks) {
-                        keyframe.pose_landmarks.forEach((landmark, index) => {
-                            poseObj[index.toString()] = landmark;
-                        });
-                    }
-                    return poseObj;
-                });
-                setGuidePoses(poses);
-            } else {
-                setGuidePoses([]);
+        if (response.data.silhouette_animation?.keyframes) {
+          const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
+            const poseObj = {};
+            if (keyframe.pose_landmarks) {
+              keyframe.pose_landmarks.forEach((landmark, index) => {
+                poseObj[index.toString()] = landmark;
+              });
             }
-            
-            setTimeRemaining(response.data.duration_seconds);
-            setLoading(false);
-        } catch (error) {
-            console.error('운동 정보 로드 실패:', error);
-            setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
-            setLoading(false);
+            return poseObj;
+          });
+          setGuidePoses(poses);
+        } else {
+          setGuidePoses([]);
         }
+        
+        setTimeRemaining(response.data.duration_seconds);
+        setLoading(false);
+      } catch (error) {
+        console.error('운동 정보 로드 실패:', error);
+        setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
+        setLoading(false);
+      }
     };
 
     if (exerciseId) {
-        fetchExercise();
+      fetchExercise();
     }
-}, [exerciseId]);
+  }, [exerciseId]);
 
-  // 가이드 프레임 애니메이션 (생략 - 원본 유지)
-  useEffect(() => {
-    if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) return;
+  // 가이드 프레임 애니메이션
+  useEffect(() => {
+    if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) return;
 
-    const interval = setInterval(() => {
-      setGuideFrame(prev => (prev + 1) % guidePoses.length);
-    }, 2000);
+    const interval = setInterval(() => {
+      setGuideFrame(prev => (prev + 1) % guidePoses.length);
+    }, 2000);
 
-    return () => clearInterval(interval);
-  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]);
+    return () => clearInterval(interval);
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]);
 
-  // 완료 데이터 저장 (생략 - 원본 유지)
-  const saveCompletion = useCallback(async () => {
-    const avgScore = totalScore.length > 0 
-      ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
-      : 0;
-    
-    if (!exercise) return;
-
-    try {
-      const completionData = {
-        completed_sets: currentSet,
-        completed_reps: exercise.repetitions,
-        average_score: avgScore,
-        pain_level_after: 5,
-        duration_minutes: Math.max(1, Math.ceil((exercise.duration_seconds - timeRemaining) / 60)),
-        score_history: totalScore
-      };
-      
-      const response = await exerciseAPI.complete(exerciseId, completionData);
-      
-      if (response.data?.feedback) {
-        setCompletionFeedback(response.data.feedback);
-      }
-    } catch (error) {
-      console.error('완료 저장 실패:', error.response?.data);
-    }
-  }, [totalScore, exercise, currentSet, timeRemaining, exerciseId]);
-
-  // 가이드 실루엣 그리기 (생략 - 원본 유지)
-  const drawGuideSilhouette = useCallback((guidePose) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !guidePose) return;
-
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
+  // 완료 데이터 저장
+  const saveCompletion = useCallback(async () => {
+    const avgScore = totalScore.length > 0 
+      ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
+      : 0;
     
-    // ... (몸통, 팔다리, 머리 그리기 로직) ...
+    if (!exercise) return;
+
+    try {
+      const completionData = {
+        completed_sets: currentSet,
+        completed_reps: exercise.repetitions,
+        average_score: avgScore,
+        pain_level_after: 5,
+        duration_minutes: Math.max(1, Math.ceil((exercise.duration_seconds - timeRemaining) / 60)),
+        score_history: totalScore
+      };
+      
+      const response = await exerciseAPI.complete(exerciseId, completionData);
+      
+      if (response.data?.feedback) {
+        setCompletionFeedback(response.data.feedback);
+      }
+    } catch (error) {
+      console.error('완료 저장 실패:', error.response?.data);
+    }
+  }, [totalScore, exercise, currentSet, timeRemaining, exerciseId]);
+
+  // 가이드 실루엣 그리기
+  const drawGuideSilhouette = useCallback((guidePose) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !guidePose) return;
+
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    
     const shoulder_left = guidePose["11"];
-    const shoulder_right = guidePose["12"];
-    const hip_left = guidePose["23"];
-    const hip_right = guidePose["24"];
+    const shoulder_right = guidePose["12"];
+    const hip_left = guidePose["23"];
+    const hip_right = guidePose["24"];
 
-    // 몸통 그리기
-    if (shoulder_left && shoulder_right && hip_left && hip_right) {
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(shoulder_left.x * width, shoulder_left.y * height);
-      ctx.lineTo(shoulder_right.x * width, shoulder_right.y * height);
-      ctx.lineTo(hip_right.x * width, hip_right.y * height);
-      ctx.lineTo(hip_left.x * width, hip_left.y * height);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
+    // 몸통 그리기
+    if (shoulder_left && shoulder_right && hip_left && hip_right) {
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(shoulder_left.x * width, shoulder_left.y * height);
+      ctx.lineTo(shoulder_right.x * width, shoulder_right.y * height);
+      ctx.lineTo(hip_right.x * width, hip_right.y * height);
+      ctx.lineTo(hip_left.x * width, hip_left.y * height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
 
-    // 세밀한 팔다리 그리기
-    const drawDetailedLimb = (joints) => {
-      const hasAllJoints = joints.every(j => guidePose[j]);
-      if (!hasAllJoints) {
-        if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
-          ctx.lineWidth = 15;
-          ctx.lineCap = 'round';
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-          ctx.beginPath();
-          ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
-          ctx.lineTo(guidePose[joints[1]].x * width, guidePose[joints[1]].y * height);
-          ctx.lineTo(guidePose[joints[2]].x * width, guidePose[joints[2]].y * height);
-          ctx.stroke();
-        }
-        return;
-      }
+    // 팔다리 그리기
+    const drawDetailedLimb = (joints) => {
+      const hasAllJoints = joints.every(j => guidePose[j]);
+      if (!hasAllJoints) {
+        if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
+          ctx.lineWidth = 15;
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+          ctx.beginPath();
+          ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
+          ctx.lineTo(guidePose[joints[1]].x * width, guidePose[joints[1]].y * height);
+          ctx.lineTo(guidePose[joints[2]].x * width, guidePose[joints[2]].y * height);
+          ctx.stroke();
+        }
+        return;
+      }
 
-      ctx.lineWidth = 15;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-      ctx.beginPath();
-      ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
-      
-      for (let i = 1; i < joints.length; i++) {
-        ctx.lineTo(guidePose[joints[i]].x * width, guidePose[joints[i]].y * height);
-      }
-      ctx.stroke();
+      ctx.lineWidth = 15;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
+      
+      for (let i = 1; i < joints.length; i++) {
+        ctx.lineTo(guidePose[joints[i]].x * width, guidePose[joints[i]].y * height);
+      }
+      ctx.stroke();
 
-      const endJoint = joints[joints.length - 1];
-      if (guidePose[endJoint]) {
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
-        ctx.beginPath();
-        ctx.arc(
-          guidePose[endJoint].x * width, 
-          guidePose[endJoint].y * height, 
-          8, 
-          0, 
-          2 * Math.PI
-        );
-        ctx.fill();
-      }
-    };
+      const endJoint = joints[joints.length - 1];
+      if (guidePose[endJoint]) {
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
+        ctx.beginPath();
+        ctx.arc(
+          guidePose[endJoint].x * width, 
+          guidePose[endJoint].y * height, 
+          8, 
+          0, 
+          2 * Math.PI
+        );
+        ctx.fill();
+      }
+    };
 
-    drawDetailedLimb(["11", "13", "15", "19"]);
-    drawDetailedLimb(["12", "14", "16", "20"]);
-    drawDetailedLimb(["23", "25", "27", "31"]);
-    drawDetailedLimb(["24", "26", "28", "32"]);
+    drawDetailedLimb(["11", "13", "15", "19"]);
+    drawDetailedLimb(["12", "14", "16", "20"]);
+    drawDetailedLimb(["23", "25", "27", "31"]);
+    drawDetailedLimb(["24", "26", "28", "32"]);
 
-    // 머리
-    if (shoulder_left && shoulder_right) {
-      const neckX = (shoulder_left.x + shoulder_right.x) / 2;
-      const neckY = (shoulder_left.y + shoulder_right.y) / 2;
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
-      ctx.beginPath();
-      ctx.arc(neckX * width, (neckY - 0.08) * height, 20, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-  }, []);
+    // 머리
+    if (shoulder_left && shoulder_right) {
+      const neckX = (shoulder_left.x + shoulder_right.x) / 2;
+      const neckY = (shoulder_left.y + shoulder_right.y) / 2;
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.beginPath();
+      ctx.arc(neckX * width, (neckY - 0.08) * height, 20, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }, []);
 
-  // 스켈레톤 그리기 (생략 - 원본 유지)
-  const drawSkeleton = useCallback((results) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // 스켈레톤 그리기
+  const drawSkeleton = useCallback((results) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvasDimensions.current;
-    
-    // ✅ 전체 캔버스 초기화
-    ctx.clearRect(0, 0, width, height);
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvasDimensions.current;
+    
+    ctx.clearRect(0, 0, width, height);
 
-    // ✅ Transform 적용 (거울 모드)
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.translate(-width, 0);
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-width, 0);
 
-    // ✅ 1. 가이드 실루엣 먼저 그리기
-    if (showGuide && !isCompleted && guidePoses.length > 0) {
-      if (guideFrame < guidePoses.length && guidePoses[guideFrame]) {
-        drawGuideSilhouette(guidePoses[guideFrame]);
-      }
-    }
+    // 가이드 실루엣 그리기
+    if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
+      drawGuideSilhouette(guidePoses[guideFrame]);
+    }
 
-    // ✅ 2. 사용자 스켈레톤 그리기
-    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
-      ? results.landmarks[0] 
-      : results.poseLandmarks;
+    // 사용자 스켈레톤 그리기
+    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
+      ? results.landmarks[0] 
+      : results.poseLandmarks;
 
-    if (poseLandmarks) {
-      const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
-      ];
-      
-      // 연결선 그리기
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
-      connections.forEach(([start, end]) => {
-        const startPoint = poseLandmarks[start];
-        const endPoint = poseLandmarks[end];
-        if (startPoint && endPoint) {
-          ctx.beginPath();
-          ctx.moveTo(startPoint.x * width, startPoint.y * height);
-          ctx.lineTo(endPoint.x * width, endPoint.y * height);
-          ctx.stroke();
-        }
-      });
-      
-      // 관절 점 그리기
-      poseLandmarks.forEach((landmark) => {
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(landmark.x * width, landmark.y * height, 6, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-    }
+    if (poseLandmarks) {
+      const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+        [11, 23], [12, 24], [23, 24],
+        [23, 25], [25, 27], [24, 26], [26, 28]
+      ];
+      
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+      connections.forEach(([start, end]) => {
+        const startPoint = poseLandmarks[start];
+        const endPoint = poseLandmarks[end];
+        if (startPoint && endPoint) {
+          ctx.beginPath();
+          ctx.moveTo(startPoint.x * width, startPoint.y * height);
+          ctx.lineTo(endPoint.x * width, endPoint.y * height);
+          ctx.stroke();
+        }
+      });
+      
+      poseLandmarks.forEach((landmark) => {
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(landmark.x * width, landmark.y * height, 6, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    }
 
-    // ✅ Transform 복원
-    ctx.restore();
-  }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
+    ctx.restore();
+  }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
-  // 자세 분석 결과
-  const onPoseResults = useCallback(async (results) => {
-    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
-      ? results.landmarks[0] 
-      : results.poseLandmarks;
+  // 자세 분석 결과
+  const onPoseResults = useCallback(async (results) => {
+    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
+      ? results.landmarks[0] 
+      : results.poseLandmarks;
 
-    if (!poseLandmarks || isPaused || isCompleted) return;
+    if (!poseLandmarks || isPaused || isCompleted) return;
 
-    // drawSkeleton은 콜백 의존성 없이 여기서 직접 호출
-    drawSkeleton(results); 
+    drawSkeleton(results);
 
-    const now = Date.now();
-    const timeSinceLastAnalysis = now - lastAnalysisTime.current;
+    const now = Date.now();
+    const timeSinceLastAnalysis = now - lastAnalysisTime.current;
 
-    // API 분석은 2초마다 호출 유지
-    if (timeSinceLastAnalysis >= 2000) {
-      lastAnalysisTime.current = now;
-      
-      if (!exercise) return;
-      
-      try {
-        const landmarks = poseLandmarks.map(lm => ({
-          x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0
-        }));
-        
-        // 서버 측에서 현재 반복 진행도를 판단하도록 요청 (timestamp_ms는 이제 performance.now() 기반)
-        const response = await exerciseAPI.analyzeRealtime(exerciseId, {
-          pose_landmarks: landmarks,
-          timestamp_ms: now 
-        });
-        
-        // 🎯 게이지 바 작동을 위한 핵심: API 응답을 기반으로 상태 업데이트
-        setFeedback(response.data.feedback);
-        setScore(response.data.score);
-        setTotalScore(prev => [...prev, response.data.score]);
-        
-        // API가 새로운 반복/세트 정보를 제공한다고 가정
-        if (response.data.new_rep_count !== undefined) {
-          setCurrentRep(response.data.new_rep_count);
-        }
-        if (response.data.new_set_count !== undefined) {
-          setCurrentSet(response.data.new_set_count);
-        }
+    if (timeSinceLastAnalysis >= 2000 && exercise) {
+      lastAnalysisTime.current = now;
+      
+      try {
+        const landmarks = poseLandmarks.map(lm => ({
+          x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0
+        }));
         
-        // 이전의 내부 반복 완료 로직을 API 응답에 맞춰 조정
-        if (response.data.is_correct && exercise.repetitions) {
-            setCurrentRep(prevRep => {
-                const newRep = prevRep + 1;
-                if (newRep >= exercise.repetitions) {
-                    setCurrentSet(prevSet => {
-                        if (prevSet >= exercise.sets) {
-                            setIsCompleted(true);
-                            setFeedback('모든 세트 완료! 수고하셨습니다!');
-                            saveCompletion();
-                            return prevSet;
-                        } else {
-                            setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
-                            return prevSet + 1;
-                        }
-                    });
-                    return 0;
+        const response = await exerciseAPI.analyzeRealtime(exerciseId, {
+          pose_landmarks: landmarks,
+          timestamp_ms: now 
+        });
+        
+        setFeedback(response.data.feedback);
+        setScore(response.data.score);
+        setTotalScore(prev => [...prev, response.data.score]);
+        
+        if (response.data.new_rep_count !== undefined) {
+          setCurrentRep(response.data.new_rep_count);
+        }
+        if (response.data.new_set_count !== undefined) {
+          setCurrentSet(response.data.new_set_count);
+        }
+        
+        if (response.data.is_correct && exercise.repetitions) {
+          setCurrentRep(prevRep => {
+            const newRep = prevRep + 1;
+            if (newRep >= exercise.repetitions) {
+              setCurrentSet(prevSet => {
+                if (prevSet >= exercise.sets) {
+                  setIsCompleted(true);
+                  setFeedback('모든 세트 완료! 수고하셨습니다!');
+                  saveCompletion();
+                  return prevSet;
+                } else {
+                  setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
+                  return prevSet + 1;
                 }
-                return newRep;
-            });
+              });
+              return 0;
+            }
+            return newRep;
+          });
         }
 
-      } catch (error) {
-        console.error('자세 분석 실패:', error);
-      }
-    }
-  }, [
-    isPaused, 
-    isCompleted, 
-    exercise, 
-    exerciseId, 
-    saveCompletion,
-    // drawSkeleton 제거됨
-  ]);
+      } catch (error) {
+        console.error('자세 분석 실패:', error);
+      }
+    }
+  }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion, drawSkeleton]);
 
-  // MediaPipe Pose 초기화 및 비디오 프레임 처리 (수정됨)
-  useEffect(() => {
-    if (!exercise || !isStarted || isCompleted) return;
+  // MediaPipe 초기화 및 프레임 처리
+  useEffect(() => {
+    if (!exercise || !isStarted || isCompleted || isMediaPipeReady) return;
 
-    // 캔버스 크기 초기 설정
-    if (canvasRef.current) {
-        canvasRef.current.width = canvasDimensions.current.width;
-        canvasRef.current.height = canvasDimensions.current.height;
-    }
-    
-    if (isMediaPipeReady) return; 
+    if (canvasRef.current) {
+      canvasRef.current.width = canvasDimensions.current.width;
+      canvasRef.current.height = canvasDimensions.current.height;
+    }
 
-    const initializePose = async () => {
-      try {
-        if (poseRef.current) poseRef.current.close(); 
+    const initializePose = async () => {
+      try {
+        if (poseRef.current) poseRef.current.close();
 
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-        );
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+        );
 
-        const poseLandmarker = await PoseLandmarker.createFromOptions(
-          vision,
-          {
-            baseOptions: {
-              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-              delegate: "GPU"
-            },
-            runningMode: "VIDEO",
-            numPoses: 1
-          }
-        );
+        const poseLandmarker = await PoseLandmarker.createFromOptions(
+          vision,
+          {
+            baseOptions: {
+              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+              delegate: "GPU"
+            },
+            runningMode: "VIDEO",
+            numPoses: 1
+          }
+        );
 
-        poseRef.current = poseLandmarker;
-        setIsMediaPipeReady(true);
-        setLoading(false);
-        
-        // 비디오 프레임 처리 루프 시작
-        const video = webcamRef.current?.video;
-        if (video) {
-          
-          const detectPose = async (now) => {
-            animationFrameRef.current = requestAnimationFrame(detectPose);
+        poseRef.current = poseLandmarker;
+        setIsMediaPipeReady(true);
+        setLoading(false);
+        
+        const video = webcamRef.current?.video;
+        if (video) {
+          const detectPose = async (now) => {
+            animationFrameRef.current = requestAnimationFrame(detectPose);
 
-            if (!poseRef.current || isPaused || isCompleted) {
-                return;
-            }
+            if (!poseRef.current || isPaused || isCompleted) return;
             
-            try {
-                // ⚠️ 타임스탬프 오류 해결 핵심: requestAnimationFrame의 now 값을 밀리초로 사용
-                const timestampMs = Math.floor(now); 
-                
-                if (video.readyState >= 2) { 
-                    const results = poseRef.current.detectForVideo(video, timestampMs);
+            try {
+              const currentTimestamp = Math.floor(now);
+              
+              // ✅ 타임스탬프 엄격하게 증가 보장
+              if (currentTimestamp <= lastTimestampRef.current) {
+                lastTimestampRef.current += 1;
+              } else {
+                lastTimestampRef.current = currentTimestamp;
+              }
+              
+              if (video.readyState >= 2) {
+                const results = poseRef.current.detectForVideo(video, lastTimestampRef.current);
+                if (results) {
+                  onPoseResults(results);
+                }
+              }
+            } catch (err) {
+              console.error('Pose detect error:', err);
+            }
+          };
 
-                    if (results) {
-                        onPoseResults(results);
-                    }
-                }
-            } catch (err) {
-                console.error('❌ Pose detect error:', err);
-            } 
-          };
+          detectPose(performance.now());
+        }
 
-          detectPose(performance.now());
-        }
+      } catch (error) {
+        console.error('MediaPipe 초기화 실패:', error);
+        setError('자세 분석 모듈 로드 실패. 앱을 새로고침해주세요.');
+        setLoading(false);
+      }
+    };
 
-      } catch (error) {
-        console.error('❌ MediaPipe 초기화 실패:', error);
-        setError('자세 분석 모듈 로드 실패. 앱을 새로고침해주세요.');
-        setLoading(false);
-      }
-    };
+    initializePose();
 
-    if (isStarted && !isMediaPipeReady) {
-        initializePose();
-    }
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (poseRef.current) {
+        try {
+          poseRef.current.close();
+        } catch (e) {
+          console.error('Pose close error:', e);
+        }
+        poseRef.current = null;
+      }
+      lastTimestampRef.current = -1;
+    };
+  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
 
+  // 타이머
+  useEffect(() => {
+    if (!isStarted || isPaused || timeRemaining <= 0 || isCompleted) return;
 
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (poseRef.current) {
-        try {
-          poseRef.current.close();
-        } catch (e) {
-          console.error('Pose close error:', e);
-        }
-        poseRef.current = null;
-      }
-    };
-  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          setIsCompleted(true);
+          saveCompletion();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  // 타이머 (생략)
-  useEffect(() => {
-    if (!isStarted || isPaused || timeRemaining <= 0 || isCompleted) return;
+    return () => clearInterval(timer);
+  }, [isStarted, isPaused, timeRemaining, isCompleted, saveCompletion]);
 
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          setIsCompleted(true);
-          saveCompletion();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  const handleComplete = () => {
+    setIsCompleted(true);
+    setIsStarted(false);
+    saveCompletion();
+  };
 
-    return () => clearInterval(timer);
-  }, [isStarted, isPaused, timeRemaining, isCompleted, saveCompletion]);
+  const handleRestart = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (poseRef.current) {
+      try {
+        poseRef.current.close();
+      } catch (e) {
+        console.error('Pose close error:', e);
+      }
+      poseRef.current = null;
+    }
+    window.location.reload();
+  };
 
-  // 수동 종료 (생략)
-  const handleComplete = () => {
-    setIsCompleted(true);
-    setIsStarted(false);
-    saveCompletion();
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
+        {isStarted && (
+          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
+        )}
+      </div>
+    );
+  }
 
-  // 재시작 (생략)
-  const handleRestart = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    if (poseRef.current) {
-      try {
-        poseRef.current.close();
-      } catch (e) {
-        console.error('Pose close error:', e);
-      }
-      poseRef.current = null;
-    }
-    
-    window.location.reload();
-  };
-  // 로딩 화면 (생략)
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
-        {isStarted && (
-          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
-        )}
-      </div>
-    );
-  }
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+        <div className="text-white text-2xl mb-2">로딩 실패</div>
+        <div className="text-gray-400 text-center max-w-md">{error}</div>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
+          >
+            다시 시도
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
+          >
+            홈으로
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // 에러 화면 (생략)
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-red-500 text-6xl mb-4">⚠️</div>
-        <div className="text-white text-2xl mb-2">로딩 실패</div>
-        <div className="text-gray-400 text-center max-w-md">{error}</div>
-        <div className="flex gap-4 mt-6">
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
-          >
-            다시 시도
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
-          >
-            홈으로
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!exercise) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
-        >
-          홈으로
-        </button>
-      </div>
-    );
-  }
+  if (!exercise) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
+        <button
+          onClick={() => navigate('/')}
+          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
+        >
+          홈으로
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
@@ -547,7 +507,7 @@ const ExercisePage = () => {
         <span>나가기</span>
       </button>
 
-      <div className="max-w-6xl mx-auto mb-6 pt-2">
+{/*       <div className="max-w-6xl mx-auto mb-6 pt-2">
         <h1 className="text-3xl font-bold mb-2">{exercise.name}</h1>
         <p className="text-gray-400">{exercise.description}</p>
         {isStarted && (
@@ -555,7 +515,7 @@ const ExercisePage = () => {
             현재 세트: {currentSet} / {exercise.sets} | 반복: {currentRep} / {exercise.repetitions}
           </div>
         )}
-      </div>
+      </div> */}
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
@@ -599,7 +559,7 @@ const ExercisePage = () => {
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
                   {/* 세트 게이지 */}
                   <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>세트</div>
+                    <div className="text-xs text-gray-300 mb-2">세트</div>
                     <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
                       <div
                         className="bg-blue-500 rounded-full transition-all w-full"
