@@ -16,6 +16,7 @@ const partImageMap = {
   '발': '/pain/foot.png',
   '발목': '/pain/foot.png',
   '무릎': '/pain/leg.png',
+  '허벅지': '/pain/leg.png',
   '엉덩이': '/pain/leg.png',
   '고관절': '/pain/leg.png',
   '어깨': '/pain/arm.png',

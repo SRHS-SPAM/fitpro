@@ -22,5 +22,7 @@ COPY ./app /app/app
 # Uvicorn 서버를 실행할 포트 노출
 EXPOSE 8000
 
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
 # 컨테이너 실행 명령어는 docker-compose.yml에서 override됨
 # CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

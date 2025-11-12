@@ -155,7 +155,7 @@ def create_recommendations_prompt(user_body_condition: Dict, exclude_exercises: 
         exclude_text = f"\n\n**중요: 다음 운동들은 이미 추천했으므로 절대 포함하지 마세요:**\n- {', '.join(exclude_exercises)}\n**반드시 새롭고 다른 운동을 추천해야 합니다!**"
 
     return f"""
-다음 사용자 정보를 바탕으로, 맞춤 재활 운동 **3가지**를 추천해주세요.
+다음 사용자 정보를 바탕으로, 맞춤 재활 운동 **4가지**를 추천해주세요.
 응답은 반드시 'recommendations'라는 키를 가진 단일 JSON 객체여야 하며, 각 추천 운동은 리스트의 요소로 포함되어야 합니다.
 
 **사용자 정보:**
@@ -210,12 +210,24 @@ def create_recommendations_prompt(user_body_condition: Dict, exclude_exercises: 
       "sets": 2,
       "repetitions": 1,
       "recommendation_reason": "..."
+    }},
+    {{
+      "name": "추천 운동 4 이름 (예: 벽 팔굽혀펴기)",
+      "description": "...",
+      "instructions": ["1단계: ...", "2단계: ...", "3단계: ...", "4단계: ..."],
+      "safety_warnings": ["주의사항1", "주의사항2", "주의사항3"],
+      "target_parts": ["부위1", "부위2"],
+      "duration_minutes": 8,
+      "intensity": "medium",
+      "sets": 3,
+      "repetitions": 10,
+      "recommendation_reason": "..."
     }}
   ]
 }}
 
 **중요 지침:**
-1.  **3개의 운동**을 반드시 생성해야 합니다.
+1.  **4개의 운동**을 반드시 생성해야 합니다.
 2.  운동 강도(intensity)는 'low', 'medium', 'high', 'stretching' 중에서 선택하세요.
 3.  **instructions는 반드시 3-4개의 구체적인 단계**로 작성하세요 (시작 자세 → 운동 동작 → 호흡/주의 → 마무리).
 4.  **safety_warnings는 반드시 2-3개의 구체적인 주의사항**을 작성하세요.
