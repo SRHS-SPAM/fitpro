@@ -36,31 +36,33 @@ export default function InfoPage({ user, onLogout }) {
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await api.delete(
-            '/users/me', 
-            { 
-                data: {
-                    password: password,
-                    confirm_text: confirmText 
+            // data 속성에 본문을 넣는 방식은 Axios의 DELETE 요청 표준입니다.
+            const response = await api.delete( 
+                '/users/me', 
+                { 
+                    data: {
+                        password: password,
+                        confirm_text: confirmText 
+                    }
                 }
-            }
-        );
-
+            );  
             const data = response.data;
 
-            if (response.ok) {
-                alert(data.message || '계정이 성공적으로 삭제되었습니다.');
-                handleLogout();
-            } else {
-                setError(data.detail || '계정 삭제에 실패했습니다.');
-            }
-        } catch (err) {
-            setError('서버 연결에 실패했습니다. 다시 시도해주세요.');
-            console.error('Delete account error:', err);
-        } finally {
-            setIsDeleting(false);
-        }
-    };
+            alert(data?.message || '계정이 성공적으로 삭제되었습니다.');
+            handleLogout();
+        
+        } catch (err) { // 2xx 외의 상태 코드 (4xx, 5xx)를 받은 경우
+
+        // 오류 로깅
+        console.error('Delete account error:', err);
+        
+        // err.response.data에 백엔드의 상세 오류 메시지가 담겨있을 수 있습니다.
+        const errorMessage = err.response?.data?.detail || '계정 삭제에 실패했습니다.';
+        setError(errorMessage);
+
+    } finally {
+        setIsDeleting(false);
+    }
 
     if (!user) {
         return (
