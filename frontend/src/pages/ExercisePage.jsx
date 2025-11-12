@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] FilesetResolver는 유지, PoseLandmarker를 와일드카드 임포트에서 추출하는 방식으로 변경
+// ⬇️ [핵심 수정] MediaPipe Tasks API 임포트 (Solutions API 대신 사용)
 import { FilesetResolver } from '@mediapipe/tasks-vision'; 
 import * as MP_Tasks from '@mediapipe/tasks-vision'; // 네임스페이스로 전체 Tasks API를 가져옵니다.
 
@@ -263,10 +263,10 @@ const drawSkeleton = useCallback((results) => {
 
   // ✅ 2. 사용자 스켈레톤 그리기 (MediaPipe Drawing Utility 사용)
   if (poseLandmarks) {
-    // MediaPipe drawing_utils를 사용하여 그립니다.
-    // PoseLandmarkerResult의 랜드마크 배열을 직접 전달합니다.
-    drawConnectors(ctx, poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
-    drawLandmarks(ctx, poseLandmarks, { color: '#FF0000', lineWidth: 2 });
+    // MediaPipe drawing_utils를 사용하여 그립니다.
+    // PoseLandmarkerResult의 랜드마크 배열을 직접 전달합니다.
+    drawConnectors(ctx, poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+    drawLandmarks(ctx, poseLandmarks, { color: '#FF0000', lineWidth: 2 });
   }
 
   // ✅ Transform 복원
@@ -354,12 +354,31 @@ const drawSkeleton = useCallback((results) => {
             );
 
             // ⬇️ PoseLandmarker 객체 생성 시, 네임스페이스 접근을 사용합니다.
-            // PoseLandmarker 클래스를 MP_Tasks에서 추출합니다.
-            const PoseLandmarkerClass = MP_Tasks.PoseLandmarker || (MP_Tasks.default && MP_Tasks.default.PoseLandmarker);
-            
-            if (!PoseLandmarkerClass) {
-                 throw new Error("PoseLandmarker class not found in imported module.");
-            }
+            // PoseLandmarker 클래스를 MP_Tasks에서 추출합니다.
+            let PoseLandmarkerClass = null;
+            
+            // 1. MP_Tasks.PoseLandmarker 직접 접근
+            if (MP_Tasks.PoseLandmarker) {
+                PoseLandmarkerClass = MP_Tasks.PoseLandmarker;
+            } 
+            // 2. MP_Tasks.default.PoseLandmarker 접근
+            else if (MP_Tasks.default && MP_Tasks.default.PoseLandmarker) {
+                PoseLandmarkerClass = MP_Tasks.default.PoseLandmarker;
+            } 
+            // 3. MP_Tasks가 PoseLandmarker 클래스인 경우 (create 함수 존재 확인)
+            else if (typeof MP_Tasks === 'function' && MP_Tasks.create) {
+                PoseLandmarkerClass = MP_Tasks;
+            } 
+            // 4. MP_Tasks.default가 PoseLandmarker 클래스인 경우 (최종적인 Fallback)
+            else if (MP_Tasks.default && typeof MP_Tasks.default === 'function' && MP_Tasks.default.create) {
+                PoseLandmarkerClass = MP_Tasks.default;
+            } else {
+                throw new Error("PoseLandmarker class could not be extracted due to bundling issues.");
+            }
+            
+            if (!PoseLandmarkerClass) {
+                throw new Error("PoseLandmarker class is missing after all attempts.");
+            }
 
             const poseLandmarker = await PoseLandmarkerClass.create( // ⬅️ PoseLandmarkerClass 사용
                 poseAssets, 
@@ -549,7 +568,7 @@ const drawSkeleton = useCallback((results) => {
             현재 세트: {currentSet} / {exercise.sets} | 반복: {currentRep} / {exercise.repetitions}
           </div>
         )}
-      </div>
+          </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
