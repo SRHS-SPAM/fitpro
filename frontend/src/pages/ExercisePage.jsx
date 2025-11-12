@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
-// ⬇️ [핵심 수정] Pose 생성자 오류를 해결하기 위해 Namespace 임포트 (* as MP_Pose)를 사용합니다.
-// FilesetResolver를 여기서 가져옵니다.
-import * as MP_Pose from '@mediapipe/pose';
+
+// ⬇️ [핵심 수정] MediaPipe Tasks API 임포트
+// FilesetResolver, PoseLandmarker를 @mediapipe/tasks-vision에서 명시적으로 가져옵니다.
+import { FilesetResolver, PoseLandmarker, PoseLandmarkerResult } from '@mediapipe/tasks-vision'; 
+// MP_Pose 임포트는 이제 사용하지 않으므로 제거합니다.
+// import * as MP_Pose from '@mediapipe/pose'; 
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
@@ -14,7 +18,8 @@ const ExercisePage = () => {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  const poseRef = useRef(null);
+  // poseRef는 이제 PoseLandmarker 인스턴스를 저장합니다.
+  const poseRef = useRef(null); 
   const cameraRef = useRef(null);
   
   const [exercise, setExercise] = useState(null);
@@ -34,7 +39,7 @@ const ExercisePage = () => {
   const [guidePoses, setGuidePoses] = useState([]);
   const [completionFeedback, setCompletionFeedback] = useState(null);
 
-  // ⬇️ [새 상태] MediaPipe 초기화 완료 상태
+  // MediaPipe 초기화 완료 상태
   const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
 
 
@@ -218,10 +223,19 @@ const drawGuideSilhouette = useCallback((guidePose) => {
   }
 }, []);
 
+// ⬇️ [수정] PoseLandmarker 결과 구조에 맞춰 results 인자를 수정합니다.
+// 이제 results는 { landmarks: Landmark[][] } 구조를 가집니다.
 const drawSkeleton = useCallback((results) => {
   const canvas = canvasRef.current;
   if (!canvas) return;
 
+  // PoseLandmarker는 결과를 results.landmarks 배열에 담습니다.
+  const poseLandmarks = results.landmarks && results.landmarks.length > 0 
+    ? results.landmarks[0] 
+    : null;
+
+  if (!poseLandmarks) return;
+  
   const ctx = canvas.getContext('2d');
   canvas.width = 640;
   canvas.height = 480;
@@ -243,7 +257,8 @@ const drawSkeleton = useCallback((results) => {
   }
 
   // ✅ 2. 사용자 스켈레톤 그리기 (transform 적용된 상태에서)
-  if (results.poseLandmarks) {
+  if (poseLandmarks) {
+    // MediaPipe Landmark 인덱스 사용
     const connections = [
       [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
       [11, 23], [12, 24], [23, 24],
@@ -254,8 +269,8 @@ const drawSkeleton = useCallback((results) => {
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 3;
     connections.forEach(([start, end]) => {
-      const startPoint = results.poseLandmarks[start];
-      const endPoint = results.poseLandmarks[end];
+      const startPoint = poseLandmarks[start];
+      const endPoint = poseLandmarks[end];
       if (startPoint && endPoint) {
         ctx.beginPath();
         ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
@@ -265,7 +280,7 @@ const drawSkeleton = useCallback((results) => {
     });
     
     // 관절 점 그리기
-    results.poseLandmarks.forEach((landmark) => {
+    poseLandmarks.forEach((landmark) => {
       ctx.fillStyle = '#ff0000';
       ctx.beginPath();
       ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 6, 0, 2 * Math.PI);
@@ -278,24 +293,36 @@ const drawSkeleton = useCallback((results) => {
 }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
   // 자세 분석 결과
+  // ⬇️ [수정] onPoseResults는 PoseLandmarkerResult 객체를 받습니다.
   const onPoseResults = useCallback(async (results) => {
-    if (!results.poseLandmarks || isPaused || isCompleted) return;
+    // Task API는 poseLandmarks 대신 landmarks[0]에 결과를 담습니다.
+    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
+      ? results.landmarks[0] 
+      : null;
+      
+    if (!poseLandmarks || isPaused || isCompleted) return;
 
+    // ⬇️ drawSkeleton에 전체 results 객체를 전달합니다.
     drawSkeleton(results);
 
+    // 백엔드 API 호출은 2초 간격으로 유지
     if (Date.now() % 2000 < 100) {
       if (!exercise) return;
       try {
-        const landmarks = results.poseLandmarks.map(lm => ({
+        // ⬇️ [수정] poseLandmarks 배열을 매핑하여 API 요청 데이터 생성
+        const landmarks = poseLandmarks.map(lm => ({
           x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility
         }));
+        
         const response = await exerciseAPI.analyzeRealtime(exerciseId, {
           pose_landmarks: landmarks,
           timestamp_ms: Date.now() % (exercise.duration_seconds * 1000)
         });
+        
         setFeedback(response.data.feedback);
         setScore(response.data.score);
         setTotalScore(prev => [...prev, response.data.score]);
+        
         if (response.data.is_correct) {
           setCurrentRep(prevRep => {
             const newRep = prevRep + 1;
@@ -332,59 +359,78 @@ const drawSkeleton = useCallback((results) => {
 
   // MediaPipe Pose 초기화
   useEffect(() => {
-    // ⬇️ [핵심] isMediaPipeReady 상태를 확인하도록 수정 (로딩 순서 강제)
+    // exercise 정보가 로드되고 시작 버튼이 눌렸을 때만 실행
     if (!exercise || !isStarted || isCompleted) return;
+    
+    // 이미 초기화 되었으면 건너뜁니다.
+    if (isMediaPipeReady) return;
 
-    // ⬇️ MediaPipe 초기화 로직 (비동기 처리)
-    const initializePose = async () => {
-        try {
-            // 1. FilesetResolver를 통해 필수 파일 로드 (비동기)
-            // 🚨 [수정 필요] MP_Pose에서 직접 FilesetResolver를 로드하는 방식으로 변경해야 합니다.
-            const poseAssets = await MP_Pose.FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-            );
+    const initializePose = async () => {
+        try {
+            // 1. FilesetResolver를 통해 필수 파일 로드 (비동기)
+            const poseAssets = await FilesetResolver.forVisionTasks( // ⬅️ [수정] FilesetResolver 사용
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+            );
 
-            // 2. Pose 객체 생성 (FilesetResolver 로드 후에만 가능)
-            const pose = new MP_Pose.Pose(poseAssets);
+            // 2. PoseLandmarker 객체 생성
+            const poseLandmarker = await PoseLandmarker.create( // ⬅️ [수정] PoseLandmarker.create 사용
+                poseAssets, 
+                {
+                    baseOptions: {
+                        // 모델 파일 경로 설정
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float/1/pose_landmarker_lite.task`,
+                        delegate: "GPU" // 웹 환경에서 성능 향상을 위해 GPU 사용 시도
+                    },
+                    runningMode: "VIDEO", // 웹캠 비디오 스트림 처리 모드
+                    numLandmarks: 33,
+                    // PoseLandmarker는 onResults 대신 detectForVideo를 사용하므로, 
+                    // 옵션 객체에는 onResults를 설정하지 않습니다.
+                }
+            );
 
-            pose.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                enableSegmentation: false,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
+            poseRef.current = poseLandmarker;
+            setIsMediaPipeReady(true); // 초기화 성공
 
-            poseRef.current = pose;
-            pose.onResults(onPoseResults); // onResults 콜백 설정
+            // 3. 카메라 시작 및 프레임 전송
+            if (webcamRef.current && webcamRef.current.video) {
+                const camera = new Camera(webcamRef.current.video, {
+                    onFrame: async () => {
+                        if (poseRef.current && !isPaused && !isCompleted) {
+                            try {
+                                // ⬇️ [수정] detectForVideo로 실시간 랜드마크 추출
+                                const results = poseRef.current.detectForVideo(
+                                    webcamRef.current.video,
+                                    Date.now()
+                                );
+                                
+                                if (results) {
+                                    onPoseResults(results); // 결과를 콜백 함수로 전달
+                                }
 
-            // 3. 카메라 시작
-            if (webcamRef.current && webcamRef.current.video) {
-                const camera = new Camera(webcamRef.current.video, {
-                    onFrame: async () => {
-                        if (poseRef.current && !isPaused && !isCompleted) {
-                            try {
-                                await poseRef.current.send({ image: webcamRef.current.video });
-                            } catch (err) {
-                                console.error('Pose send error:', err);
-                            }
-                        }
-                    },
-                    width: 640,
-                    height: 480
-                });
-                cameraRef.current = camera;
-                camera.start();
-            }
+                            } catch (err) {
+                                console.error('Pose detect error:', err);
+                            }
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                cameraRef.current = camera;
+                camera.start();
+            }
 
-        } catch (error) {
-            console.error('MediaPipe 초기화 실패:', error);
-            setError('자세 분석 모듈 로드 실패. 앱을 새로고침해주세요.');
-        }
-    };
+        } catch (error) {
+            console.error('MediaPipe 초기화 실패:', error);
+            // 오류가 발생하면 isStarted를 false로 설정하여 로딩 화면을 우회하고 오류 메시지를 표시
+            setIsStarted(false);
+            setError('자세 분석 모듈 로드 실패: ' + error.message);
+        }
+    };
 
-    // Pose 초기화는 isStarted가 true일 때만 시작
-    initializePose();
+    // isStarted가 true일 때만 초기화 시작
+    if (isStarted && !isCompleted && !isMediaPipeReady) {
+      initializePose();
+    }
 
 
     return () => {
@@ -393,19 +439,12 @@ const drawSkeleton = useCallback((results) => {
         cameraRef.current = null;
       }
       if (poseRef.current) {
-        poseRef.current.close();
+        // PoseLandmarker를 닫는 메서드는 close() 입니다.
+        poseRef.current.close(); 
         poseRef.current = null;
       }
     };
-  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults]); // 의존성 배열에 onPoseResults 추가
-
-
-  // 콜백 함수 갱신용 useEffect ⬇️ [삭제] onResults는 위 initializePose에서 한 번만 설정하면 됩니다.
-  // useEffect(() => {
-  //     if (poseRef.current) {
-  //       poseRef.current.onResults(onPoseResults);
-  //     }
-  // }, [onPoseResults]);
+  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
 
 
   // 타이머
@@ -435,6 +474,7 @@ const drawSkeleton = useCallback((results) => {
 
   // 재시작
   const handleRestart = () => {
+    // 클린업 로직
     if (cameraRef.current) {
       try {
         cameraRef.current.stop();
@@ -503,7 +543,7 @@ const drawSkeleton = useCallback((results) => {
           >
             홈으로
           </button>
-      </div>
+        </div>
     );
   }
 
