@@ -59,7 +59,7 @@ app.add_middleware(
         "http://localhost:3000",  # React 개발 서버 (대체)
         "[http://127.0.0.1:5173](http://127.0.0.1:5173)",
         "[http://127.0.0.1:3000](http://127.0.0.1:3000)",
-        "[https://fitner-app.vercel.app](https://fitner-app.vercel.app)", # 2-3 단계에서 생성될 Vercel URL (예시)
+        "[https://fitpro-sandy.vercel.app](https://fitpro-sandy.vercel.app)", # 2-3 단계에서 생성될 Vercel URL (예시)
         "*" # 초기 테스트를 위해 모든 출처 허용 (배포 성공 확인 후 제거 권장)
     ],
     allow_credentials=True,
