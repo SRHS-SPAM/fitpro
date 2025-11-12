@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from './services/api.js';
 import { ArrowLeft, Dumbbell, Clock, Zap, CheckCircle, PlusCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
@@ -59,31 +60,31 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   );
 
   const fetchRecommendations = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await axios.get(
-        'http://localhost:8000/api/v1/exercises/recommendations',
-        { 
-          headers: { Authorization: `Bearer ${token}` },
-          params: { limit: 4 }
-        }
-      );
-      // ❗ API 응답 데이터 예시 (가정)
-      // response.data.exercises = [
-      //   { exercise_id: 1, name: "목 스트레칭", target_part: "목", ... },
-      //   { exercise_id: 2, name: "런지", target_part: "다리", ... },
-      // ]
-      setExercises(response.data.exercises || []);
-    } catch (err) {
-      console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
-      setError(err.response?.data?.detail || '운동 추천을 불러올 수 없습니다.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  setLoading(true);
+  setError(null);
+  try {
+    // ⬇️ [2] 'axios.get' 대신 'api.get'을 사용합니다.
+    const response = await api.get(
+      '/exercises/recommendations', // ⬅️ [3] BaseURL (https://...)이 자동으로 붙습니다.
+      { 
+        // ⬅️ [4] 'headers' 줄은 삭제! (api.js의 interceptor가 자동으로 토큰을 넣어줍니다)
+        params: { limit: 4 }
+      }
+    );
+    // ❗ API 응답 데이터 예시 (가정)
+    // response.data.exercises = [
+    //   { exercise_id: 1, name: "목 스트레칭", target_part: "목", ... },
+    //   { exercise_id: 2, name: "런지", target_part: "다리", ... },
+    // ]
+    setExercises(response.data.exercises || []);
+  } catch (err) {
+    console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
+    setError(err.response?.data?.detail || '운동 추천을 불러올 수 없습니다.');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
 
   useEffect(() => {
     fetchRecommendations();
