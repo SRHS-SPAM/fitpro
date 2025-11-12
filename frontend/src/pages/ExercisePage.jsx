@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] Pose를 구조 분해해서 가져오지 않고, 네임스페이스 통째로 가져옵니다.
-// 이 방식이 '... is not a constructor' 오류를 해결하는 표준 방법입니다.
-import * as MP_Pose from '@mediapipe/pose'; 
-// drawConnectors, drawLandmarks는 여전히 필요하므로 명시적으로 가져옵니다.
+// ⬇️ [핵심 수정] MediaPipe Solutions API의 Pose 클래스를 default export로 가져오거나
+// 또는 MP_Pose 네임스페이스 대신 Pose를 직접 가져오도록 수정
+import Pose from '@mediapipe/pose'; // <--- Pose 클래스를 직접 가져옴 (가장 일반적인 해결책)
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
+// MP_Pose를 사용하지 않으므로, drawSkeleton 내부의 drawConnectors 주석은 Pose.POSE_CONNECTIONS를 사용하도록 가정합니다.
+
 
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -251,36 +252,36 @@ const drawSkeleton = useCallback((results) => {
   // ✅ 2. 사용자 스켈레톤 그리기 (MediaPipe Drawing Utility 사용 권장, 여기서는 수동 유지)
   if (results.poseLandmarks) {
     // MediaPipe drawing_utils를 직접 사용하는 것이 더 간결합니다.
-    // drawConnectors(ctx, results.poseLandmarks, MP_Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
-    // drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
-    
-    const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
-    ];
-    
-    // 연결선 그리기
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 3;
-    connections.forEach(([start, end]) => {
-      const startPoint = results.poseLandmarks[start];
-      const endPoint = results.poseLandmarks[end];
-      if (startPoint && endPoint) {
-        ctx.beginPath();
-        ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
-        ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
-        ctx.stroke();
-      }
-    });
-    
-    // 관절 점 그리기
-    results.poseLandmarks.forEach((landmark) => {
-      ctx.fillStyle = '#ff0000';
-      ctx.beginPath();
-      ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 6, 0, 2 * Math.PI);
-      ctx.fill();
-    });
+    // drawConnectors(ctx, results.poseLandmarks, Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+    // drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
+    
+    const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+        [11, 23], [12, 24], [23, 24],
+        [23, 25], [25, 27], [24, 26], [26, 28]
+    ];
+    
+    // 연결선 그리기
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    connections.forEach(([start, end]) => {
+      const startPoint = results.poseLandmarks[start];
+      const endPoint = results.poseLandmarks[end];
+      if (startPoint && endPoint) {
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+        ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+        ctx.stroke();
+      }
+    });
+    
+    // 관절 점 그리기
+    results.poseLandmarks.forEach((landmark) => {
+      ctx.fillStyle = '#ff0000';
+      ctx.beginPath();
+      ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 6, 0, 2 * Math.PI);
+      ctx.fill();
+    });
   }
 
   // ✅ Transform 복원
@@ -355,8 +356,8 @@ const drawSkeleton = useCallback((results) => {
 
     const initializePose = async () => {
         try {
-            // ⬇️ [핵심 수정 적용] MP_Pose.Pose() 사용 (네임스페이스 임포트)
-            const pose = new MP_Pose.Pose({ // <--- 이 부분이 수정됨
+            // ⬇️ [핵심 수정 적용] Pose를 직접 사용합니다.
+            const pose = new Pose({ // <--- MP_Pose.Pose 대신 Pose 사용
                 locateFile: (file) => {
                     // 필요한 wasm/bin 파일 경로 설정 (CDN 사용)
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
