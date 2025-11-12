@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';4
+import api from '../services/api.js';
 import { UserCircle, LogOut, ArrowLeft, AlertTriangle, X } from 'lucide-react';
 
 export default function InfoPage({ user, onLogout }) {
@@ -35,17 +36,13 @@ export default function InfoPage({ user, onLogout }) {
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/api/v1/users/me', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    password: password,
-                    confirm_text: confirmText
-                })
-            });
+            const response = await api.get(
+            '/exercises/recommendations', // ⬅️ [3] BaseURL (https://...)이 자동으로 붙습니다.
+            { 
+                // ⬅️ [4] 'headers' 줄은 삭제! (api.js의 interceptor가 자동으로 토큰을 넣어줍니다)
+                params: { limit: 4 }
+            }
+    );
 
             const data = await response.json();
 
