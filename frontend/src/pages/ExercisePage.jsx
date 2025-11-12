@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] PoseLandmarker와 FilesetResolver를 직접 가져옵니다.
-// 이 방식이 Tasks API 공식 문서에서 권장하는 임포트 방식입니다.
+// ⬇️ [핵심 수정] FilesetResolver와 PoseLandmarker를 직접 가져옵니다.
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'; 
-// import * as MP_Tasks from '@mediapipe/tasks-vision'; // 네임스페이스 임포트 제거
-
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
+
+// ⬇️ [오류 수정] useParams를 react-router-dom에서 명시적으로 임포트해야 합니다.
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import Webcam from 'react-webcam';
+import { exerciseAPI } from '../services/api';
 
 // Task API의 기본 랜드마크 연결 정보를 정의합니다.
 const POSE_CONNECTIONS = [
@@ -18,6 +21,7 @@ const POSE_CONNECTIONS = [
 ];
 
 const ExercisePage = () => {
+  // ⬇️ [수정됨] useParams가 이제 정의되어 있습니다.
   const { exerciseId } = useParams();
 // ... (useState, useRef 부분은 동일)
   const navigate = useNavigate();
@@ -347,15 +351,11 @@ const drawSkeleton = useCallback((results) => {
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
-            // ⬇️ PoseLandmarker 객체 생성 시, 네임스페이스 접근을 사용합니다.
-            // 이전 시도: const PoseLandmarkerClass = MP_Tasks.PoseLandmarker || (MP_Tasks.default && MP_Tasks.default.PoseLandmarker);
-            
-            // 🚨 최종적으로, 구조 분해 할당으로 가져온 PoseLandmarker를 사용합니다.
-            // 이 시점에서는 PoseLandmarker가 클래스 자체여야 합니다.
-            
-            if (typeof PoseLandmarker.create !== 'function') {
-                throw new Error("PoseLandmarker.create is not a function after import. Bundling issue likely persists.");
-            }
+            // ⬇️ PoseLandmarker 클래스를 직접 사용 (구조 분해 할당)
+            
+            if (typeof PoseLandmarker.create !== 'function') {
+                throw new Error("PoseLandmarker.create is not a function after import. Bundling issue likely persists.");
+            }
 
 
             const poseLandmarker = await PoseLandmarker.create( // ⬅️ PoseLandmarker 직접 사용 (구조 분해 할당)
