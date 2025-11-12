@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] MediaPipe Tasks API 임포트 (Solutions API 대신 사용)
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'; 
+// ⬇️ [핵심 수정] FilesetResolver는 유지, PoseLandmarker를 와일드카드 임포트에서 추출하는 방식으로 변경
+import { FilesetResolver } from '@mediapipe/tasks-vision'; 
+import * as MP_Tasks from '@mediapipe/tasks-vision'; // 네임스페이스로 전체 Tasks API를 가져옵니다.
+
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
 // import * as MP_Pose from '@mediapipe/pose'; // Solutions API 임포트 제거
 
@@ -13,21 +15,20 @@ import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
 
 // Task API의 기본 랜드마크 연결 정보를 정의합니다.
-// Solutions API의 POSE_CONNECTIONS와 유사합니다.
 const POSE_CONNECTIONS = [
-    [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
-    [9, 10], [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
-    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [11, 23], [12, 24],
-    [23, 24], [23, 25], [25, 27], [27, 29], [29, 31], [24, 26], [26, 28],
-    [28, 30], [30, 32], [27, 31], [28, 32]
+    [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
+    [9, 10], [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
+    [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [11, 23], [12, 24],
+    [23, 24], [23, 25], [25, 27], [27, 29], [29, 31], [24, 26], [26, 28],
+    [28, 30], [30, 32], [27, 31], [28, 32]
 ];
 
 const ExercisePage = () => {
   const { exerciseId } = useParams();
+// ... (useState, useRef 부분은 동일)
   const navigate = useNavigate();
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  // poseRef는 이제 PoseLandmarker 인스턴스를 저장합니다.
   const poseRef = useRef(null); 
   const cameraRef = useRef(null);
   
@@ -347,13 +348,20 @@ const drawSkeleton = useCallback((results) => {
 
     const initializePose = async () => {
         try {
-            // ⬇️ [핵심 수정] FilesetResolver를 통해 필수 파일 로드 (Tasks API)
+            // ⬇️ [핵심 수정] FilesetResolver를 통해 필수 파일 로드 (Tasks API)
             const poseAssets = await FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
-            // ⬇️ PoseLandmarker 객체 생성
-            const poseLandmarker = await PoseLandmarker.create(
+            // ⬇️ PoseLandmarker 객체 생성 시, 네임스페이스 접근을 사용합니다.
+            // PoseLandmarker 클래스를 MP_Tasks에서 추출합니다.
+            const PoseLandmarkerClass = MP_Tasks.PoseLandmarker || (MP_Tasks.default && MP_Tasks.default.PoseLandmarker);
+            
+            if (!PoseLandmarkerClass) {
+                 throw new Error("PoseLandmarker class not found in imported module.");
+            }
+
+            const poseLandmarker = await PoseLandmarkerClass.create( // ⬅️ PoseLandmarkerClass 사용
                 poseAssets, 
                 {
                     baseOptions: {
@@ -376,9 +384,9 @@ const drawSkeleton = useCallback((results) => {
                             try {
                                 // detectForVideo는 결과를 동기적으로 반환합니다.
                                 const results = poseRef.current.detectForVideo(
-                                    webcamRef.current.video, 
-                                    Date.now()
-                                );
+                                    webcamRef.current.video, 
+                                    Date.now()
+                                );
                                 if (results) {
                                     onPoseResults(results); 
                                 }
