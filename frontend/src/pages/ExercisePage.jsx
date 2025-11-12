@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [복구] MediaPipe Solutions API 임포트
-// Pose 클래스를 사용하고 FilesetResolver는 사용하지 않습니다.
-import { Pose } from '@mediapipe/pose'; 
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; // 드로잉 유틸리티 추가
+// ⬇️ [핵심 수정] Pose를 구조 분해해서 가져오지 않고, 네임스페이스 통째로 가져옵니다.
+// 이 방식이 '... is not a constructor' 오류를 해결하는 표준 방법입니다.
+import * as MP_Pose from '@mediapipe/pose'; 
+// drawConnectors, drawLandmarks는 여전히 필요하므로 명시적으로 가져옵니다.
+import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
 
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -222,7 +223,7 @@ const drawGuideSilhouette = useCallback((guidePose) => {
   }
 }, []);
 
-// ⬇️ [수정] Solutions API 결과 구조에 맞춰 results.poseLandmarks를 직접 사용합니다.
+// ⬇️ Solutions API 결과 구조에 맞춰 results.poseLandmarks를 직접 사용합니다.
 const drawSkeleton = useCallback((results) => {
   const canvas = canvasRef.current;
   if (!canvas) return;
@@ -250,7 +251,7 @@ const drawSkeleton = useCallback((results) => {
   // ✅ 2. 사용자 스켈레톤 그리기 (MediaPipe Drawing Utility 사용 권장, 여기서는 수동 유지)
   if (results.poseLandmarks) {
     // MediaPipe drawing_utils를 직접 사용하는 것이 더 간결합니다.
-    // drawConnectors(ctx, results.poseLandmarks, Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+    // drawConnectors(ctx, results.poseLandmarks, MP_Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
     // drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
     
     const connections = [
@@ -287,7 +288,7 @@ const drawSkeleton = useCallback((results) => {
 }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
   // 자세 분석 결과
-  // ⬇️ [복구] Solutions API의 onResults 콜백 스타일 유지
+  // ⬇️ Solutions API의 onResults 콜백 스타일 유지
   const onPoseResults = useCallback(async (results) => {
     if (!results.poseLandmarks || isPaused || isCompleted) return;
 
@@ -354,8 +355,8 @@ const drawSkeleton = useCallback((results) => {
 
     const initializePose = async () => {
         try {
-            // ⬇️ [핵심 수정] Solutions API 방식: new Pose() 사용
-            const pose = new Pose({
+            // ⬇️ [핵심 수정 적용] MP_Pose.Pose() 사용 (네임스페이스 임포트)
+            const pose = new MP_Pose.Pose({ // <--- 이 부분이 수정됨
                 locateFile: (file) => {
                     // 필요한 wasm/bin 파일 경로 설정 (CDN 사용)
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
