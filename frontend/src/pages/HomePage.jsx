@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { recordsAPI } from '../services/api';
+import api from '../services/api'; // ✅ recordsAPI 대신 api 직접 사용
 import { Activity, AlertCircle, ChevronRight } from 'lucide-react';
 import BottomNav from '../components/BottomNav'; 
 import './HomePage.css';
@@ -10,7 +10,7 @@ function HomePage({ user }) {
   const [error, setError] = useState('');
   const [records, setRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
-  const [recordsError, setRecordsError] = useState(null); // ✅ 기록 전용 에러 상태
+  const [recordsError, setRecordsError] = useState(null);
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -24,14 +24,19 @@ function HomePage({ user }) {
       
       try {
         console.log('📊 최근 기록 조회 시작...');
-        const response = await recordsAPI.getRecords(1, 5); // ✅ 최근 5개만 조회
+        // ✅ InfoPage처럼 api 직접 사용
+        const response = await api.get('/records', {
+          params: {
+            page: 1,
+            limit: 5
+          }
+        });
         
         console.log('✅ 기록 조회 성공:', response.data);
         setRecords(response.data.records || []);
       } catch (err) {
         console.error('❌ 운동 기록 조회 실패:', err);
         
-        // ✅ 에러 메시지 개선
         if (err.code === 'ERR_NETWORK') {
           setRecordsError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         } else if (err.response?.status === 401) {
@@ -42,7 +47,7 @@ function HomePage({ user }) {
           setRecordsError('기록을 불러올 수 없습니다.');
         }
         
-        setRecords([]); // 빈 배열로 초기화
+        setRecords([]);
       } finally {
         setRecordsLoading(false);
       }
@@ -138,7 +143,6 @@ function HomePage({ user }) {
               </button>
             </div>
             
-            {/* ✅ 로딩/에러/빈 데이터 상태 개선 */}
             {recordsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
