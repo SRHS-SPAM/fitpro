@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
+// 👇 MediaPipe를 import로 직접 가져오기
+import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
-// Task API의 기본 랜드마크 연결 정보를 정의합니다.
 const POSE_CONNECTIONS = [
     [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
     [9, 10], [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
@@ -19,9 +20,8 @@ const ExercisePage = () => {
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
     const poseRef = useRef(null); 
-    const cameraRef = useRef(null);
-    const videoRef = useRef(null);
     const animationFrameRef = useRef(null);
+    const lastAnalysisTime = useRef(0);
     
     const [exercise, setExercise] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -40,6 +40,7 @@ const ExercisePage = () => {
     const [guidePoses, setGuidePoses] = useState([]);
     const [completionFeedback, setCompletionFeedback] = useState(null);
     const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
+    const [debugInfo, setDebugInfo] = useState('');
 
     // 운동 정보 불러오기
     useEffect(() => {
@@ -49,7 +50,7 @@ const ExercisePage = () => {
             
             try {
                 const response = await exerciseAPI.getExercise(exerciseId);
-                console.log('Exercise data received:', response.data);
+                console.log('✅ Exercise data received:', response.data);
                 
                 setExercise(response.data);
                 
@@ -63,17 +64,17 @@ const ExercisePage = () => {
                         }
                         return poseObj;
                     });
-                    console.log('Processed guide poses:', poses);
+                    console.log('✅ Processed guide poses:', poses.length);
                     setGuidePoses(poses);
                 } else {
-                    console.log('No silhouette_animation found');
+                    console.log('⚠️ No silhouette_animation found');
                     setGuidePoses([]);
                 }
                 
                 setTimeRemaining(response.data.duration_seconds);
                 setLoading(false);
             } catch (error) {
-                console.error('운동 정보 로드 실패:', error);
+                console.error('❌ 운동 정보 로드 실패:', error);
                 setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
                 setLoading(false);
             }
@@ -115,17 +116,17 @@ const ExercisePage = () => {
                 score_history: totalScore
             };
             
-            console.log('완료 데이터:', completionData);
+            console.log('💾 완료 데이터:', completionData);
             
             const response = await exerciseAPI.complete(exerciseId, completionData);
             
-            console.log('운동 완료 저장 성공:', response.data);
+            console.log('✅ 운동 완료 저장 성공:', response.data);
             
             if (response.data?.feedback) {
                 setCompletionFeedback(response.data.feedback);
             }
         } catch (error) {
-            console.error('완료 저장 실패:', error.response?.data);
+            console.error('❌ 완료 저장 실패:', error.response?.data);
         }
     }, [totalScore, exercise, currentSet, timeRemaining, exerciseId]);
 
@@ -141,7 +142,6 @@ const ExercisePage = () => {
         const hip_left = guidePose["23"];
         const hip_right = guidePose["24"];
 
-        // 몸통 그리기
         if (shoulder_left && shoulder_right && hip_left && hip_right) {
             ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
             ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
@@ -156,7 +156,6 @@ const ExercisePage = () => {
             ctx.stroke();
         }
 
-        // 세밀한 팔다리 그리기
         const drawDetailedLimb = (joints) => {
             const hasAllJoints = joints.every(j => guidePose[j]);
             if (!hasAllJoints) {
@@ -204,7 +203,6 @@ const ExercisePage = () => {
         drawDetailedLimb(["23", "25", "27", "31"]);
         drawDetailedLimb(["24", "26", "28", "32"]);
 
-        // 머리
         if (shoulder_left && shoulder_right) {
             const neckX = (shoulder_left.x + shoulder_right.x) / 2;
             const neckY = (shoulder_left.y + shoulder_right.y) / 2;
@@ -215,7 +213,6 @@ const ExercisePage = () => {
         }
     }, []);
 
-    // 랜드마크 그리기 헬퍼 함수
     const drawConnectors = useCallback((ctx, landmarks, connections, options = {}) => {
         const { color = '#00FF00', lineWidth = 3 } = options;
         ctx.strokeStyle = color;
@@ -253,7 +250,6 @@ const ExercisePage = () => {
         });
     }, []);
 
-    // 스켈레톤 그리기
     const drawSkeleton = useCallback((results) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -288,25 +284,51 @@ const ExercisePage = () => {
 
     // Pose 결과 처리
     const onPoseResults = useCallback(async (results) => {
+        console.log('🎯 onPoseResults called');
+        
         const poseLandmarks = results.landmarks && results.landmarks.length > 0 
             ? results.landmarks[0] 
             : null;
 
-        if (!poseLandmarks || isPaused || isCompleted) return;
+        if (!poseLandmarks) {
+            console.log('⚠️ No landmarks detected');
+            setDebugInfo('랜드마크 감지 안됨');
+            return;
+        }
+
+        if (isPaused || isCompleted) {
+            console.log('⏸️ Paused or completed');
+            return;
+        }
 
         drawSkeleton(results);
 
-        if (Date.now() % 2000 < 100) {
-            if (!exercise) return;
+        const now = Date.now();
+        const timeSinceLastAnalysis = now - lastAnalysisTime.current;
+        
+        setDebugInfo(`마지막 분석: ${Math.floor(timeSinceLastAnalysis / 1000)}초 전`);
+
+        if (timeSinceLastAnalysis >= 2000) {
+            lastAnalysisTime.current = now;
+            
+            if (!exercise) {
+                console.log('⚠️ No exercise data');
+                return;
+            }
+            
             try {
+                console.log('🔍 API 호출 시작...');
+                
                 const landmarks = poseLandmarks.map(lm => ({
                     x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0 
                 }));
                 
                 const response = await exerciseAPI.analyzeRealtime(exerciseId, {
                     pose_landmarks: landmarks,
-                    timestamp_ms: Date.now() % (exercise.duration_seconds * 1000)
+                    timestamp_ms: now % (exercise.duration_seconds * 1000)
                 });
+                
+                console.log('✅ API 응답:', response.data);
                 
                 setFeedback(response.data.feedback);
                 setScore(response.data.score);
@@ -333,7 +355,11 @@ const ExercisePage = () => {
                     });
                 }
             } catch (error) {
-                console.error('자세 분석 실패:', error);
+                console.error('❌ 자세 분석 실패:', error);
+                console.error('Error response:', error.response?.data);
+                console.error('Error message:', error.message);
+                setFeedback('서버 연결 실패');
+                setDebugInfo(`에러: ${error.message}`);
             }
         }
     }, [
@@ -345,64 +371,24 @@ const ExercisePage = () => {
         saveCompletion 
     ]);
 
-    // MediaPipe 라이브러리 로드 (CDN 사용)
-    useEffect(() => {
-        const loadMediaPipeScripts = async () => {
-            // 이미 로드되었는지 확인
-            if (window.mediapipeVision) {
-                console.log('MediaPipe already loaded');
-                return;
-            }
-
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js';
-                script.async = true;
-                script.crossOrigin = 'anonymous';
-                
-                script.onload = () => {
-                    console.log('MediaPipe script loaded successfully');
-                    window.mediapipeVision = window.vision;
-                    resolve();
-                };
-                
-                script.onerror = () => {
-                    reject(new Error('Failed to load MediaPipe script'));
-                };
-                
-                document.body.appendChild(script);
-            });
-        };
-
-        loadMediaPipeScripts().catch(err => {
-            console.error('Script loading error:', err);
-            setError('MediaPipe 라이브러리 로드 실패');
-        });
-    }, []);
-
-    // MediaPipe Pose 초기화
+    // 👇 MediaPipe 초기화 - CDN 제거하고 직접 import 사용
     useEffect(() => {
         if (!exercise || !isStarted || isCompleted) return;
         if (isMediaPipeReady) return;
-        if (!window.mediapipeVision) {
-            console.log('Waiting for MediaPipe library...');
-            return;
-        }
 
         const initializePose = async () => {
             try {
-                console.log('MediaPipe 초기화 시작...');
+                console.log('🚀 MediaPipe 초기화 시작...');
                 
-                const vision = window.mediapipeVision;
-                
-                // 1. FilesetResolver를 통해 필수 파일 로드
-                const wasmPath = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
-                const visionInstance = await vision.FilesetResolver.forVisionTasks(wasmPath);
-                console.log('FilesetResolver 로드 완료');
+                // FilesetResolver를 통해 WASM 파일 로드
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+                );
+                console.log('✅ FilesetResolver 로드 완료');
 
-                // 2. PoseLandmarker 생성
-                const poseLandmarker = await vision.PoseLandmarker.create(
-                    visionInstance,
+                // PoseLandmarker 생성
+                const poseLandmarker = await PoseLandmarker.createFromOptions(
+                    vision,
                     {
                         baseOptions: {
                             modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
@@ -412,12 +398,12 @@ const ExercisePage = () => {
                         numPoses: 1
                     }
                 );
-                console.log('PoseLandmarker 생성 완료');
+                console.log('✅ PoseLandmarker 생성 완료');
 
                 poseRef.current = poseLandmarker;
                 setIsMediaPipeReady(true);
 
-                // 3. 비디오 프레임 처리 루프 시작
+                // 비디오 프레임 처리 루프 시작
                 const video = webcamRef.current?.video;
                 if (video) {
                     let lastVideoTime = -1;
@@ -438,7 +424,7 @@ const ExercisePage = () => {
                                     onPoseResults(results);
                                 }
                             } catch (err) {
-                                console.error('Pose detect error:', err);
+                                console.error('❌ Pose detect error:', err);
                             }
                         }
 
@@ -449,17 +435,17 @@ const ExercisePage = () => {
                 }
 
                 setLoading(false);
-                console.log('MediaPipe 초기화 완료!');
+                console.log('✅ MediaPipe 초기화 완료!');
 
             } catch (error) {
-                console.error('MediaPipe 초기화 실패:', error);
+                console.error('❌ MediaPipe 초기화 실패:', error);
                 setIsStarted(false);
                 setError('자세 분석 모듈 로드 실패: ' + (error.message || String(error)));
                 setLoading(false);
             }
         };
 
-        if (isStarted && !isCompleted && !isMediaPipeReady && window.mediapipeVision) {
+        if (isStarted && !isCompleted && !isMediaPipeReady) {
             setLoading(true);
             initializePose();
         }
@@ -472,7 +458,7 @@ const ExercisePage = () => {
                 try {
                     poseRef.current.close();
                 } catch (e) {
-                    console.error('Pose close error:', e);
+                    console.error('❌ Pose close error:', e);
                 }
                 poseRef.current = null;
             }
@@ -497,14 +483,12 @@ const ExercisePage = () => {
         return () => clearInterval(timer);
     }, [isStarted, isPaused, timeRemaining, isCompleted, saveCompletion]);
 
-    // 수동 종료
     const handleComplete = () => {
         setIsCompleted(true);
         setIsStarted(false);
         saveCompletion();
     };
 
-    // 재시작
     const handleRestart = () => {
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
@@ -513,7 +497,7 @@ const ExercisePage = () => {
             try {
                 poseRef.current.close();
             } catch (e) {
-                console.error('Pose close error:', e);
+                console.error('❌ Pose close error:', e);
             }
             poseRef.current = null;
         }
@@ -536,7 +520,7 @@ const ExercisePage = () => {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-                <div className="text-red-500 text-6xl mb-4"></div>
+                <div className="text-red-500 text-6xl mb-4">⚠️</div>
                 <div className="text-white text-2xl mb-2">로딩 실패</div>
                 <div className="text-gray-400 text-center max-w-md">{error}</div>
                 <div className="flex gap-4 mt-6">
@@ -587,6 +571,9 @@ const ExercisePage = () => {
                 {isStarted && (
                     <div className="bg-blue-900 bg-opacity-30 border border-blue-500 text-blue-100 p-2 rounded-lg mt-2 text-center text-sm">
                         현재 세트: {currentSet} / {exercise.sets} | 반복: {currentRep} / {exercise.repetitions}
+                        <div className="text-xs text-gray-300 mt-1">
+                            {debugInfo}
+                        </div>
                     </div>
                 )}
             </div>
