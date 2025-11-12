@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 // ⬇️ [핵심 수정] Pose 생성자 오류를 해결하기 위해 Namespace 임포트 (* as MP_Pose)를 사용합니다.
+// FilesetResolver를 여기서 가져옵니다.
 import * as MP_Pose from '@mediapipe/pose';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -338,12 +339,13 @@ const drawSkeleton = useCallback((results) => {
     const initializePose = async () => {
         try {
             // 1. FilesetResolver를 통해 필수 파일 로드 (비동기)
-            const filesetResolver = await MP_Pose.FilesetResolver.forVisionTasks(
+            // 🚨 [수정 필요] MP_Pose에서 직접 FilesetResolver를 로드하는 방식으로 변경해야 합니다.
+            const poseAssets = await MP_Pose.FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
             // 2. Pose 객체 생성 (FilesetResolver 로드 후에만 가능)
-            const pose = new MP_Pose.Pose(filesetResolver);
+            const pose = new MP_Pose.Pose(poseAssets);
 
             pose.setOptions({
                 modelComplexity: 1,
@@ -459,6 +461,9 @@ const drawSkeleton = useCallback((results) => {
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
         <div className="text-white text-2xl">운동 정보 로딩 중...</div>
+        {isStarted && (
+          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
+        )}
       </div>
     );
   }
@@ -515,6 +520,11 @@ const drawSkeleton = useCallback((results) => {
       <div className="max-w-6xl mx-auto mb-6 pt-2">
         <h1 className="text-3xl font-bold mb-2">{exercise.name}</h1>
         <p className="text-gray-400">{exercise.description}</p>
+        {isStarted && (
+          <div className="bg-blue-900 bg-opacity-30 border border-blue-500 text-blue-100 p-2 rounded-lg mt-2 text-center text-sm">
+            현재 세트: {currentSet} / {exercise.sets} | 반복: {currentRep} / {exercise.repetitions}
+          </div>
+        )}
       </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -697,6 +707,7 @@ const drawSkeleton = useCallback((results) => {
             </ul>
           </div>
         </div>
+        
       </div>
     </div>
   );
