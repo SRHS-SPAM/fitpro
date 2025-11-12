@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [Tasks API 확정] FilesetResolver와 PoseLandmarker를 가져옵니다. (임포트 방식 유지)
-import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'; 
+import * as vision from '@mediapipe/tasks-vision';
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
 
-// ⬇️ [오류 해결] useParams를 react-router-dom에서 명시적으로 임포트
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
@@ -322,14 +320,14 @@ const ExercisePage = () => {
             try {
                 console.log('MediaPipe 초기화 시작...');
                 
-                // 1. FilesetResolver를 통해 필수 파일 로드
-                const poseAssets = await FilesetResolver.forVisionTasks(
+                // ✅ 1. FilesetResolver를 통해 필수 파일 로드
+                const poseAssets = await vision.FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
                 );
                 console.log('FilesetResolver 로드 완료');
 
-                // 2. PoseLandmarker 생성
-                const poseLandmarker = await PoseLandmarker.create( 
+                // ✅ 2. PoseLandmarker 생성
+                const poseLandmarker = await vision.PoseLandmarker.create( 
                     poseAssets, 
                     {
                         baseOptions: {
@@ -379,7 +377,7 @@ const ExercisePage = () => {
                 console.error('MediaPipe 초기화 실패:', error);
                 setIsStarted(false);
                 setError('자세 분석 모듈 로드 실패: ' + (error.message || String(error)));
-                setLoading(false); // ✅ 에러 시에도 로딩 해제
+                setLoading(false);
             }
         };
 
