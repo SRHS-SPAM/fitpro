@@ -45,24 +45,30 @@ export default function InfoPage({ user, onLogout }) {
                         confirm_text: confirmText 
                     }
                 }
-            );  
-            const data = response.data;
+            );
 
+            // Axios는 2xx 상태 코드를 받으면 이 라인이 실행됩니다.
+            // 따라서 별도의 response.ok 확인 없이 바로 성공으로 처리합니다.
+            // data는 백엔드가 200 응답 본문을 보냈을 때만 유의미합니다.
+            const data = response.data; 
+
+            // 삭제는 성공했습니다. (만약 백엔드가 200 또는 204를 반환하고 Axios가 catch를 건너뛰었다면)
             alert(data?.message || '계정이 성공적으로 삭제되었습니다.');
             handleLogout();
-        
+
         } catch (err) { // 2xx 외의 상태 코드 (4xx, 5xx)를 받은 경우
 
-        // 오류 로깅
-        console.error('Delete account error:', err);
-        
-        // err.response.data에 백엔드의 상세 오류 메시지가 담겨있을 수 있습니다.
-        const errorMessage = err.response?.data?.detail || '계정 삭제에 실패했습니다.';
-        setError(errorMessage);
+            // 오류 로깅
+            console.error('Delete account error:', err);
+            
+            // err.response.data에 백엔드의 상세 오류 메시지가 담겨있을 수 있습니다.
+            const errorMessage = err.response?.data?.detail || '계정 삭제에 실패했습니다.';
+            setError(errorMessage);
 
-    } finally {
-        setIsDeleting(false);
-    }
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     if (!user) {
         return (
