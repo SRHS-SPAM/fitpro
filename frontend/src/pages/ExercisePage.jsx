@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera } from '@mediapipe/camera_utils';
-
-import * as vision from '@mediapipe/tasks-vision';
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
-
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
 
@@ -25,6 +20,8 @@ const ExercisePage = () => {
     const canvasRef = useRef(null);
     const poseRef = useRef(null); 
     const cameraRef = useRef(null);
+    const videoRef = useRef(null);
+    const animationFrameRef = useRef(null);
     
     const [exercise, setExercise] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -218,6 +215,44 @@ const ExercisePage = () => {
         }
     }, []);
 
+    // 랜드마크 그리기 헬퍼 함수
+    const drawConnectors = useCallback((ctx, landmarks, connections, options = {}) => {
+        const { color = '#00FF00', lineWidth = 3 } = options;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        
+        connections.forEach(([startIdx, endIdx]) => {
+            const start = landmarks[startIdx];
+            const end = landmarks[endIdx];
+            
+            if (start && end) {
+                ctx.beginPath();
+                ctx.moveTo(start.x * ctx.canvas.width, start.y * ctx.canvas.height);
+                ctx.lineTo(end.x * ctx.canvas.width, end.y * ctx.canvas.height);
+                ctx.stroke();
+            }
+        });
+    }, []);
+
+    const drawLandmarks = useCallback((ctx, landmarks, options = {}) => {
+        const { color = '#FF0000', lineWidth = 2 } = options;
+        ctx.fillStyle = color;
+        
+        landmarks.forEach(landmark => {
+            if (landmark) {
+                ctx.beginPath();
+                ctx.arc(
+                    landmark.x * ctx.canvas.width,
+                    landmark.y * ctx.canvas.height,
+                    lineWidth * 2,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+            }
+        });
+    }, []);
+
     // 스켈레톤 그리기
     const drawSkeleton = useCallback((results) => {
         const canvas = canvasRef.current;
@@ -249,7 +284,7 @@ const ExercisePage = () => {
         }
 
         ctx.restore();
-    }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
+    }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette, drawConnectors, drawLandmarks]);
 
     // Pose 결과 처리
     const onPoseResults = useCallback(async (results) => {
@@ -310,28 +345,67 @@ const ExercisePage = () => {
         saveCompletion 
     ]);
 
+    // MediaPipe 라이브러리 로드 (CDN 사용)
+    useEffect(() => {
+        const loadMediaPipeScripts = async () => {
+            // 이미 로드되었는지 확인
+            if (window.mediapipeVision) {
+                console.log('MediaPipe already loaded');
+                return;
+            }
+
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js';
+                script.async = true;
+                script.crossOrigin = 'anonymous';
+                
+                script.onload = () => {
+                    console.log('MediaPipe script loaded successfully');
+                    window.mediapipeVision = window.vision;
+                    resolve();
+                };
+                
+                script.onerror = () => {
+                    reject(new Error('Failed to load MediaPipe script'));
+                };
+                
+                document.body.appendChild(script);
+            });
+        };
+
+        loadMediaPipeScripts().catch(err => {
+            console.error('Script loading error:', err);
+            setError('MediaPipe 라이브러리 로드 실패');
+        });
+    }, []);
+
     // MediaPipe Pose 초기화
     useEffect(() => {
         if (!exercise || !isStarted || isCompleted) return;
-        
         if (isMediaPipeReady) return;
+        if (!window.mediapipeVision) {
+            console.log('Waiting for MediaPipe library...');
+            return;
+        }
 
         const initializePose = async () => {
             try {
                 console.log('MediaPipe 초기화 시작...');
                 
-                // ✅ 1. FilesetResolver를 통해 필수 파일 로드
-                const poseAssets = await vision.FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-                );
+                const vision = window.mediapipeVision;
+                
+                // 1. FilesetResolver를 통해 필수 파일 로드
+                const wasmPath = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
+                const visionInstance = await vision.FilesetResolver.forVisionTasks(wasmPath);
                 console.log('FilesetResolver 로드 완료');
 
-                // ✅ 2. PoseLandmarker 생성
-                const poseLandmarker = await vision.PoseLandmarker.create( 
-                    poseAssets, 
+                // 2. PoseLandmarker 생성
+                const poseLandmarker = await vision.PoseLandmarker.create(
+                    visionInstance,
                     {
                         baseOptions: {
-                            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+                            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
                             delegate: "GPU"
                         },
                         runningMode: "VIDEO",
@@ -341,35 +415,39 @@ const ExercisePage = () => {
                 console.log('PoseLandmarker 생성 완료');
 
                 poseRef.current = poseLandmarker;
-                setIsMediaPipeReady(true); 
+                setIsMediaPipeReady(true);
 
-                // 3. 카메라 시작 및 프레임 전송
-                if (webcamRef.current && webcamRef.current.video) {
-                    const camera = new Camera(webcamRef.current.video, {
-                        onFrame: async () => {
-                            if (poseRef.current && !isPaused && !isCompleted) {
-                                try {
-                                    const results = poseRef.current.detectForVideo(
-                                        webcamRef.current.video, 
-                                        Date.now()
-                                    );
-                                    if (results) {
-                                        onPoseResults(results); 
-                                    }
-                                } catch (err) {
-                                    console.error('Pose detect error:', err);
+                // 3. 비디오 프레임 처리 루프 시작
+                const video = webcamRef.current?.video;
+                if (video) {
+                    let lastVideoTime = -1;
+                    
+                    const detectPose = async () => {
+                        if (!poseRef.current || isPaused || isCompleted) {
+                            animationFrameRef.current = requestAnimationFrame(detectPose);
+                            return;
+                        }
+
+                        const currentTime = video.currentTime;
+                        if (currentTime !== lastVideoTime) {
+                            lastVideoTime = currentTime;
+                            
+                            try {
+                                const results = poseRef.current.detectForVideo(video, Date.now());
+                                if (results) {
+                                    onPoseResults(results);
                                 }
+                            } catch (err) {
+                                console.error('Pose detect error:', err);
                             }
-                        },
-                        width: 640,
-                        height: 480
-                    });
-                    cameraRef.current = camera;
-                    camera.start();
-                    console.log('카메라 시작 완료');
+                        }
+
+                        animationFrameRef.current = requestAnimationFrame(detectPose);
+                    };
+
+                    detectPose();
                 }
 
-                // ✅ 로딩 해제
                 setLoading(false);
                 console.log('MediaPipe 초기화 완료!');
 
@@ -381,18 +459,21 @@ const ExercisePage = () => {
             }
         };
 
-        if (isStarted && !isCompleted && !isMediaPipeReady) {
-            setLoading(true); 
+        if (isStarted && !isCompleted && !isMediaPipeReady && window.mediapipeVision) {
+            setLoading(true);
             initializePose();
         }
 
         return () => {
-            if (cameraRef.current) {
-                cameraRef.current.stop();
-                cameraRef.current = null;
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
             }
             if (poseRef.current) {
-                poseRef.current.close(); 
+                try {
+                    poseRef.current.close();
+                } catch (e) {
+                    console.error('Pose close error:', e);
+                }
                 poseRef.current = null;
             }
         };
@@ -425,17 +506,12 @@ const ExercisePage = () => {
 
     // 재시작
     const handleRestart = () => {
-        if (cameraRef.current) {
-            try {
-                cameraRef.current.stop();
-            } catch (e) {
-                console.error('Camera stop error:', e);
-            }
-            cameraRef.current = null;
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
         }
         if (poseRef.current) {
             try {
-                poseRef.current.close(); 
+                poseRef.current.close();
             } catch (e) {
                 console.error('Pose close error:', e);
             }
@@ -460,7 +536,7 @@ const ExercisePage = () => {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-                <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                <div className="text-red-500 text-6xl mb-4"></div>
                 <div className="text-white text-2xl mb-2">로딩 실패</div>
                 <div className="text-gray-400 text-center max-w-md">{error}</div>
                 <div className="flex gap-4 mt-6">
@@ -547,7 +623,6 @@ const ExercisePage = () => {
                                         {exercise.sets}세트 × {exercise.repetitions}회 달성
                                     </p>
                                     
-                                    {/* 평균 점수 카드 */}
                                     <div className="bg-gray-800 rounded-lg p-5 w-full">
                                         <div className="text-3xl font-bold text-blue-400 mb-2">
                                             {totalScore.length > 0 
@@ -557,14 +632,12 @@ const ExercisePage = () => {
                                         <p className="text-gray-400">평균 점수</p>
                                     </div>
 
-                                    {/* AI 피드백 섹션 */}
                                     {completionFeedback && (
                                         <div className="bg-gray-800 rounded-lg p-6 w-full text-left space-y-4">
                                             <h3 className="text-xl font-semibold text-white mb-3 text-center">
                                                 AI 종합 피드백
                                             </h3>
                                             
-                                            {/* 1. 종합 평가 */}
                                             {completionFeedback.summary && (
                                                 <div>
                                                     <h4 className="font-semibold text-blue-400 mb-1">종합 평가</h4>
@@ -574,7 +647,6 @@ const ExercisePage = () => {
                                                 </div>
                                             )}
 
-                                            {/* 2. 잘한 점 */}
                                             {completionFeedback.strengths && completionFeedback.strengths.length > 0 && (
                                                 <div>
                                                     <h4 className="font-semibold text-green-400 mb-1">👍 잘한 점</h4>
@@ -586,7 +658,6 @@ const ExercisePage = () => {
                                                 </div>
                                             )}
 
-                                            {/* 3. 개선할 점 */}
                                             {completionFeedback.improvements && completionFeedback.improvements.length > 0 && (
                                                 <div>
                                                     <h4 className="font-semibold text-yellow-400 mb-1">✏️ 개선할 점</h4>
@@ -600,7 +671,6 @@ const ExercisePage = () => {
                                         </div>
                                     )}
 
-                                    {/* 버튼 */}
                                     <div className="flex gap-4 w-full pt-3">
                                         <button
                                             onClick={handleRestart}
@@ -685,7 +755,7 @@ const ExercisePage = () => {
                     </div>
 
                     <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
-                        <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
+                        <h3 className="text-xl font-semibold mb-4 text-red-400">주의사항</h3>
                         <ul className="space-y-2 text-sm text-gray-300">
                             {exercise.safety_warnings.map((warning, index) => (
                                 <li key={index}>• {warning}</li>
