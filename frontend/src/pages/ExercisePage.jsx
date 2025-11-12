@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] MediaPipe Tasks API 임포트 (Solutions API 대신 사용)
-import { FilesetResolver } from '@mediapipe/tasks-vision'; 
-import * as MP_Tasks from '@mediapipe/tasks-vision'; // 네임스페이스로 전체 Tasks API를 가져옵니다.
+// ⬇️ [핵심 수정] PoseLandmarker와 FilesetResolver를 직접 가져옵니다.
+// 이 방식이 Tasks API 공식 문서에서 권장하는 임포트 방식입니다.
+import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'; 
+// import * as MP_Tasks from '@mediapipe/tasks-vision'; // 네임스페이스 임포트 제거
 
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
-// import * as MP_Pose from '@mediapipe/pose'; // Solutions API 임포트 제거
-
-
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import Webcam from 'react-webcam';
-import { exerciseAPI } from '../services/api';
 
 // Task API의 기본 랜드마크 연결 정보를 정의합니다.
 const POSE_CONNECTIONS = [
@@ -348,39 +342,23 @@ const drawSkeleton = useCallback((results) => {
 
     const initializePose = async () => {
         try {
-            // ⬇️ [핵심 수정] FilesetResolver를 통해 필수 파일 로드 (Tasks API)
+            // ⬇️ FilesetResolver를 통해 필수 파일 로드 (Tasks API)
             const poseAssets = await FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
             // ⬇️ PoseLandmarker 객체 생성 시, 네임스페이스 접근을 사용합니다.
-            // PoseLandmarker 클래스를 MP_Tasks에서 추출합니다.
-            let PoseLandmarkerClass = null;
-            
-            // 1. MP_Tasks.PoseLandmarker 직접 접근
-            if (MP_Tasks.PoseLandmarker) {
-                PoseLandmarkerClass = MP_Tasks.PoseLandmarker;
-            } 
-            // 2. MP_Tasks.default.PoseLandmarker 접근
-            else if (MP_Tasks.default && MP_Tasks.default.PoseLandmarker) {
-                PoseLandmarkerClass = MP_Tasks.default.PoseLandmarker;
-            } 
-            // 3. MP_Tasks가 PoseLandmarker 클래스인 경우 (create 함수 존재 확인)
-            else if (typeof MP_Tasks === 'function' && MP_Tasks.create) {
-                PoseLandmarkerClass = MP_Tasks;
-            } 
-            // 4. MP_Tasks.default가 PoseLandmarker 클래스인 경우 (최종적인 Fallback)
-            else if (MP_Tasks.default && typeof MP_Tasks.default === 'function' && MP_Tasks.default.create) {
-                PoseLandmarkerClass = MP_Tasks.default;
-            } else {
-                throw new Error("PoseLandmarker class could not be extracted due to bundling issues.");
-            }
-            
-            if (!PoseLandmarkerClass) {
-                throw new Error("PoseLandmarker class is missing after all attempts.");
-            }
+            // 이전 시도: const PoseLandmarkerClass = MP_Tasks.PoseLandmarker || (MP_Tasks.default && MP_Tasks.default.PoseLandmarker);
+            
+            // 🚨 최종적으로, 구조 분해 할당으로 가져온 PoseLandmarker를 사용합니다.
+            // 이 시점에서는 PoseLandmarker가 클래스 자체여야 합니다.
+            
+            if (typeof PoseLandmarker.create !== 'function') {
+                throw new Error("PoseLandmarker.create is not a function after import. Bundling issue likely persists.");
+            }
 
-            const poseLandmarker = await PoseLandmarkerClass.create( // ⬅️ PoseLandmarkerClass 사용
+
+            const poseLandmarker = await PoseLandmarker.create( // ⬅️ PoseLandmarker 직접 사용 (구조 분해 할당)
                 poseAssets, 
                 {
                     baseOptions: {
