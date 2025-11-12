@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api'; // ✅ recordsAPI 대신 api 직접 사용
+import axios from 'axios'; // ✅ api 대신 axios 직접 import
 import { Activity, AlertCircle, ChevronRight } from 'lucide-react';
 import BottomNav from '../components/BottomNav'; 
 import './HomePage.css';
@@ -24,13 +24,19 @@ function HomePage({ user }) {
       
       try {
         console.log('📊 최근 기록 조회 시작...');
-        // ✅ InfoPage처럼 api 직접 사용
-        const response = await api.get('/records', {
-          params: {
-            page: 1,
-            limit: 5
+        
+        // ✅ HTTPS로 직접 요청 (api.js 우회)
+        const token = localStorage.getItem('access_token');
+        const response = await axios.get(
+          'https://fitner-api-697550966480.asia-northeast3.run.app/api/v1/records',
+          {
+            params: { page: 1, limit: 5 },
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           }
-        });
+        );
         
         console.log('✅ 기록 조회 성공:', response.data);
         setRecords(response.data.records || []);
