@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] FilesetResolver와 PoseLandmarker를 직접 가져옵니다.
+// ⬇️ [Tasks API 확정] FilesetResolver와 PoseLandmarker를 직접 가져옵니다.
 import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'; 
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
 
-// ⬇️ [오류 수정] useParams를 react-router-dom에서 명시적으로 임포트해야 합니다.
+// ⬇️ [오류 해결] useParams를 react-router-dom에서 명시적으로 임포트
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
@@ -354,6 +354,7 @@ const drawSkeleton = useCallback((results) => {
             // ⬇️ PoseLandmarker 클래스를 직접 사용 (구조 분해 할당)
             
             if (typeof PoseLandmarker.create !== 'function') {
+                // 🚨 이 throw는 Tasks API가 올바르게 임포트되지 않았을 때 발생합니다.
                 throw new Error("PoseLandmarker.create is not a function after import. Bundling issue likely persists.");
             }
 
