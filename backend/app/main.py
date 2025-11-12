@@ -52,17 +52,20 @@ app = FastAPI(
 # CORS 설정 (프론트엔드 연동)
 app.add_middleware(
     CORSMiddleware,
+    # ⬇️ [수정] Vercel 배포 URL과 테스트용 "*"를 추가합니다.
+    # 배포 후에는 보안을 위해 "*"를 제거하고 Vercel URL만 남기는 것이 좋습니다.
     allow_origins=[
         "http://localhost:5173",  # Vite 개발 서버
         "http://localhost:3000",  # React 개발 서버 (대체)
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
+        "[http://127.0.0.1:5173](http://127.0.0.1:5173)",
+        "[http://127.0.0.1:3000](http://127.0.0.1:3000)",
+        "[https://fitpro-sandy.vercel.app](https://fitpro-sandy.vercel.app)", # 2-3 단계에서 생성될 Vercel URL (예시)
+        "*" # 초기 테스트를 위해 모든 출처 허용 (배포 성공 확인 후 제거 권장)
     ],
     allow_credentials=True,
     allow_methods=["*"],  # 모든 HTTP 메소드 허용
     allow_headers=["*"],  # 모든 헤더 허용
 )
-
 
 # 전역 예외 핸들러
 @app.exception_handler(HTTPException)
