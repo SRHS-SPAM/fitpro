@@ -349,15 +349,17 @@ const ExercisePage = () => {
   useEffect(() => {
     if (!exercise || !isStarted || isCompleted) return;
 
-    // 캔버스 크기 초기 설정
-    if (canvasRef.current) {
-        canvasRef.current.width = canvasDimensions.current.width;
-        canvasRef.current.height = canvasDimensions.current.height;
-    }
-    
+    // 캔버스 크기 초기 설정
+    if (canvasRef.current) {
+        canvasRef.current.width = canvasDimensions.current.width;
+        canvasRef.current.height = canvasDimensions.current.height;
+    }
+    
+    if (isMediaPipeReady) return; // 이미 준비되었으면 중복 초기화 방지
+
     const initializePose = async () => {
       try {
-        if (poseRef.current) poseRef.current.close(); // 기존 인스턴스 정리
+        if (poseRef.current) poseRef.current.close(); 
 
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -378,50 +380,44 @@ const ExercisePage = () => {
         poseRef.current = poseLandmarker;
         setIsMediaPipeReady(true);
         setLoading(false);
-        
+        
         // 비디오 프레임 처리 루프 시작
         const video = webcamRef.current?.video;
+        let lastFrameTime = performance.now(); // 프레임 시간 기록
+
         if (video) {
-          // lastVideoTime을 사용하여 MediaPipe 오류를 방지하는 로직은 제거하고,
-          // MediaPipe의 비동기 처리 상태를 이용한 **프레임 드롭**으로 대체합니다.
           
-          const detectPose = async () => {
-            if (!poseRef.current || isPaused || isCompleted) {
-              animationFrameRef.current = requestAnimationFrame(detectPose);
-              return;
-            }
-
-            // ⚠️ 핵심 수정: 이전 MediaPipe 호출이 완료되지 않았으면 현재 프레임을 건너뜁니다.
-            // (Timestamp mismatch 오류 방지)
-            if (isPoseDetecting) {  
+          const detectPose = async (now) => {
                 animationFrameRef.current = requestAnimationFrame(detectPose);
-                return;
-            }
 
-            const videoTime = video.currentTime;
-            
-            if (videoTime > 0) {
-                setIsPoseDetecting(true); // MediaPipe 처리 시작
+                if (!poseRef.current || isPaused || isCompleted) {
+                    return;
+                }
+                
+                // 타임스탬프 오류 방지를 위해, 현재 시간을 밀리초로 사용합니다.
+                // MediaPipe가 현재 프레임을 처리할 수 있는지 확인합니다.
+                // MediaPipe의 detectForVideo는 내부적으로 비동기 처리를 수행하므로, 
+                // isPoseDetecting 상태 대신 MediaPipe의 성능에 의존합니다.
+                
                 try {
-                    // ⚠️ 핵심 수정: 비디오 시간을 밀리초로 변환하여 타임스탬프로 사용
-                    const timestampMs = videoTime * 1000;
-                    const results = poseRef.current.detectForVideo(video, timestampMs);
+                    // ⚠️ 핵심 수정: requestAnimationFrame에서 받은 타임스탬프(now)를 밀리초로 사용
+                    // 이 now 값은 단조 증가를 보장하여 MediaPipe 오류를 줄입니다.
+                    const timestampMs = Math.floor(now); 
+                    
+                    // MediaPipe는 비디오 요소를 사용하므로, 비디오가 재생 중인지 확인합니다.
+                    if (video.readyState >= 2) { 
+                        const results = poseRef.current.detectForVideo(video, timestampMs);
 
-                    if (results) {
-                        onPoseResults(results);
+                        if (results) {
+                            onPoseResults(results);
+                        }
                     }
                 } catch (err) {
-                    // 이 오류는 프레임 드롭으로 처리되도록 isPoseDetecting을 false로 되돌립니다.
                     console.error('❌ Pose detect error:', err);
-                } finally {
-                    setIsPoseDetecting(false); // MediaPipe 처리 완료
-                }
-            }
+                } 
+            };
 
-            animationFrameRef.current = requestAnimationFrame(detectPose);
-          };
-
-          detectPose();
+            detectPose(performance.now());
         }
 
       } catch (error) {
@@ -431,10 +427,9 @@ const ExercisePage = () => {
       }
     };
 
-    // isMediaPipeReady가 false일 때만 초기화 시작
-    if (isStarted && !isMediaPipeReady) {
-        initializePose();
-    }
+    if (isStarted && !isMediaPipeReady) {
+        initializePose();
+    }
 
 
     return () => {
@@ -450,7 +445,7 @@ const ExercisePage = () => {
         poseRef.current = null;
       }
     };
-  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady, isPoseDetecting]); // isPoseDetecting을 의존성 배열에 추가하여 상태 변화 시 루프를 다시 시작하도록 보장
+  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
 
   // 타이머 (생략)
   useEffect(() => {
