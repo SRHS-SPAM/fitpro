@@ -29,6 +29,7 @@ const ExercisePage = () => {
   const [guideFrame, setGuideFrame] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [guidePoses, setGuidePoses] = useState([]);
+  const [completionFeedback, setCompletionFeedback] = useState(null);
 
 
   // 운동 정보 불러오기
@@ -104,14 +105,20 @@ const ExercisePage = () => {
         completed_reps: exercise.repetitions,
         average_score: avgScore,
         pain_level_after: 5,
-        duration_minutes: Math.max(1, Math.ceil((exercise.duration_seconds - timeRemaining) / 60))
+        duration_minutes: Math.max(1, Math.ceil((exercise.duration_seconds - timeRemaining) / 60)),
+        score_history: totalScore
       };
       
       console.log('완료 데이터:', completionData);
       
-      await exerciseAPI.complete(exerciseId, completionData);
+      const response = await exerciseAPI.complete(exerciseId, completionData);
       
-      console.log('운동 완료 저장 성공');
+      console.log('운동 완료 저장 성공:', response.data);
+      
+      // ✅ 백엔드에서 받은 피드백 저장
+      if (response.data?.feedback) {
+        setCompletionFeedback(response.data.feedback);
+      }
     } catch (error) {
       console.error('완료 저장 실패:', error.response?.data);
     }
@@ -442,13 +449,13 @@ const drawSkeleton = useCallback((results) => {
         <div className="flex gap-4 mt-6">
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
           >
             다시 시도
           </button>
           <button
             onClick={() => navigate('/')}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg"
+            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
           >
             홈으로
           </button>
@@ -469,7 +476,7 @@ const drawSkeleton = useCallback((results) => {
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
       <button
         onClick={() => navigate('/')}
-        className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
+        className="flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
@@ -504,51 +511,17 @@ const drawSkeleton = useCallback((results) => {
               </div>
             </div>
 
-            {!isCompleted && (
-              <>
-                <button
-                  onClick={() => setShowGuide(!showGuide)}
-                  className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition"
-                >
-                  {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
-                </button>
-
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4" style={{ height: '300px' }}>
-                  <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2 writing-mode-vertical">세트</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
-                      <div
-                        className="bg-blue-500 rounded-full transition-all w-full"
-                        style={{ height: `${currentSet === 0 ? 0 : Math.min(((currentSet - 1) / exercise.sets) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentSet}/{exercise.sets}</div>
-                  </div>
-              
-                  <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2">반복</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
-                      <div
-                        className="bg-green-500 rounded-full transition-all w-full"
-                        style={{ height: `${currentRep === 0 ? 0 : Math.min((currentRep / exercise.repetitions) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentRep}/{exercise.repetitions}</div>
-                  </div>
-                </div>
-              </>
-            )}
-
             {isCompleted && (
-              <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50">
-                <div className="text-center space-y-6 p-8">
-                  <div className="text-6xl mb-4">🏆</div>
-                  <h2 className="text-4xl font-bold text-white mb-2">운동 완료!</h2>
+              <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 ">
+                {/* 스크롤이 가능하도록 내부 div를 만듭니다. */}
+                {/* <div className="text-center space-y-4 flex flex-col items-center max-w-lg w-full py-8"> */}
+                  <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
                   <p className="text-xl text-gray-300 mb-4">
                     {exercise.sets}세트 × {exercise.repetitions}회 달성
                   </p>
                   
-                  <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                  {/* 평균 점수 카드 */}
+                  <div className="bg-gray-800 rounded-lg p-5 w-full">
                     <div className="text-3xl font-bold text-blue-400 mb-2">
                       {totalScore.length > 0 
                         ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
@@ -557,22 +530,67 @@ const drawSkeleton = useCallback((results) => {
                     <p className="text-gray-400">평균 점수</p>
                   </div>
 
-                  <div className="flex gap-4">
+                  {/* ===== ⬇️ 여기가 수정된 AI 피드백 섹션입니다 ⬇️ ===== */}
+                  {completionFeedback && (
+                    <div className="bg-gray-800 rounded-lg p-6 w-full text-left space-y-4">
+                      <h3 className="text-xl font-semibold text-white mb-3 text-center">
+                        AI 종합 피드백
+                      </h3>
+                      
+                      {/* 1. 종합 평가 */}
+                      {completionFeedback.summary && (
+                        <div>
+                          <h4 className="font-semibold text-blue-400 mb-1">종합 평가</h4>
+                          <p className="text-gray-300 whitespace-pre-line">
+                            {completionFeedback.summary}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* 2. 잘한 점 */}
+                      {completionFeedback.strengths && completionFeedback.strengths.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-green-400 mb-1">👍 잘한 점</h4>
+                          <ul className="list-disc list-inside text-gray-300 space-y-1">
+                            {completionFeedback.strengths.map((item, index) => (
+                              <li key={index}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* 3. 개선할 점 */}
+                      {completionFeedback.improvements && completionFeedback.improvements.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-yellow-400 mb-1">✏️ 개선할 점</h4>
+                          <ul className="list-disc list-inside text-gray-300 space-y-1">
+                            {completionFeedback.improvements.map((item, index) => (
+                              <li key={index}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* ===== ⬆️ 여기까지 ⬆️ ===== */}
+
+                  {/* 버튼 */}
+                  <div className="flex gap-4 w-full pt-3">
                     <button
                       onClick={handleRestart}
-                      className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
+                      className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
                     >
                       다시 하기
                     </button>
                     <button
                       onClick={() => navigate('/')}
-                      className="px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                      className="flex-1 px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
                     >
                       홈으로
                     </button>
                   </div>
                 </div>
-              </div>
+              // </div>
             )}
 
             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
