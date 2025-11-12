@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
 
-// ⬇️ [핵심 수정] MediaPipe Solutions API의 Pose 클래스를 default export로 가져오거나
-// 또는 MP_Pose 네임스페이스 대신 Pose를 직접 가져오도록 수정
-import Pose from '@mediapipe/pose'; // <--- Pose 클래스를 직접 가져옴 (가장 일반적인 해결책)
+// ⬇️ [핵심 수정] 와일드카드 임포트 사용 (Fallback 로직과 함께 사용)
+import * as MP_Pose from '@mediapipe/pose'; 
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'; 
-// MP_Pose를 사용하지 않으므로, drawSkeleton 내부의 drawConnectors 주석은 Pose.POSE_CONNECTIONS를 사용하도록 가정합니다.
 
 
 import { useParams, useNavigate } from 'react-router-dom';
@@ -252,7 +250,7 @@ const drawSkeleton = useCallback((results) => {
   // ✅ 2. 사용자 스켈레톤 그리기 (MediaPipe Drawing Utility 사용 권장, 여기서는 수동 유지)
   if (results.poseLandmarks) {
     // MediaPipe drawing_utils를 직접 사용하는 것이 더 간결합니다.
-    // drawConnectors(ctx, results.poseLandmarks, Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+    // drawConnectors(ctx, results.poseLandmarks, MP_Pose.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
     // drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
     
     const connections = [
@@ -356,8 +354,36 @@ const drawSkeleton = useCallback((results) => {
 
     const initializePose = async () => {
         try {
-            // ⬇️ [핵심 수정 적용] Pose를 직접 사용합니다.
-            const pose = new Pose({ // <--- MP_Pose.Pose 대신 Pose 사용
+            // ⬇️ [핵심 로직] Pose 생성자 추출 시도
+            let PoseConstructor = null;
+            
+            // 1. MP_Pose.Pose로 직접 접근 (이전 시도)
+            if (MP_Pose.Pose) {
+                PoseConstructor = MP_Pose.Pose;
+            } 
+            // 2. MP_Pose.default.Pose로 접근 (Vite/Rollup 환경에서 흔한 래핑)
+            else if (MP_Pose.default && MP_Pose.default.Pose) {
+                PoseConstructor = MP_Pose.default.Pose;
+            } 
+            // 3. MP_Pose 객체 자체가 Pose 생성자인 경우 (이전 실패한 'import Pose from ...' 형태와 유사)
+            else if (typeof MP_Pose === 'function') {
+                // 이 경우는 MP_Pose가 Pose 생성자 함수 자체인 경우입니다.
+                PoseConstructor = MP_Pose; 
+            } else {
+                // 4. MP_Pose.default가 생성자 함수인 경우 (최종적인 Fallback)
+                if (typeof MP_Pose.default === 'function') {
+                    PoseConstructor = MP_Pose.default;
+                } else {
+                    throw new Error("Could not reliably find MediaPipe Pose constructor.");
+                }
+            }
+            
+            if (!PoseConstructor) {
+                throw new Error("MediaPipe Pose constructor is missing after all attempts.");
+            }
+            
+            // ⬇️ 추출된 생성자 사용
+            const pose = new PoseConstructor({ // <--- PoseConstructor 사용
                 locateFile: (file) => {
                     // 필요한 wasm/bin 파일 경로 설정 (CDN 사용)
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
@@ -461,7 +487,7 @@ const drawSkeleton = useCallback((results) => {
     }
     if (poseRef.current) {
       try {
-        poseRef.current.close();
+        poseRef.current.close(); 
       } catch (e) {
         console.error('Pose close error:', e);
       }
@@ -610,7 +636,7 @@ const drawSkeleton = useCallback((results) => {
                           <ul className="list-disc list-inside text-gray-300 space-y-1">
                             {completionFeedback.strengths.map((item, index) => (
                               <li key={index}>{item}</li>
-                            ))}
+                              ))}
                           </ul>
                         </div>
                       )}
