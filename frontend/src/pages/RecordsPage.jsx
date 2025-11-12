@@ -44,14 +44,20 @@ function RecordsPage() {
   };
 
   const loadCumulativeStats = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.log("Token not found, skipping cumulative stats load.");
+      return; 
+    }
     try {
       const response = await recordsAPI.getStatistics('cumulative');
       setCumulativeStats(response.data);
     } catch (err) {
       console.error('Failed to load cumulative stats:', err);
+      // 401 에러는 api.js 인터셉터가 처리하므로, 여기서는 무시합니다.
     }
   };
-
+  
   const handleDelete = async (recordId) => {
     setDeleting(true);
     try {
