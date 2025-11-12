@@ -21,10 +21,7 @@ const POSE_CONNECTIONS = [
 ];
 
 const ExercisePage = () => {
-  // ⬇️ [수정됨] useParams가 이제 정의되어 있습니다.
-  const { exerciseId } = useParams();
-// ... (useState, useRef, drawGuideSilhouette, drawSkeleton, onPoseResults, saveCompletion, handleComplete, handleRestart 함수들은 모두 동일하게 유지됩니다.)
-
+    const { exerciseId } = useParams();
     const navigate = useNavigate();
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
@@ -47,10 +44,9 @@ const ExercisePage = () => {
     const [isCompleted, setIsCompleted] = useState(false);
     const [guidePoses, setGuidePoses] = useState([]);
     const [completionFeedback, setCompletionFeedback] = useState(null);
-
     const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
 
-    // 운동 정보 불러오기 (생략 - 동일)
+    // 운동 정보 불러오기
     useEffect(() => {
         const fetchExercise = async () => {
             setLoading(true);
@@ -93,7 +89,7 @@ const ExercisePage = () => {
         }
     }, [exerciseId]);
 
-    // 가이드 프레임 애니메이션 (생략 - 동일)
+    // 가이드 프레임 애니메이션
     useEffect(() => {
         if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) return;
 
@@ -106,7 +102,7 @@ const ExercisePage = () => {
         return () => clearInterval(interval);
     }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]);
 
-    // 완료 데이터 저장 (생략 - 동일)
+    // 완료 데이터 저장
     const saveCompletion = useCallback(async () => {
         const avgScore = totalScore.length > 0 
             ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
@@ -138,7 +134,7 @@ const ExercisePage = () => {
         }
     }, [totalScore, exercise, currentSet, timeRemaining, exerciseId]);
 
-    // drawGuideSilhouette (생략 - 동일)
+    // 가이드 실루엣 그리기
     const drawGuideSilhouette = useCallback((guidePose) => {
         const canvas = canvasRef.current;
         if (!canvas || !guidePose) return;
@@ -224,7 +220,7 @@ const ExercisePage = () => {
         }
     }, []);
 
-    // drawSkeleton (생략 - 동일)
+    // 스켈레톤 그리기
     const drawSkeleton = useCallback((results) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -257,7 +253,7 @@ const ExercisePage = () => {
         ctx.restore();
     }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
-    // onPoseResults (생략 - 동일)
+    // Pose 결과 처리
     const onPoseResults = useCallback(async (results) => {
         const poseLandmarks = results.landmarks && results.landmarks.length > 0 
             ? results.landmarks[0] 
@@ -316,7 +312,6 @@ const ExercisePage = () => {
         saveCompletion 
     ]);
 
-
     // MediaPipe Pose 초기화
     useEffect(() => {
         if (!exercise || !isStarted || isCompleted) return;
@@ -325,29 +320,27 @@ const ExercisePage = () => {
 
         const initializePose = async () => {
             try {
+                console.log('MediaPipe 초기화 시작...');
+                
                 // 1. FilesetResolver를 통해 필수 파일 로드
                 const poseAssets = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
                 );
+                console.log('FilesetResolver 로드 완료');
 
-                // 2. PoseLandmarker 클래스를 직접 사용 (구조 분해 할당)
-                // 이 체크는 현재 오류를 발생시키는 라인입니다.
-                if (typeof PoseLandmarker.create !== 'function') {
-                    throw new Error("PoseLandmarker.create is not a function after import. Bundling issue likely persists.");
-                }
-
-                // PoseLandmarker.create 호출
+                // 2. PoseLandmarker 생성
                 const poseLandmarker = await PoseLandmarker.create( 
                     poseAssets, 
                     {
                         baseOptions: {
-                            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float/1/pose_landmarker_lite.task`,
+                            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
                             delegate: "GPU"
                         },
                         runningMode: "VIDEO",
-                        numLandmarks: 33
+                        numPoses: 1
                     }
                 );
+                console.log('PoseLandmarker 생성 완료');
 
                 poseRef.current = poseLandmarker;
                 setIsMediaPipeReady(true); 
@@ -375,12 +368,18 @@ const ExercisePage = () => {
                     });
                     cameraRef.current = camera;
                     camera.start();
+                    console.log('카메라 시작 완료');
                 }
+
+                // ✅ 로딩 해제
+                setLoading(false);
+                console.log('MediaPipe 초기화 완료!');
 
             } catch (error) {
                 console.error('MediaPipe 초기화 실패:', error);
                 setIsStarted(false);
                 setError('자세 분석 모듈 로드 실패: ' + (error.message || String(error)));
+                setLoading(false); // ✅ 에러 시에도 로딩 해제
             }
         };
 
@@ -401,7 +400,7 @@ const ExercisePage = () => {
         };
     }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
 
-    // 타이머 (생략 - 동일)
+    // 타이머
     useEffect(() => {
         if (!isStarted || isPaused || timeRemaining <= 0 || isCompleted) return;
 
@@ -419,13 +418,14 @@ const ExercisePage = () => {
         return () => clearInterval(timer);
     }, [isStarted, isPaused, timeRemaining, isCompleted, saveCompletion]);
 
-    // 수동 종료, 재시작, JSX 렌더링 (생략 - 동일)
+    // 수동 종료
     const handleComplete = () => {
         setIsCompleted(true);
         setIsStarted(false);
         saveCompletion();
     };
 
+    // 재시작
     const handleRestart = () => {
         if (cameraRef.current) {
             try {
@@ -462,7 +462,7 @@ const ExercisePage = () => {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-                <div className="text-red-500 text-6xl mb-4"></div>
+                <div className="text-red-500 text-6xl mb-4">⚠️</div>
                 <div className="text-white text-2xl mb-2">로딩 실패</div>
                 <div className="text-gray-400 text-center max-w-md">{error}</div>
                 <div className="flex gap-4 mt-6">
@@ -543,7 +543,7 @@ const ExercisePage = () => {
 
                         {isCompleted && (
                             <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 ">
-                                {/* <div className="text-center space-y-4 flex flex-col items-center max-w-lg w-full py-8"> */}
+                                <div className="text-center space-y-4 flex flex-col items-center max-w-lg w-full py-8">
                                     <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
                                     <p className="text-xl text-gray-300 mb-4">
                                         {exercise.sets}세트 × {exercise.repetitions}회 달성
@@ -559,7 +559,7 @@ const ExercisePage = () => {
                                         <p className="text-gray-400">평균 점수</p>
                                     </div>
 
-                                    {/* ===== ⬇️ 여기가 수정된 AI 피드백 섹션입니다 ⬇️ ===== */}
+                                    {/* AI 피드백 섹션 */}
                                     {completionFeedback && (
                                         <div className="bg-gray-800 rounded-lg p-6 w-full text-left space-y-4">
                                             <h3 className="text-xl font-semibold text-white mb-3 text-center">
@@ -601,7 +601,6 @@ const ExercisePage = () => {
                                             )}
                                         </div>
                                     )}
-                                    {/* ===== ⬆️ 여기까지 ⬆️ ===== */}
 
                                     {/* 버튼 */}
                                     <div className="flex gap-4 w-full pt-3">
@@ -619,7 +618,7 @@ const ExercisePage = () => {
                                         </button>
                                     </div>
                                 </div>
-                            // </div>
+                            </div>
                         )}
 
                         <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
