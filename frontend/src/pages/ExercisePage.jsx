@@ -33,6 +33,7 @@ const ExercisePage = () => {
   const [guidePoses, setGuidePoses] = useState([]);
   const [completionFeedback, setCompletionFeedback] = useState(null);
   const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
+  const [poseDetected, setPoseDetected] = useState(false); // ✅ 사람 감지 상태
 
   // 운동 정보 불러오기
   useEffect(() => {
@@ -49,12 +50,12 @@ const ExercisePage = () => {
         if (response.data.silhouette_animation?.keyframes) {
           const allKeyframes = response.data.silhouette_animation.keyframes;
           
-          // ✅ 키프레임이 너무 많으면 샘플링 (최대 20개 프레임만 사용)
+          // ✅ 키프레임 샘플링 (최대 15개)
           let selectedKeyframes = allKeyframes;
-          if (allKeyframes.length > 20) {
-            const step = Math.floor(allKeyframes.length / 20);
+          if (allKeyframes.length > 15) {
+            const step = Math.floor(allKeyframes.length / 15);
             selectedKeyframes = allKeyframes.filter((_, index) => index % step === 0);
-            console.log(`⚠️ 키프레임 다운샘플링: ${allKeyframes.length} → ${selectedKeyframes.length}`);
+            console.log(`⚠️ 키프레임 샘플링: ${allKeyframes.length} → ${selectedKeyframes.length}`);
           }
           
           const poses = selectedKeyframes.map(keyframe => {
@@ -88,7 +89,7 @@ const ExercisePage = () => {
     }
   }, [exerciseId]);
 
-  // ✅ 가이드 프레임 애니메이션 (속도 조정)
+  // ✅ 가이드 프레임 애니메이션 (timeRemaining 제거!)
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) {
       return;
@@ -96,14 +97,14 @@ const ExercisePage = () => {
 
     console.log('🎬 가이드 애니메이션 시작:', guidePoses.length, '프레임');
     
-    // ✅ 프레임당 시간 계산 (운동 시간 / 프레임 수)
-    const frameInterval = Math.max(500, (timeRemaining * 1000) / guidePoses.length);
+    // ✅ 고정된 간격 사용 (2초)
+    const frameInterval = 2000;
     console.log(`⏱️ 프레임 전환 간격: ${frameInterval}ms`);
     
     const interval = setInterval(() => {
       setGuideFrame(prev => {
         const nextFrame = (prev + 1) % guidePoses.length;
-        console.log('🔄 가이드 프레임 변경:', prev, '→', nextFrame);
+        console.log('🔄 프레임:', nextFrame);
         return nextFrame;
       });
     }, frameInterval);
@@ -112,7 +113,7 @@ const ExercisePage = () => {
       console.log('⏹️ 가이드 애니메이션 정지');
       clearInterval(interval);
     };
-  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length, timeRemaining]);
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]); // ✅ timeRemaining 제거!
 
   // 완료 데이터 저장
   const saveCompletion = useCallback(async () => {
@@ -147,7 +148,7 @@ const ExercisePage = () => {
     }
   }, [totalScore, exercise, currentSet, currentRep, timeRemaining, exerciseId]);
 
-  // ✅ 가이드 실루엣 그리기 (손목/발목 추가)
+  // 가이드 실루엣 그리기
   const drawGuideSilhouette = useCallback((guidePose) => {
     const canvas = canvasRef.current;
     if (!canvas || !guidePose) return;
@@ -175,11 +176,10 @@ const ExercisePage = () => {
       ctx.stroke();
     }
 
-    // ✅ 세밀한 팔다리 그리기 (손가락, 발가락 포함)
+    // 팔다리 그리기
     const drawDetailedLimb = (joints) => {
       const hasAllJoints = joints.every(j => guidePose[j]);
       if (!hasAllJoints) {
-        // 최소 3개 관절이라도 있으면 그리기
         if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
           ctx.lineWidth = 12;
           ctx.lineCap = 'round';
@@ -193,7 +193,6 @@ const ExercisePage = () => {
         return;
       }
 
-      // 팔다리 선 그리기
       ctx.lineWidth = 12;
       ctx.lineCap = 'round';
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
@@ -205,7 +204,6 @@ const ExercisePage = () => {
       }
       ctx.stroke();
 
-      // ✅ 관절 원 그리기 (모든 관절)
       joints.forEach(jointIdx => {
         if (guidePose[jointIdx]) {
           ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
@@ -213,7 +211,7 @@ const ExercisePage = () => {
           ctx.arc(
             guidePose[jointIdx].x * width, 
             guidePose[jointIdx].y * height, 
-            6,  // 원 크기
+            6,
             0, 
             2 * Math.PI
           );
@@ -222,16 +220,9 @@ const ExercisePage = () => {
       });
     };
 
-    // ✅ 왼팔: 어깨(11) → 팔꿈치(13) → 손목(15) → 검지(19)
     drawDetailedLimb(["11", "13", "15", "19"]);
-    
-    // ✅ 오른팔: 어깨(12) → 팔꿈치(14) → 손목(16) → 검지(20)
     drawDetailedLimb(["12", "14", "16", "20"]);
-    
-    // ✅ 왼다리: 엉덩이(23) → 무릎(25) → 발목(27) → 발끝(31)
     drawDetailedLimb(["23", "25", "27", "31"]);
-    
-    // ✅ 오른다리: 엉덩이(24) → 무릎(26) → 발목(28) → 발끝(32)
     drawDetailedLimb(["24", "26", "28", "32"]);
 
     // 머리
@@ -245,10 +236,13 @@ const ExercisePage = () => {
     }
   }, []);
 
-  // ✅ 스켈레톤 그리기 (손목/발목 표시 개선)
+  // ✅ 스켈레톤 그리기 (디버깅 강화)
   const drawSkeleton = useCallback((results) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('⚠️ Canvas not found');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     const { width, height } = canvasDimensions.current;
@@ -264,28 +258,26 @@ const ExercisePage = () => {
       drawGuideSilhouette(guidePoses[guideFrame]);
     }
 
-    // ✅ 사용자 스켈레톤 그리기 (손목/발목 포함)
+    // ✅ 사용자 스켈레톤 그리기
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
     if (poseLandmarks && poseLandmarks.length > 0) {
+      console.log('👤 사람 감지됨! 랜드마크 수:', poseLandmarks.length);
+      setPoseDetected(true);
+      
       const connections = [
-        // 몸통
         [11, 12], [11, 23], [12, 24], [23, 24],
-        // 왼팔: 어깨 → 팔꿈치 → 손목 → 검지
         [11, 13], [13, 15], [15, 19],
-        // 오른팔
         [12, 14], [14, 16], [16, 20],
-        // 왼다리: 엉덩이 → 무릎 → 발목 → 발끝
         [23, 25], [25, 27], [27, 31],
-        // 오른다리
         [24, 26], [26, 28], [28, 32]
       ];
       
-      // ✅ 연결선 그리기
+      // ✅ 연결선 그리기 (밝은 초록색)
       ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       connections.forEach(([start, end]) => {
         const startPoint = poseLandmarks[start];
         const endPoint = poseLandmarks[end];
@@ -297,29 +289,32 @@ const ExercisePage = () => {
         }
       });
       
-      // ✅ 주요 관절 점 그리기 (크게)
+      // ✅ 주요 관절 점 (큰 빨간 원)
       const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+      ctx.fillStyle = '#ff0000';
       keyJoints.forEach((idx) => {
         const landmark = poseLandmarks[idx];
         if (landmark) {
-          ctx.fillStyle = '#ff0000';
           ctx.beginPath();
           ctx.arc(landmark.x * width, landmark.y * height, 8, 0, 2 * Math.PI);
           ctx.fill();
         }
       });
       
-      // ✅ 손가락/발가락 끝 (작게)
+      // ✅ 손가락/발가락 끝 (노란 원)
       const fingerTips = [19, 20, 31, 32];
+      ctx.fillStyle = '#ffff00';
       fingerTips.forEach((idx) => {
         const landmark = poseLandmarks[idx];
         if (landmark) {
-          ctx.fillStyle = '#ffff00';
           ctx.beginPath();
           ctx.arc(landmark.x * width, landmark.y * height, 5, 0, 2 * Math.PI);
           ctx.fill();
         }
       });
+    } else {
+      console.log('⚠️ 사람 감지 안됨 (어두워서 또는 카메라 밖)');
+      setPoseDetected(false);
     }
 
     ctx.restore();
@@ -331,15 +326,14 @@ const ExercisePage = () => {
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
-    if (!poseLandmarks || isPaused || isCompleted) return;
-
-    // ✅ 항상 스켈레톤 그리기
+    // ✅ 항상 스켈레톤 그리기 (감지 여부 상관없이)
     drawSkeleton(results);
+
+    if (!poseLandmarks || isPaused || isCompleted) return;
 
     const now = Date.now();
     const timeSinceLastAnalysis = now - lastAnalysisTime.current;
 
-    // ✅ 2초마다 API 분석
     if (timeSinceLastAnalysis >= 2000 && exercise) {
       lastAnalysisTime.current = now;
       
@@ -356,7 +350,7 @@ const ExercisePage = () => {
           timestamp_ms: now
         });
         
-        console.log('✅ API 응답:', response.data);
+        console.log('✅ API 응답:', response.data.score, response.data.feedback);
         
         setFeedback(response.data.feedback);
         setScore(response.data.score);
@@ -431,7 +425,10 @@ const ExercisePage = () => {
               delegate: "GPU"
             },
             runningMode: "VIDEO",
-            numPoses: 1
+            numPoses: 1,
+            minPoseDetectionConfidence: 0.3,  // ✅ 낮춰서 어두운 환경에서도 감지
+            minPosePresenceConfidence: 0.3,
+            minTrackingConfidence: 0.3
           }
         );
         console.log('✅ PoseLandmarker 생성 완료');
@@ -601,7 +598,11 @@ const ExercisePage = () => {
               ref={webcamRef}
               className="absolute top-0 left-0 w-full h-full object-cover"
               mirrored={true}
-              videoConstraints={{ width: canvasDimensions.current.width, height: canvasDimensions.current.height }}
+              videoConstraints={{ 
+                width: canvasDimensions.current.width, 
+                height: canvasDimensions.current.height,
+                facingMode: "user"
+              }}
             />
             <canvas
               ref={canvasRef}
@@ -610,9 +611,17 @@ const ExercisePage = () => {
               height={canvasDimensions.current.height}
             />
             
+            {/* ✅ 사람 감지 상태 표시 */}
             <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className="text-sm">{poseDetected ? '감지됨' : '사람 없음'}</div>
+              </div>
+            </div>
+
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="text-4xl font-bold">{score}</div>
-              <div className="text-sm text-gray-400">점수</div>
+              <div className="text-sm text-gray-400 text-center">점수</div>
             </div>
 
             <div className="absolute top-4 right-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
@@ -732,7 +741,12 @@ const ExercisePage = () => {
               <p className="text-lg text-center">{feedback}</p>
               {showGuide && !isCompleted && guidePoses.length > 0 && (
                 <p className="text-sm text-blue-400 text-center mt-1">
-                  파란색 가이드를 따라하세요 (프레임 {guideFrame + 1}/{guidePoses.length})
+                  파란색 가이드를 따라하세요
+                </p>
+              )}
+              {!poseDetected && isStarted && !isCompleted && (
+                <p className="text-sm text-yellow-400 text-center mt-1">
+                  💡 카메라 앞에 서서 전신이 보이도록 해주세요
                 </p>
               )}
             </div>
