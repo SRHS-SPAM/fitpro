@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from '@mediapipe/camera_utils';
-import { Pose, FilesetResolver } from '@mediapipe/pose';
+// ⬇️ [핵심 수정] Pose 생성자 오류를 해결하기 위해 Namespace 임포트 (* as MP_Pose)를 사용합니다.
+import * as MP_Pose from '@mediapipe/pose';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
+
 
 const ExercisePage = () => {
   const { exerciseId } = useParams();
@@ -328,11 +330,11 @@ const drawSkeleton = useCallback((results) => {
   useEffect(() => {
     if (!exercise || !isStarted || isCompleted) return;
 
-    const pose = new Pose({
+  const pose = new MP_Pose.Pose({ 
       locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${MP_Pose.VERSION}/${file}`;
       }
-    });
+  });
 
     pose.setOptions({
       modelComplexity: 1,
