@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI } from '../services/api';
+// MediaPipe import - 새로운 방식 사용
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
 const POSE_CONNECTIONS = [
@@ -21,7 +22,7 @@ const ExercisePage = () => {
   const poseRef = useRef(null);
   const animationFrameRef = useRef(null);
   const lastAnalysisTime = useRef(0);
-  const canvasDimensions = useRef({ width: 640, height: 480 }); // 캔버스 크기 고정
+  const canvasDimensions = useRef({ width: 640, height: 480 }); // 캔버스 크기 고정
 
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,50 +41,49 @@ const ExercisePage = () => {
   const [guidePoses, setGuidePoses] = useState([]);
   const [completionFeedback, setCompletionFeedback] = useState(null);
   const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
-  const [isPoseDetecting, setIsPoseDetecting] = useState(false); // MediaPipe 처리 상태 추적
+  // const [isPoseDetecting, setIsPoseDetecting] = useState(false); // ❌ 이 상태 제거
 
-  // 운동 정보 불러오기 (생략)
+  // 운동 정보 불러오기 (생략 - 원본 유지)
   useEffect(() => {
-    const fetchExercise = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await exerciseAPI.getExercise(exerciseId);
-        
-        setExercise(response.data);
-        
-        // silhouette_animation에서 keyframes 추출 (생략)
-        if (response.data.silhouette_animation?.keyframes) {
-            const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
-                const poseObj = {};
-                if (keyframe.pose_landmarks) {
-                    keyframe.pose_landmarks.forEach((landmark, index) => {
-                        poseObj[index.toString()] = landmark;
-                    });
-                }
-                return poseObj;
-            });
-            setGuidePoses(poses);
-        } else {
-            setGuidePoses([]);
+    const fetchExercise = async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const response = await exerciseAPI.getExercise(exerciseId);
+            
+            setExercise(response.data);
+            
+            if (response.data.silhouette_animation?.keyframes) {
+                const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
+                    const poseObj = {};
+                    if (keyframe.pose_landmarks) {
+                        keyframe.pose_landmarks.forEach((landmark, index) => {
+                            poseObj[index.toString()] = landmark;
+                        });
+                    }
+                    return poseObj;
+                });
+                setGuidePoses(poses);
+            } else {
+                setGuidePoses([]);
+            }
+            
+            setTimeRemaining(response.data.duration_seconds);
+            setLoading(false);
+        } catch (error) {
+            console.error('운동 정보 로드 실패:', error);
+            setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
+            setLoading(false);
         }
-        
-        setTimeRemaining(response.data.duration_seconds);
-        setLoading(false);
-      } catch (error) {
-        console.error('운동 정보 로드 실패:', error);
-        setError(error.response?.data?.message || error.message || '운동 정보를 불러올 수 없습니다');
-        setLoading(false);
-      }
-    };
+    };
 
-    if (exerciseId) {
-      fetchExercise();
-    }
-  }, [exerciseId]);
+    if (exerciseId) {
+        fetchExercise();
+    }
+}, [exerciseId]);
 
-  // 가이드 프레임 애니메이션 (생략)
+  // 가이드 프레임 애니메이션 (생략 - 원본 유지)
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) return;
 
@@ -94,7 +94,7 @@ const ExercisePage = () => {
     return () => clearInterval(interval);
   }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]);
 
-  // 완료 데이터 저장 (생략)
+  // 완료 데이터 저장 (생략 - 원본 유지)
   const saveCompletion = useCallback(async () => {
     const avgScore = totalScore.length > 0 
       ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
@@ -129,11 +129,9 @@ const ExercisePage = () => {
 
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
-    
-    const getCoord = (landmark) => landmark ? { x: landmark.x * width, y: landmark.y * height } : null;
-
-    // ... (몸통, 팔다리, 머리 그리기 로직 유지) ...
-    const shoulder_left = guidePose["11"];
+    
+    // ... (몸통, 팔다리, 머리 그리기 로직) ...
+    const shoulder_left = guidePose["11"];
     const shoulder_right = guidePose["12"];
     const hip_left = guidePose["23"];
     const hip_right = guidePose["24"];
@@ -212,19 +210,14 @@ const ExercisePage = () => {
     }
   }, []);
 
-  // 스켈레톤 그리기 (캔버스 크기 설정 최적화)
+  // 스켈레톤 그리기 (생략 - 원본 유지)
   const drawSkeleton = useCallback((results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const { width, height } = canvasDimensions.current;
-    
-    // 이 부분은 초기화 시 한번만 실행되도록 useEffect로 옮겨야 하지만, 
-    // 임시로 유지하면서 경고: canvas.width/height는 매번 설정하지 마세요.
-    // canvas.width = width;
-    // canvas.height = height;
-
+    const { width, height } = canvasDimensions.current;
+    
     // ✅ 전체 캔버스 초기화
     ctx.clearRect(0, 0, width, height);
 
@@ -279,7 +272,7 @@ const ExercisePage = () => {
     ctx.restore();
   }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
-  // 자세 분석 결과 (생략)
+  // 자세 분석 결과
   const onPoseResults = useCallback(async (results) => {
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
@@ -287,11 +280,13 @@ const ExercisePage = () => {
 
     if (!poseLandmarks || isPaused || isCompleted) return;
 
-    drawSkeleton(results);
+    // drawSkeleton은 콜백 의존성 없이 여기서 직접 호출
+    drawSkeleton(results); 
 
     const now = Date.now();
     const timeSinceLastAnalysis = now - lastAnalysisTime.current;
 
+    // API 분석은 2초마다 호출 유지
     if (timeSinceLastAnalysis >= 2000) {
       lastAnalysisTime.current = now;
       
@@ -302,36 +297,47 @@ const ExercisePage = () => {
           x: lm.x, y: lm.y, z: lm.z, visibility: lm.visibility || 1.0
         }));
         
+        // 서버 측에서 현재 반복 진행도를 판단하도록 요청 (timestamp_ms는 이제 performance.now() 기반)
         const response = await exerciseAPI.analyzeRealtime(exerciseId, {
           pose_landmarks: landmarks,
-          timestamp_ms: now % (exercise.duration_seconds * 1000)
+          timestamp_ms: now 
         });
         
+        // 🎯 게이지 바 작동을 위한 핵심: API 응답을 기반으로 상태 업데이트
         setFeedback(response.data.feedback);
         setScore(response.data.score);
         setTotalScore(prev => [...prev, response.data.score]);
         
-        if (response.data.is_correct) {
-            // ... (세트/반복 로직 유지) ...
-          setCurrentRep(prevRep => {
-            const newRep = prevRep + 1;
-            if (newRep >= exercise.repetitions) {
-              setCurrentSet(prevSet => {
-                if (prevSet >= exercise.sets) {
-                  setIsCompleted(true);
-                  setFeedback('모든 세트 완료! 수고하셨습니다!');
-                  saveCompletion();
-                  return prevSet;
-                } else {
-                  setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
-                  return prevSet + 1;
-                }
-              });
-              return 0;
-            }
-            return newRep;
-          });
+        // API가 새로운 반복/세트 정보를 제공한다고 가정
+        if (response.data.new_rep_count !== undefined) {
+          setCurrentRep(response.data.new_rep_count);
         }
+        if (response.data.new_set_count !== undefined) {
+          setCurrentSet(response.data.new_set_count);
+        }
+        
+        // 이전의 내부 반복 완료 로직을 API 응답에 맞춰 조정
+        if (response.data.is_correct && exercise.repetitions) {
+            setCurrentRep(prevRep => {
+                const newRep = prevRep + 1;
+                if (newRep >= exercise.repetitions) {
+                    setCurrentSet(prevSet => {
+                        if (prevSet >= exercise.sets) {
+                            setIsCompleted(true);
+                            setFeedback('모든 세트 완료! 수고하셨습니다!');
+                            saveCompletion();
+                            return prevSet;
+                        } else {
+                            setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
+                            return prevSet + 1;
+                        }
+                    });
+                    return 0;
+                }
+                return newRep;
+            });
+        }
+
       } catch (error) {
         console.error('자세 분석 실패:', error);
       }
@@ -339,10 +345,10 @@ const ExercisePage = () => {
   }, [
     isPaused, 
     isCompleted, 
-    drawSkeleton, 
     exercise, 
     exerciseId, 
-    saveCompletion 
+    saveCompletion,
+    // drawSkeleton 제거됨
   ]);
 
   // MediaPipe Pose 초기화 및 비디오 프레임 처리 (수정됨)
@@ -355,7 +361,7 @@ const ExercisePage = () => {
         canvasRef.current.height = canvasDimensions.current.height;
     }
     
-    if (isMediaPipeReady) return; // 이미 준비되었으면 중복 초기화 방지
+    if (isMediaPipeReady) return; 
 
     const initializePose = async () => {
       try {
@@ -383,41 +389,32 @@ const ExercisePage = () => {
         
         // 비디오 프레임 처리 루프 시작
         const video = webcamRef.current?.video;
-        let lastFrameTime = performance.now(); // 프레임 시간 기록
-
         if (video) {
           
           const detectPose = async (now) => {
-                animationFrameRef.current = requestAnimationFrame(detectPose);
+            animationFrameRef.current = requestAnimationFrame(detectPose);
 
-                if (!poseRef.current || isPaused || isCompleted) {
-                    return;
+            if (!poseRef.current || isPaused || isCompleted) {
+                return;
+            }
+            
+            try {
+                // ⚠️ 타임스탬프 오류 해결 핵심: requestAnimationFrame의 now 값을 밀리초로 사용
+                const timestampMs = Math.floor(now); 
+                
+                if (video.readyState >= 2) { 
+                    const results = poseRef.current.detectForVideo(video, timestampMs);
+
+                    if (results) {
+                        onPoseResults(results);
+                    }
                 }
-                
-                // 타임스탬프 오류 방지를 위해, 현재 시간을 밀리초로 사용합니다.
-                // MediaPipe가 현재 프레임을 처리할 수 있는지 확인합니다.
-                // MediaPipe의 detectForVideo는 내부적으로 비동기 처리를 수행하므로, 
-                // isPoseDetecting 상태 대신 MediaPipe의 성능에 의존합니다.
-                
-                try {
-                    // ⚠️ 핵심 수정: requestAnimationFrame에서 받은 타임스탬프(now)를 밀리초로 사용
-                    // 이 now 값은 단조 증가를 보장하여 MediaPipe 오류를 줄입니다.
-                    const timestampMs = Math.floor(now); 
-                    
-                    // MediaPipe는 비디오 요소를 사용하므로, 비디오가 재생 중인지 확인합니다.
-                    if (video.readyState >= 2) { 
-                        const results = poseRef.current.detectForVideo(video, timestampMs);
+            } catch (err) {
+                console.error('❌ Pose detect error:', err);
+            } 
+          };
 
-                        if (results) {
-                            onPoseResults(results);
-                        }
-                    }
-                } catch (err) {
-                    console.error('❌ Pose detect error:', err);
-                } 
-            };
-
-            detectPose(performance.now());
+          detectPose(performance.now());
         }
 
       } catch (error) {
@@ -488,59 +485,59 @@ const ExercisePage = () => {
     
     window.location.reload();
   };
-  // 로딩 화면
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
-        {isStarted && (
-          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
-        )}
-      </div>
-    );
-  }
+  // 로딩 화면 (생략)
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
+        {isStarted && (
+          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
+        )}
+      </div>
+    );
+  }
 
-  // 에러 화면
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-red-500 text-6xl mb-4">⚠️</div>
-        <div className="text-white text-2xl mb-2">로딩 실패</div>
-        <div className="text-gray-400 text-center max-w-md">{error}</div>
-        <div className="flex gap-4 mt-6">
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
-          >
-            다시 시도
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
-          >
-            홈으로
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // 에러 화면 (생략)
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+        <div className="text-white text-2xl mb-2">로딩 실패</div>
+        <div className="text-gray-400 text-center max-w-md">{error}</div>
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
+          >
+            다시 시도
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
+          >
+            홈으로
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  if (!exercise) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
-        >
-          홈으로
-        </button>
-      </div>
-    );
-  }
+  if (!exercise) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
+        <button
+          onClick={() => navigate('/')}
+          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
+        >
+          홈으로
+        </button>
+      </div>
+    );
+  }
 
-  return (
+  return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
       <button
         onClick={() => navigate('/')}
@@ -567,7 +564,7 @@ const ExercisePage = () => {
               ref={webcamRef}
               className="absolute top-0 left-0 w-full h-full object-cover"
               mirrored={true}
-              videoConstraints={{ width: canvasDimensions.current.width, height: canvasDimensions.current.height }} // 비디오 해상도 고정
+              videoConstraints={{ width: canvasDimensions.current.width, height: canvasDimensions.current.height }} // 비디오 해상도 고정
             />
             <canvas
               ref={canvasRef}
@@ -587,49 +584,121 @@ const ExercisePage = () => {
               </div>
             </div>
 
-            {/* 🎯 게이지 바 및 가이드 토글 섹션 */}
-            {!isCompleted && (
-              <>
-                {/* 가이드 토글 버튼 */}
-                <button
-                  onClick={() => setShowGuide(!showGuide)}
-                  className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
-                >
-                  {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
-                </button>
+            {/* 🎯 게이지 바 및 가이드 토글 섹션 */}
+            {!isCompleted && (
+              <>
+                {/* 가이드 토글 버튼 */}
+                <button
+                  onClick={() => setShowGuide(!showGuide)}
+                  className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
+                >
+                  {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+                </button>
 
-                {/* 게이지 바 */}
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
-                  {/* 세트 게이지 */}
-                  <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>세트</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
-                      <div
-                        className="bg-blue-500 rounded-full transition-all w-full"
-                        style={{ height: `${currentSet === 0 ? 0 : Math.min(((currentSet - 1) / exercise.sets) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentSet}/{exercise.sets}</div>
-                  </div>
-              
-                  {/* 반복 게이지 */}
-                  <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2">반복</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
-                      <div
-                        className="bg-green-500 rounded-full transition-all w-full"
-                        style={{ height: `${currentRep === 0 ? 0 : Math.min((currentRep / exercise.repetitions) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentRep}/{exercise.repetitions}</div>
-                  </div>
-                </div>
-              </>
-            )}
+                {/* 게이지 바 */}
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
+                  {/* 세트 게이지 */}
+                  <div className="flex flex-col items-center">
+                    <div className="text-xs text-gray-300 mb-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>세트</div>
+                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                      <div
+                        className="bg-blue-500 rounded-full transition-all w-full"
+                        style={{ height: `${exercise && exercise.sets > 0 ? Math.min(((currentSet - 1) / exercise.sets) * 100, 100) : 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-white font-semibold mt-2">{currentSet}/{exercise?.sets || 0}</div>
+                  </div>
+              
+                  {/* 반복 게이지 */}
+                  <div className="flex flex-col items-center">
+                    <div className="text-xs text-gray-300 mb-2">반복</div>
+                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                      <div
+                        className="bg-green-500 rounded-full transition-all w-full"
+                        style={{ height: `${exercise && exercise.repetitions > 0 ? Math.min((currentRep / exercise.repetitions) * 100, 100) : 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-white font-semibold mt-2">{currentRep}/{exercise?.repetitions || 0}</div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {isCompleted && (
               <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4">
-                {/* ... 완료 피드백 내용 ... */}
+                <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
+                <p className="text-xl text-gray-300 mb-4">
+                  {exercise.sets}세트 × {exercise.repetitions}회 달성
+                </p>
+                
+                {/* 평균 점수 카드 */}
+                <div className="bg-gray-800 rounded-lg p-5 w-full max-w-lg">
+                  <div className="text-3xl font-bold text-blue-400 mb-2">
+                    {totalScore.length > 0 
+                      ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
+                      : 0}점
+                  </div>
+                  <p className="text-gray-400">평균 점수</p>
+                </div>
+
+                {/* AI 피드백 섹션 */}
+                {completionFeedback && (
+                  <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg text-left space-y-4">
+                    <h3 className="text-xl font-semibold text-white mb-3 text-center">
+                      AI 종합 피드백
+                    </h3>
+                    
+                    {/* 1. 종합 평가 */}
+                    {completionFeedback.summary && (
+                      <div>
+                        <h4 className="font-semibold text-blue-400 mb-1">종합 평가</h4>
+                        <p className="text-gray-300 whitespace-pre-line">
+                          {completionFeedback.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 2. 잘한 점 */}
+                    {completionFeedback.strengths && completionFeedback.strengths.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-green-400 mb-1">👍 잘한 점</h4>
+                        <ul className="list-disc list-inside text-gray-300 space-y-1">
+                          {completionFeedback.strengths.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 3. 개선할 점 */}
+                    {completionFeedback.improvements && completionFeedback.improvements.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-yellow-400 mb-1">✏️ 개선할 점</h4>
+                        <ul className="list-disc list-inside text-gray-300 space-y-1">
+                          {completionFeedback.improvements.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 버튼 */}
+                <div className="flex gap-4 w-full max-w-lg pt-3">
+                  <button
+                    onClick={handleRestart}
+                    className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
+                  >
+                    다시 하기
+                  </button>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="flex-1 px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                  >
+                    홈으로
+                  </button>
+                </div>
               </div>
             )}
 
@@ -643,74 +712,74 @@ const ExercisePage = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 mt-4">
-            {!isStarted ? (
-              <button
-                onClick={() => setIsStarted(true)}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition"
-              >
-                운동 시작
-              </button>
-            ) : isCompleted ? (
-              <div className="flex-1 flex gap-4">
-                <button
-                  onClick={handleRestart}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition"
-                >
-                  다시 하기
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg text-lg font-semibold transition"
-                >
-                  종료
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => setIsPaused(!isPaused)}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-lg text-lg font-semibold transition"
-                >
-                  {isPaused ? '재개' : '일시정지'}
-                </button>
-                <button
-                  onClick={handleComplete}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-lg text-lg font-semibold transition"
-                >
-                  종료
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+          <div className="flex gap-4 mt-4">
+            {!isStarted ? (
+              <button
+                onClick={() => setIsStarted(true)}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+              >
+                운동 시작
+              </button>
+            ) : isCompleted ? (
+              <div className="flex-1 flex gap-4">
+                <button
+                  onClick={handleRestart}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  다시 하기
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  종료
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsPaused(!isPaused)}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  {isPaused ? '재개' : '일시정지'}
+                </button>
+                <button
+                  onClick={handleComplete}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                >
+                  종료
+                </button>
+              </>
+            )}
+          </div>
+        </div>
 
-        <div className="space-y-6">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">운동 지침</h3>
-            <ol className="space-y-2 text-sm text-gray-300">
-              {exercise.instructions.map((instruction, index) => (
-                <li key={index} className="flex">
-                  <span className="font-semibold mr-2">{index + 1}.</span>
-                  <span>{instruction}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+        <div className="space-y-6">
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4">운동 지침</h3>
+            <ol className="space-y-2 text-sm text-gray-300">
+              {exercise.instructions.map((instruction, index) => (
+                <li key={index} className="flex">
+                  <span className="font-semibold mr-2">{index + 1}.</span>
+                  <span>{instruction}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
 
-          <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
-              {exercise.safety_warnings.map((warning, index) => (
-                <li key={index}>• {warning}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        
-      </div>
-    </div>
-  );
+          <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
+            <ul className="space-y-2 text-sm text-gray-300">
+              {exercise.safety_warnings.map((warning, index) => (
+                <li key={index}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  );
 };
 
 export default ExercisePage;
