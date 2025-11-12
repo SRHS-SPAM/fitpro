@@ -89,6 +89,7 @@ class ExerciseRecommendation(BaseModel):
     sets: int
     repetitions: int
     recommendation_reason: str
+    target_parts: List[str] = []
 
 class RecommendationsResponse(BaseModel):
     """운동 추천 API의 최종 응답 형태"""

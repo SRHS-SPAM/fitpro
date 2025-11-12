@@ -3,16 +3,60 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Clock, Zap, CheckCircle, PlusCircle, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
+// ✅ (1/3) 재활 부위별 이미지 경로를 반환하는 헬퍼 함수
+// API 응답에 맞춰 case의 값들 (예: "목", "팔")을 수정해야 할 수 있습니다.
+const partImageMap = {
+  // --- 기존 매핑 ---
+  '목': '/pain/nack.png',
+  '팔': '/pain/arm.png',
+  '손목': '/pain/arm.png',
+  '팔꿈치': '/pain/arm.png',
+  '다리': '/pain/leg.png',
+  '허리': '/pain/waist.png',
+  '발': '/pain/foot.png',
+  '발목': '/pain/foot.png',
+  '무릎': '/pain/leg.png',
+  '엉덩이': '/pain/leg.png',
+  '고관절': '/pain/leg.png',
+  '어깨': '/pain/arm.png',
+  '가슴': '/pain/arm.png',
+  '등': '/pain/waist.png',
+};
+
+// ✅✅✅ 로직 수정: 배열의 첫 번째 요소만 확인
+const getRehabImage = (targetParts) => {
+  // 1. 배열이 아니거나 비어있는지 확인
+  if (!Array.isArray(targetParts) || targetParts.length === 0) {
+    console.log('[이미지] targetParts가 배열이 아니거나 비어있음:', targetParts);
+    return null;
+  }
+
+  // 2. 오직 첫 번째 요소 (targetParts[0])만 가져옴
+  const firstPart = targetParts[0]; // 예: '무릎'
+
+  // 3. partImageMap에서 해당 요소가 있는지 확인
+  if (partImageMap[firstPart]) {
+    // 4. ✅ 디버깅: 일치하는 키와 반환될 경로를 로그로 확인
+    console.log(`[이미지] 일치! Key: "${firstPart}", Path: "${partImageMap[firstPart]}"`);
+    return partImageMap[firstPart]; // 예: '/pain/leg.png' 반환
+  }
+
+  // 5. ❌ 디버깅: 첫 번째 요소가 맵에 없는 경우
+  console.log(`[이미지] 불일치. 첫 번째 부위 "${firstPart}"가 partImageMap에 없습니다.`);
+  return null;
+};
+
 const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false); // ✅ 새로고침 상태
+  const [refreshing, setRefreshing] = useState(false);
 
-  const savedExerciseIds = new Set(myExercises.map(ex => ex.exercise_id));
+  const savedExerciseIds = new Set(
+    Array.isArray(myExercises) ? myExercises.map(ex => ex.exercise_id) : []
+  );
 
-  // ✅ 운동 추천 함수 분리
   const fetchRecommendations = async () => {
     setLoading(true);
     setError(null);
@@ -22,9 +66,14 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
         'http://localhost:8000/api/v1/exercises/recommendations',
         { 
           headers: { Authorization: `Bearer ${token}` },
-          params: { limit: 4 } // ✅ 최소 4개 요청 파라미터 추가!
+          params: { limit: 4 }
         }
       );
+      // ❗ API 응답 데이터 예시 (가정)
+      // response.data.exercises = [
+      //   { exercise_id: 1, name: "목 스트레칭", target_part: "목", ... },
+      //   { exercise_id: 2, name: "런지", target_part: "다리", ... },
+      // ]
       setExercises(response.data.exercises || []);
     } catch (err) {
       console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
@@ -35,12 +84,10 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
     }
   };
 
-
   useEffect(() => {
     fetchRecommendations();
   }, []);
 
-  // ✅ 새로고침 핸들러
   const handleRefresh = () => {
     setRefreshing(true);
     fetchRecommendations();
@@ -56,6 +103,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
     }
   };
 
+  // --- 로딩 및 에러 화면 (기존과 동일) ---
   if (loading && !refreshing) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
@@ -79,6 +127,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       </div>
     );
   }
+  // --- 로딩 및 에러 화면 끝 ---
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-3 pb-24">
@@ -97,7 +146,6 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
             <p className="text-gray-400 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
           </div>
           
-          {/* ✅ 새로고침 버튼 */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -115,15 +163,34 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       
       <div className="max-w-6xl mx-auto grid grid-cols-2 gap-2">
         {exercises.map((exercise) => {
+
+          console.log('추천된 운동 객체:', exercise);
+          console.log('타겟 부위 (target_parts):', exercise.target_parts);
+
+          // 2. isSaved 계산
           const isSaved = savedExerciseIds.has(exercise.exercise_id);
+          
+          // 3. ✅✅✅ 바로 이 부분입니다! ✅✅✅
+          // exercise.target_parts가 정확히 전달되는지 확인
+          const imageUrl = getRehabImage(exercise.target_parts);
+
           return (
             <div key={exercise.exercise_id} className="bg-gray-800 rounded-xl p-2 border-2 border-transparent hover:border-blue-500 transition-colors duration-200">
-              <div className="flex items-start justify-between mb-4">
+              
+
+              <div className="mb-4">
+                  {imageUrl && (
+                    <img 
+                      src={imageUrl} 
+                      alt="재활 부위"
+                      className="w-full h-28 object-cover rounded-lg flex-shrink-0 bg-gray-700 mb-2"
+                    />
+                  )}
+                
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-2">{exercise.name}</h3>
                   <p className="text-gray-400 text-sm mb-3">{exercise.description}</p>
                 </div>
-                {/* <Dumbbell className="w-8 h-8 text-blue-400 flex-shrink-0 ml-4" /> */}
               </div>
               
               <div className="grid grid-rows-3 gap-4 mb-4">
