@@ -25,7 +25,7 @@ const partImageMap = {
   '등': '/pain/waist.png',
 };
 
-// ✅✅✅ 로직 수정: 배열의 첫 번째 요소만 확인
+// 로직 수정: 배열의 첫 번째 요소만 확인
 const getRehabImage = (targetParts) => {
   // 1. 배열이 아니거나 비어있는지 확인
   if (!Array.isArray(targetParts) || targetParts.length === 0) {

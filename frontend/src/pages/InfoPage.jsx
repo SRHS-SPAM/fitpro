@@ -36,15 +36,17 @@ export default function InfoPage({ user, onLogout }) {
 
         try {
             const token = localStorage.getItem('access_token');
-            const response = await api.get(
-            '/exercises/recommendations', // ⬅️ [3] BaseURL (https://...)이 자동으로 붙습니다.
+            const response = await api.delete(
+            '/users/me', 
             { 
-                // ⬅️ [4] 'headers' 줄은 삭제! (api.js의 interceptor가 자동으로 토큰을 넣어줍니다)
-                params: { limit: 4 }
+                data: {
+                    password: password,
+                    confirm_text: confirmText 
+                }
             }
-    );
+        );
 
-            const data = await response.json();
+            const data = response.data;
 
             if (response.ok) {
                 alert(data.message || '계정이 성공적으로 삭제되었습니다.');
