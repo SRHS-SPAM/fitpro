@@ -47,7 +47,17 @@ const ExercisePage = () => {
         setExercise(response.data);
         
         if (response.data.silhouette_animation?.keyframes) {
-          const poses = response.data.silhouette_animation.keyframes.map(keyframe => {
+          const allKeyframes = response.data.silhouette_animation.keyframes;
+          
+          // ✅ 키프레임이 너무 많으면 샘플링 (최대 20개 프레임만 사용)
+          let selectedKeyframes = allKeyframes;
+          if (allKeyframes.length > 20) {
+            const step = Math.floor(allKeyframes.length / 20);
+            selectedKeyframes = allKeyframes.filter((_, index) => index % step === 0);
+            console.log(`⚠️ 키프레임 다운샘플링: ${allKeyframes.length} → ${selectedKeyframes.length}`);
+          }
+          
+          const poses = selectedKeyframes.map(keyframe => {
             const poseObj = {};
             if (keyframe.pose_landmarks) {
               keyframe.pose_landmarks.forEach((landmark, index) => {
@@ -56,6 +66,7 @@ const ExercisePage = () => {
             }
             return poseObj;
           });
+          
           console.log('✅ Processed guide poses:', poses.length);
           setGuidePoses(poses);
         } else {
@@ -77,7 +88,7 @@ const ExercisePage = () => {
     }
   }, [exerciseId]);
 
-  // ✅ 가이드 프레임 애니메이션 (수정)
+  // ✅ 가이드 프레임 애니메이션 (속도 조정)
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) {
       return;
@@ -85,19 +96,23 @@ const ExercisePage = () => {
 
     console.log('🎬 가이드 애니메이션 시작:', guidePoses.length, '프레임');
     
+    // ✅ 프레임당 시간 계산 (운동 시간 / 프레임 수)
+    const frameInterval = Math.max(500, (timeRemaining * 1000) / guidePoses.length);
+    console.log(`⏱️ 프레임 전환 간격: ${frameInterval}ms`);
+    
     const interval = setInterval(() => {
       setGuideFrame(prev => {
         const nextFrame = (prev + 1) % guidePoses.length;
         console.log('🔄 가이드 프레임 변경:', prev, '→', nextFrame);
         return nextFrame;
       });
-    }, 2000);
+    }, frameInterval);
 
     return () => {
       console.log('⏹️ 가이드 애니메이션 정지');
       clearInterval(interval);
     };
-  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length]);
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length, timeRemaining]);
 
   // 완료 데이터 저장
   const saveCompletion = useCallback(async () => {
@@ -132,7 +147,7 @@ const ExercisePage = () => {
     }
   }, [totalScore, exercise, currentSet, currentRep, timeRemaining, exerciseId]);
 
-  // 가이드 실루엣 그리기
+  // ✅ 가이드 실루엣 그리기 (손목/발목 추가)
   const drawGuideSilhouette = useCallback((guidePose) => {
     const canvas = canvasRef.current;
     if (!canvas || !guidePose) return;
@@ -160,14 +175,15 @@ const ExercisePage = () => {
       ctx.stroke();
     }
 
-    // 팔다리 그리기
+    // ✅ 세밀한 팔다리 그리기 (손가락, 발가락 포함)
     const drawDetailedLimb = (joints) => {
       const hasAllJoints = joints.every(j => guidePose[j]);
       if (!hasAllJoints) {
+        // 최소 3개 관절이라도 있으면 그리기
         if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
-          ctx.lineWidth = 15;
+          ctx.lineWidth = 12;
           ctx.lineCap = 'round';
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
           ctx.beginPath();
           ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
           ctx.lineTo(guidePose[joints[1]].x * width, guidePose[joints[1]].y * height);
@@ -177,9 +193,10 @@ const ExercisePage = () => {
         return;
       }
 
-      ctx.lineWidth = 15;
+      // 팔다리 선 그리기
+      ctx.lineWidth = 12;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
       ctx.beginPath();
       ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
       
@@ -188,38 +205,47 @@ const ExercisePage = () => {
       }
       ctx.stroke();
 
-      const endJoint = joints[joints.length - 1];
-      if (guidePose[endJoint]) {
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
-        ctx.beginPath();
-        ctx.arc(
-          guidePose[endJoint].x * width, 
-          guidePose[endJoint].y * height, 
-          8, 
-          0, 
-          2 * Math.PI
-        );
-        ctx.fill();
-      }
+      // ✅ 관절 원 그리기 (모든 관절)
+      joints.forEach(jointIdx => {
+        if (guidePose[jointIdx]) {
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
+          ctx.beginPath();
+          ctx.arc(
+            guidePose[jointIdx].x * width, 
+            guidePose[jointIdx].y * height, 
+            6,  // 원 크기
+            0, 
+            2 * Math.PI
+          );
+          ctx.fill();
+        }
+      });
     };
 
+    // ✅ 왼팔: 어깨(11) → 팔꿈치(13) → 손목(15) → 검지(19)
     drawDetailedLimb(["11", "13", "15", "19"]);
+    
+    // ✅ 오른팔: 어깨(12) → 팔꿈치(14) → 손목(16) → 검지(20)
     drawDetailedLimb(["12", "14", "16", "20"]);
+    
+    // ✅ 왼다리: 엉덩이(23) → 무릎(25) → 발목(27) → 발끝(31)
     drawDetailedLimb(["23", "25", "27", "31"]);
+    
+    // ✅ 오른다리: 엉덩이(24) → 무릎(26) → 발목(28) → 발끝(32)
     drawDetailedLimb(["24", "26", "28", "32"]);
 
     // 머리
     if (shoulder_left && shoulder_right) {
       const neckX = (shoulder_left.x + shoulder_right.x) / 2;
       const neckY = (shoulder_left.y + shoulder_right.y) / 2;
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
       ctx.beginPath();
       ctx.arc(neckX * width, (neckY - 0.08) * height, 20, 0, 2 * Math.PI);
       ctx.fill();
     }
   }, []);
 
-  // ✅ 스켈레톤 그리기 (수정)
+  // ✅ 스켈레톤 그리기 (손목/발목 표시 개선)
   const drawSkeleton = useCallback((results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -238,18 +264,26 @@ const ExercisePage = () => {
       drawGuideSilhouette(guidePoses[guideFrame]);
     }
 
-    // ✅ 사용자 스켈레톤 그리기
+    // ✅ 사용자 스켈레톤 그리기 (손목/발목 포함)
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
     if (poseLandmarks && poseLandmarks.length > 0) {
       const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
+        // 몸통
+        [11, 12], [11, 23], [12, 24], [23, 24],
+        // 왼팔: 어깨 → 팔꿈치 → 손목 → 검지
+        [11, 13], [13, 15], [15, 19],
+        // 오른팔
+        [12, 14], [14, 16], [16, 20],
+        // 왼다리: 엉덩이 → 무릎 → 발목 → 발끝
+        [23, 25], [25, 27], [27, 31],
+        // 오른다리
+        [24, 26], [26, 28], [28, 32]
       ];
       
+      // ✅ 연결선 그리기
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 3;
       connections.forEach(([start, end]) => {
@@ -263,11 +297,26 @@ const ExercisePage = () => {
         }
       });
       
-      poseLandmarks.forEach((landmark) => {
+      // ✅ 주요 관절 점 그리기 (크게)
+      const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+      keyJoints.forEach((idx) => {
+        const landmark = poseLandmarks[idx];
         if (landmark) {
           ctx.fillStyle = '#ff0000';
           ctx.beginPath();
-          ctx.arc(landmark.x * width, landmark.y * height, 6, 0, 2 * Math.PI);
+          ctx.arc(landmark.x * width, landmark.y * height, 8, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      });
+      
+      // ✅ 손가락/발가락 끝 (작게)
+      const fingerTips = [19, 20, 31, 32];
+      fingerTips.forEach((idx) => {
+        const landmark = poseLandmarks[idx];
+        if (landmark) {
+          ctx.fillStyle = '#ffff00';
+          ctx.beginPath();
+          ctx.arc(landmark.x * width, landmark.y * height, 5, 0, 2 * Math.PI);
           ctx.fill();
         }
       });
@@ -276,7 +325,7 @@ const ExercisePage = () => {
     ctx.restore();
   }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
-  // ✅ 자세 분석 결과 (수정)
+  // ✅ 자세 분석 결과
   const onPoseResults = useCallback(async (results) => {
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
@@ -295,8 +344,6 @@ const ExercisePage = () => {
       lastAnalysisTime.current = now;
       
       try {
-        console.log('🔍 API 분석 시작...');
-        
         const landmarks = poseLandmarks.map(lm => ({
           x: lm.x, 
           y: lm.y, 
@@ -315,18 +362,14 @@ const ExercisePage = () => {
         setScore(response.data.score);
         setTotalScore(prev => [...prev, response.data.score]);
         
-        // ✅ 백엔드에서 새로운 rep/set count를 보내면 사용
         if (response.data.new_rep_count !== undefined) {
-          console.log('📊 새 반복 횟수:', response.data.new_rep_count);
           setCurrentRep(response.data.new_rep_count);
         }
         
         if (response.data.new_set_count !== undefined) {
-          console.log('📊 새 세트 횟수:', response.data.new_set_count);
           setCurrentSet(response.data.new_set_count);
         }
         
-        // ✅ is_correct로 횟수 증가 (폴백)
         if (response.data.is_correct && response.data.new_rep_count === undefined) {
           setCurrentRep(prevRep => {
             const newRep = prevRep + 1;
@@ -687,9 +730,9 @@ const ExercisePage = () => {
 
             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
               <p className="text-lg text-center">{feedback}</p>
-              {showGuide && !isCompleted && (
+              {showGuide && !isCompleted && guidePoses.length > 0 && (
                 <p className="text-sm text-blue-400 text-center mt-1">
-                  파란색 가이드를 따라하세요
+                  파란색 가이드를 따라하세요 (프레임 {guideFrame + 1}/{guidePoses.length})
                 </p>
               )}
             </div>
