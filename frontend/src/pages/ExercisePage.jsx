@@ -579,6 +579,46 @@ const ExercisePage = () => {
               </div>
             </div>
 
+            {/* 🎯 추가된 게이지 바 및 가이드 토글 섹션 */}
+            {!isCompleted && (
+              <>
+                {/* 가이드 토글 버튼 */}
+                <button
+                  onClick={() => setShowGuide(!showGuide)}
+                  className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
+                >
+                  {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+                </button>
+
+                {/* 게이지 바 */}
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
+                  {/* 세트 게이지 */}
+                  <div className="flex flex-col items-center">
+                    <div className="text-xs text-gray-300 mb-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>세트</div>
+                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                      <div
+                        className="bg-blue-500 rounded-full transition-all w-full"
+                        style={{ height: `${currentSet === 0 ? 0 : Math.min(((currentSet - 1) / exercise.sets) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-white font-semibold mt-2">{currentSet}/{exercise.sets}</div>
+                  </div>
+              
+                  {/* 반복 게이지 */}
+                  <div className="flex flex-col items-center">
+                    <div className="text-xs text-gray-300 mb-2">반복</div>
+                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                      <div
+                        className="bg-green-500 rounded-full transition-all w-full"
+                        style={{ height: `${currentRep === 0 ? 0 : Math.min((currentRep / exercise.repetitions) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-white font-semibold mt-2">{currentRep}/{exercise.repetitions}</div>
+                  </div>
+                </div>
+              </>
+            )}
+
             {isCompleted && (
               <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4">
                 <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
