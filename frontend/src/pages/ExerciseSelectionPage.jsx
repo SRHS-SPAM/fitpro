@@ -193,7 +193,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
                 </div>
               </div>
               
-              <div className="grid grid-rows-3 gap-4 mb-4">
+              <div className="flex flex-col gap-2 mb-4">
                 <div className="bg-gray-900 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Clock className="w-4 h-4 text-gray-400" />
@@ -211,19 +211,19 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
                     <p className="text-lg font-semibold capitalize">{exercise.intensity}</p>
                   </div>
                 </div>
-                <div className="bg-gray-900 rounded-lg p-3">
+                {/* <div className="bg-gray-900 rounded-lg p-3">
                   <span className="text-xs text-gray-400 block mb-1">세트 × 반복</span>
                   <p className="text-lg font-semibold">{exercise.sets} × {exercise.repetitions}</p>
-                </div>
+                </div> */}
               </div>
               
-              {exercise.recommendation_reason && (
+              {/* {exercise.recommendation_reason && (
                 <div className="bg-blue-900 bg-opacity-30 border border-blue-500 rounded-lg p-3 mb-4">
                   <p className="text-sm text-blue-200">
                     <span className="font-semibold">💡 추천 이유:</span> {exercise.recommendation_reason}
                   </p>
                 </div>
-              )}
+              )} */}
               
               <div className="mt-4 grid grid-rows-2 gap-2">
                 <button
@@ -236,7 +236,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
                   }`}
                 >
                   {isSaved ? <CheckCircle className="w-5 h-5 mr-2" /> : <PlusCircle className="w-5 h-5 mr-2" />}
-                  {isSaved ? '저장됨' : '내 운동에 저장'}
+                  {isSaved ? '저장됨' : '저장'}
                 </button>
                 <button 
                   onClick={() => navigate(`/exercise/${exercise.exercise_id}`)} 
