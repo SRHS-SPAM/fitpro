@@ -20,6 +20,10 @@ const ExercisePage = () => {
   const lastRepScore = useRef(0);
   const repCooldown = useRef(false);
   
+  // ✅ 정적 운동 (자세 유지) 카운팅
+  const holdStartTime = useRef(null);
+  const currentHoldScore = useRef([]);
+  
   // ✅ 마지막으로 감지된 포즈 저장 (깜빡임 방지)
   const lastValidPose = useRef(null);
   
@@ -160,6 +164,23 @@ const ExercisePage = () => {
       console.error('❌ 완료 저장 실패:', error.response?.data || error.message);
     }
   }, [totalScore, exercise, currentSet, currentRep, timeRemaining, exerciseId]);
+
+  // ✅ 운동 타입 감지 (정적 vs 동적)
+  const isStaticExercise = useCallback((exerciseName) => {
+    if (!exerciseName) return false;
+    
+    const staticKeywords = [
+      '플랭크', 'plank',
+      '유지', 'hold',
+      '버티기',
+      '스트레칭', 'stretch', 'stretching',
+      '자세 유지',
+      '정적'
+    ];
+    
+    const name = exerciseName.toLowerCase();
+    return staticKeywords.some(keyword => name.includes(keyword));
+  }, []);
 
   // 가이드 실루엣 그리기
   const drawGuideSilhouette = useCallback((ctx, guidePose, width, height) => {
@@ -349,7 +370,7 @@ const ExercisePage = () => {
     };
   }, [isStarted, isCompleted, showGuide, guidePoses, drawGuideSilhouette, drawUserSkeleton]); // ✅ guideFrame 제거
 
-  // ✅ 자세 분석 결과 (스켈레톤 그리기 제거, 포즈만 저장)
+  // ✅ 자세 분석 결과 (정적/동적 운동 분기 처리)
   const onPoseResults = useCallback(async (results) => {
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
@@ -361,7 +382,6 @@ const ExercisePage = () => {
       setPoseDetected(true);
     } else {
       setPoseDetected(false);
-      // ✅ 포즈가 감지 안 돼도 마지막 포즈는 유지 (깜빡임 방지)
     }
 
     if (!poseLandmarks || isPaused || isCompleted) return;
@@ -403,56 +423,146 @@ const ExercisePage = () => {
           console.log('📦 백엔드 세트:', response.data.new_set_count);
         }
         
-        // 프론트엔드 반복 카운팅 로직
-        if (response.data.new_rep_count === undefined && !repCooldown.current) {
+        // ✅ 운동 타입에 따른 분기 처리
+        const isStatic = isStaticExercise(exercise.name);
+        
+        if (isStatic) {
+          // ==========================================
+          // ✅ 정적 운동 (자세 유지형) 카운팅 로직
+          // ==========================================
+          console.log('🧘 정적 운동 모드');
           
-          const scoreThresholdHigh = 70;
-          const scoreThresholdLow = 50;
-          
-          if (lastRepScore.current >= scoreThresholdHigh && currentScore < scoreThresholdLow) {
-            console.log('📉 동작 중간 (점수 하락):', currentScore);
-            lastRepScore.current = currentScore;
-          }
-          else if (lastRepScore.current < scoreThresholdLow && currentScore >= scoreThresholdHigh) {
-            console.log('✅ 동작 완료! (점수 상승):', lastRepScore.current, '→', currentScore);
-            
-            setCurrentRep(prevRep => {
-              const newRep = prevRep + 1;
-              console.log('🎯 반복 횟수:', prevRep, '→', newRep);
+          // 자세가 정확하면 (점수 70 이상) 홀드 시작/유지
+          if (currentScore >= 70) {
+            if (!holdStartTime.current) {
+              // 홀드 시작
+              holdStartTime.current = now;
+              currentHoldScore.current = [currentScore];
+              console.log('⏱️ 홀드 시작!');
+              setFeedback('좋습니다! 자세를 유지하세요...');
+            } else {
+              // 홀드 유지 중
+              currentHoldScore.current.push(currentScore);
+              const holdDuration = (now - holdStartTime.current) / 1000; // 초
               
-              if (newRep >= exercise.repetitions) {
-                setCurrentSet(prevSet => {
-                  const newSet = prevSet + 1;
+              // ✅ repetitions를 "초" 단위로 해석 (예: 10회 = 10초)
+              const requiredHoldTime = exercise.repetitions;
+              
+              console.log(`⏱️ 홀드 유지 중: ${holdDuration.toFixed(1)}초 / ${requiredHoldTime}초`);
+              setFeedback(`자세 유지 중... ${holdDuration.toFixed(0)}초 / ${requiredHoldTime}초`);
+              
+              // ✅ 목표 시간 달성
+              if (holdDuration >= requiredHoldTime && !repCooldown.current) {
+                const avgHoldScore = Math.round(
+                  currentHoldScore.current.reduce((a, b) => a + b, 0) / currentHoldScore.current.length
+                );
+                
+                console.log('✅ 홀드 완료!', avgHoldScore, '점');
+                
+                // 1회 완료 처리
+                setCurrentRep(prevRep => {
+                  const newRep = prevRep + 1;
+                  console.log('🎯 반복 횟수:', prevRep, '→', newRep);
                   
-                  if (newSet > exercise.sets) {
-                    console.log('🎉 모든 세트 완료!');
-                    setIsCompleted(true);
-                    setFeedback('모든 세트 완료! 수고하셨습니다!');
-                    saveCompletion();
-                    return exercise.sets;
-                  } else {
-                    console.log(`✅ ${prevSet}세트 완료! 다음 세트 시작`);
-                    setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 다음 세트를 시작하세요.`);
-                    return newSet;
+                  // 한 세트 완료 (정적 운동은 보통 1회 = 1세트)
+                  if (newRep >= 1) {
+                    setCurrentSet(prevSet => {
+                      const newSet = prevSet + 1;
+                      
+                      if (newSet > exercise.sets) {
+                        console.log('🎉 모든 세트 완료!');
+                        setIsCompleted(true);
+                        setFeedback('모든 세트 완료! 수고하셨습니다!');
+                        saveCompletion();
+                        return exercise.sets;
+                      } else {
+                        console.log(`✅ ${prevSet}세트 완료! 다음 세트 시작`);
+                        setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 다음 세트를 시작하세요.`);
+                        return newSet;
+                      }
+                    });
+                    return 0;
                   }
+                  
+                  setFeedback(`좋습니다! ${newRep}회 완료`);
+                  return newRep;
                 });
-                return 0;
+                
+                // 홀드 초기화 및 쿨다운
+                holdStartTime.current = null;
+                currentHoldScore.current = [];
+                repCooldown.current = true;
+                setTimeout(() => {
+                  repCooldown.current = false;
+                  console.log('⏰ 쿨다운 해제');
+                }, 3000);
               }
-              
-              setFeedback(`좋습니다! ${newRep}/${exercise.repetitions}회 완료`);
-              return newRep;
-            });
-            
-            repCooldown.current = true;
-            setTimeout(() => {
-              repCooldown.current = false;
-              console.log('⏰ 쿨다운 해제');
-            }, 3000);
-            
-            lastRepScore.current = currentScore;
+            }
+          } else {
+            // 자세가 부정확해지면 홀드 초기화
+            if (holdStartTime.current) {
+              console.log('❌ 자세 흐트러짐, 홀드 초기화');
+              holdStartTime.current = null;
+              currentHoldScore.current = [];
+              setFeedback('자세가 흐트러졌습니다. 다시 정확한 자세를 유지하세요.');
+            }
           }
-          else {
-            lastRepScore.current = currentScore;
+          
+        } else {
+          // ==========================================
+          // ✅ 동적 운동 (반복형) 카운팅 로직
+          // ==========================================
+          console.log('🏃 동적 운동 모드');
+          
+          if (response.data.new_rep_count === undefined && !repCooldown.current) {
+            const scoreThresholdHigh = 70;
+            const scoreThresholdLow = 50;
+            
+            if (lastRepScore.current >= scoreThresholdHigh && currentScore < scoreThresholdLow) {
+              console.log('📉 동작 중간 (점수 하락):', currentScore);
+              lastRepScore.current = currentScore;
+            }
+            else if (lastRepScore.current < scoreThresholdLow && currentScore >= scoreThresholdHigh) {
+              console.log('✅ 동작 완료! (점수 상승):', lastRepScore.current, '→', currentScore);
+              
+              setCurrentRep(prevRep => {
+                const newRep = prevRep + 1;
+                console.log('🎯 반복 횟수:', prevRep, '→', newRep);
+                
+                if (newRep >= exercise.repetitions) {
+                  setCurrentSet(prevSet => {
+                    const newSet = prevSet + 1;
+                    
+                    if (newSet > exercise.sets) {
+                      console.log('🎉 모든 세트 완료!');
+                      setIsCompleted(true);
+                      setFeedback('모든 세트 완료! 수고하셨습니다!');
+                      saveCompletion();
+                      return exercise.sets;
+                    } else {
+                      console.log(`✅ ${prevSet}세트 완료! 다음 세트 시작`);
+                      setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 다음 세트를 시작하세요.`);
+                      return newSet;
+                    }
+                  });
+                  return 0;
+                }
+                
+                setFeedback(`좋습니다! ${newRep}/${exercise.repetitions}회 완료`);
+                return newRep;
+              });
+              
+              repCooldown.current = true;
+              setTimeout(() => {
+                repCooldown.current = false;
+                console.log('⏰ 쿨다운 해제');
+              }, 3000);
+              
+              lastRepScore.current = currentScore;
+            }
+            else {
+              lastRepScore.current = currentScore;
+            }
           }
         }
 
@@ -461,7 +571,7 @@ const ExercisePage = () => {
         setFeedback('서버 연결 실패');
       }
     }
-  }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion]);
+  }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion, isStaticExercise]);
 
   // MediaPipe 초기화 및 프레임 처리
   useEffect(() => {
