@@ -20,6 +20,7 @@ const ExercisePage = () => {
   const lastRepScore = useRef(0);
   const repCooldown = useRef(false);
   const scoreHistory = useRef([]); // ✅ 점수 히스토리 추적
+  const isInDownPhase = useRef(false); // ✅ 동작 중 플래그 (하강 중)
   
   // ✅ 정적 운동 (자세 유지) 카운팅
   const holdStartTime = useRef(null);
@@ -506,92 +507,85 @@ const ExercisePage = () => {
           
         } else {
           // ==========================================
-          // ✅ 동적 운동 (반복형) 카운팅 로직 (개선)
+          // ✅ 동적 운동 (반복형) 카운팅 로직 (상태 플래그 사용)
           // ==========================================
           console.log('🏃 동적 운동 모드 - 현재 점수:', currentScore);
           
-          // ✅ 점수 히스토리 저장 (최근 5개)
-          scoreHistory.current.push(currentScore);
-          if (scoreHistory.current.length > 5) {
-            scoreHistory.current.shift();
-          }
-          
           if (response.data.new_rep_count === undefined && !repCooldown.current) {
-            // ✅ 더 관대한 임계값
-            const scoreThresholdHigh = 65;  // 70 → 65로 낮춤
-            const scoreThresholdLow = 55;   // 50 → 55로 높임 (범위 좁힘)
+            // ✅ 임계값
+            const GOOD_POSE = 60;  // 좋은 자세
+            const BAD_POSE = 45;   // 나쁜 자세 (동작 중)
             
-            console.log(`📊 점수 상태: 이전=${lastRepScore.current}, 현재=${currentScore}, 임계값=${scoreThresholdHigh}/${scoreThresholdLow}`);
+            console.log(`📊 [점수] 현재: ${currentScore.toFixed(1)} | 기준: ${GOOD_POSE}/${BAD_POSE} | 동작 중: ${isInDownPhase.current}`);
             
-            // ✅ 상태 1: 높은 점수 → 낮은 점수 (동작 시작)
-            if (lastRepScore.current >= scoreThresholdHigh && currentScore < scoreThresholdLow) {
-              console.log('📉 동작 시작 감지! (점수 하락):', lastRepScore.current, '→', currentScore);
+            // ✅ 초기값 처리
+            if (lastRepScore.current === 0) {
+              console.log('🎬 첫 측정 - 초기값 설정');
               lastRepScore.current = currentScore;
+              isInDownPhase.current = false;
+              return;
             }
-            // ✅ 상태 2: 낮은 점수 → 높은 점수 (동작 완료)
-            else if (lastRepScore.current < scoreThresholdLow && currentScore >= scoreThresholdHigh) {
-              console.log('✅ 동작 완료 감지! (점수 상승):', lastRepScore.current, '→', currentScore);
+            
+            // ✅ 상태 머신 (3단계)
+            
+            // 1️⃣ 좋은 자세에서 점수가 떨어지기 시작 → 동작 시작
+            if (!isInDownPhase.current && currentScore < GOOD_POSE) {
+              console.log('📉 [시작] 동작 시작 감지! 점수 하락:', currentScore.toFixed(1));
+              isInDownPhase.current = true; // 플래그 ON
+            }
+            
+            // 2️⃣ 동작 중 상태에서 나쁜 자세 도달
+            if (isInDownPhase.current && currentScore < BAD_POSE) {
+              console.log('💪 [진행] 동작 진행 중 (나쁜 자세):', currentScore.toFixed(1));
+            }
+            
+            // 3️⃣ 동작 중 상태에서 다시 좋은 자세로 복귀 → 동작 완료! ⭐
+            if (isInDownPhase.current && currentScore >= GOOD_POSE) {
+              console.log('✅ [완료] 동작 완료! 좋은 자세 복귀:', currentScore.toFixed(1));
+              console.log('🎯 ===== 반복 카운팅! =====');
+              
+              isInDownPhase.current = false; // 플래그 OFF
               
               setCurrentRep(prevRep => {
                 const newRep = prevRep + 1;
-                console.log('🎯 반복 횟수 증가:', prevRep, '→', newRep, '/', exercise.repetitions);
+                console.log(`🔢 반복 횟수: ${prevRep} → ${newRep} / ${exercise.repetitions}`);
                 
                 if (newRep >= exercise.repetitions) {
-                  console.log('🎉 목표 반복 횟수 달성!');
+                  console.log('🎉 ==== 세트 완료! ====');
                   setCurrentSet(prevSet => {
                     const newSet = prevSet + 1;
                     
                     if (newSet > exercise.sets) {
-                      console.log('🏆 모든 세트 완료!');
+                      console.log('🏆 ===== 모든 세트 완료! =====');
                       setIsCompleted(true);
                       setFeedback('모든 세트 완료! 수고하셨습니다!');
                       saveCompletion();
                       return exercise.sets;
                     } else {
-                      console.log(`✅ ${prevSet}세트 완료! → ${newSet}세트 시작`);
+                      console.log(`✅ ${prevSet}세트 완료 → ${newSet}세트 시작`);
                       setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 ${newSet}세트를 시작하세요.`);
                       return newSet;
                     }
                   });
-                  return 0; // 반복 횟수 초기화
+                  return 0;
                 }
                 
                 setFeedback(`좋습니다! ${newRep}/${exercise.repetitions}회 완료`);
                 return newRep;
               });
               
-              // ✅ 2초 쿨다운 (너무 길면 다음 동작 놓칠 수 있음)
+              // 1.5초 쿨다운
               repCooldown.current = true;
               setTimeout(() => {
                 repCooldown.current = false;
-                console.log('⏰ 쿨다운 해제 (다음 반복 가능)');
-              }, 2000);
-              
-              lastRepScore.current = currentScore;
+                console.log('⏰ 쿨다운 해제');
+              }, 1500);
             }
-            // ✅ 상태 3: 점수가 중간 범위 또는 높은 상태 유지
-            else if (currentScore >= scoreThresholdHigh) {
-              // 높은 점수 유지 중
-              if (lastRepScore.current < scoreThresholdHigh) {
-                console.log('📈 정확한 자세 도달:', currentScore);
-              }
-              lastRepScore.current = currentScore;
-            }
-            // ✅ 상태 4: 점수가 낮은 상태 유지
-            else if (currentScore < scoreThresholdLow) {
-              // 낮은 점수 유지 중 (동작 진행 중)
-              if (lastRepScore.current >= scoreThresholdHigh) {
-                console.log('📉 동작 진행 중:', currentScore);
-              }
-              lastRepScore.current = currentScore;
-            }
-            // ✅ 상태 5: 중간 점수 (55-65)
-            else {
-              console.log('⚡ 중간 점수 (전환 구간):', currentScore);
-              lastRepScore.current = currentScore;
-            }
+            
+            lastRepScore.current = currentScore;
+            
           } else if (repCooldown.current) {
-            console.log('⏸️ 쿨다운 중... 카운팅 대기');
+            console.log('⏸️ [대기] 쿨다운 중...');
           }
         }
 
@@ -878,7 +872,7 @@ const ExercisePage = () => {
               {/* ✅ 디버깅: 점수 변화 표시 */}
               {!isCompleted && isStarted && (
                 <div className="text-xs text-gray-400 mt-1">
-                  이전: {lastRepScore.current.toFixed(0)} / 임계: 65/55
+                  이전: {lastRepScore.current.toFixed(0)} / 기준: 60/45
                 </div>
               )}
             </div>
