@@ -50,7 +50,6 @@ const ExercisePage = () => {
         if (response.data.silhouette_animation?.keyframes) {
           const allKeyframes = response.data.silhouette_animation.keyframes;
           
-          // ✅ 키프레임 샘플링 (최대 15개)
           let selectedKeyframes = allKeyframes;
           if (allKeyframes.length > 15) {
             const step = Math.floor(allKeyframes.length / 15);
@@ -89,7 +88,7 @@ const ExercisePage = () => {
     }
   }, [exerciseId]);
 
-  // ✅ 가이드 프레임 애니메이션 (수정됨!)
+  // ✅ 가이드 프레임 애니메이션
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) {
       return;
@@ -97,7 +96,6 @@ const ExercisePage = () => {
 
     console.log('🎬 가이드 애니메이션 시작:', guidePoses.length, '프레임');
     
-    // ✅ 2초마다 프레임 전환 (duration과 무관하게 고정)
     const frameInterval = 2000;
     console.log(`⏱️ 프레임 전환 간격: ${frameInterval}ms`);
     
@@ -113,7 +111,7 @@ const ExercisePage = () => {
       console.log('⏹️ 가이드 애니메이션 정지');
       clearInterval(interval);
     };
-  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length]); // ✅ guidePoses.length만 체크
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length]);
 
   // 완료 데이터 저장
   const saveCompletion = useCallback(async () => {
@@ -253,7 +251,7 @@ const ExercisePage = () => {
     ctx.scale(-1, 1);
     ctx.translate(-width, 0);
 
-    // ✅ 가이드 실루엣 그리기 (디버깅 로그 추가)
+    // 가이드 실루엣 그리기
     if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
       console.log('🎨 가이드 그리기 - 현재 프레임:', guideFrame, '/', guidePoses.length);
       drawGuideSilhouette(guidePoses[guideFrame]);
@@ -314,7 +312,7 @@ const ExercisePage = () => {
         }
       });
     } else {
-      console.log('⚠️ 사람 감지 안됨 (어두워서 또는 카메라 밖)');
+      console.log('⚠️ 사람 감지 안됨');
       setPoseDetected(false);
     }
 
@@ -327,7 +325,7 @@ const ExercisePage = () => {
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
-    // ✅ 항상 스켈레톤 그리기 (감지 여부 상관없이)
+    // ✅ 항상 스켈레톤 그리기
     drawSkeleton(results);
 
     if (!poseLandmarks || isPaused || isCompleted) return;
@@ -398,25 +396,44 @@ const ExercisePage = () => {
     }
   }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion, drawSkeleton]);
 
-  // MediaPipe 초기화 및 프레임 처리
+  // ✅ MediaPipe 초기화 및 프레임 처리 (핵심 수정!)
   useEffect(() => {
-    if (!exercise || !isStarted || isCompleted || isMediaPipeReady) return;
+    if (!exercise || !isStarted || isCompleted) return;
+
+    console.log('🚀 MediaPipe 초기화 준비...');
 
     if (canvasRef.current) {
       canvasRef.current.width = canvasDimensions.current.width;
       canvasRef.current.height = canvasDimensions.current.height;
     }
 
+    let isMounted = true;
+
     const initializePose = async () => {
       try {
-        console.log('🚀 MediaPipe 초기화 시작...');
+        console.log('🔄 MediaPipe 초기화 시작...');
         
-        if (poseRef.current) poseRef.current.close();
+        // ✅ 기존 인스턴스 정리
+        if (poseRef.current) {
+          try {
+            poseRef.current.close();
+          } catch (e) {
+            console.log('이전 pose 인스턴스 정리:', e.message);
+          }
+          poseRef.current = null;
+        }
+
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
 
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
         );
         console.log('✅ FilesetResolver 로드 완료');
+
+        if (!isMounted) return;
 
         const poseLandmarker = await PoseLandmarker.createFromOptions(
           vision,
@@ -427,60 +444,96 @@ const ExercisePage = () => {
             },
             runningMode: "VIDEO",
             numPoses: 1,
-            minPoseDetectionConfidence: 0.3,
-            minPosePresenceConfidence: 0.3,
-            minTrackingConfidence: 0.3
+            minPoseDetectionConfidence: 0.5,
+            minPosePresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5
           }
         );
         console.log('✅ PoseLandmarker 생성 완료');
+
+        if (!isMounted) return;
 
         poseRef.current = poseLandmarker;
         setIsMediaPipeReady(true);
         setLoading(false);
         
+        // ✅ 비디오 준비 대기
         const video = webcamRef.current?.video;
-        if (video) {
-          const detectPose = async (now) => {
-            animationFrameRef.current = requestAnimationFrame(detectPose);
-
-            if (!poseRef.current || isPaused || isCompleted) return;
-            
-            try {
-              const currentTimestamp = Math.floor(now);
-              
-              if (currentTimestamp <= lastTimestampRef.current) {
-                lastTimestampRef.current += 1;
-              } else {
-                lastTimestampRef.current = currentTimestamp;
-              }
-              
-              if (video.readyState >= 2) {
-                const results = poseRef.current.detectForVideo(video, lastTimestampRef.current);
-                if (results) {
-                  onPoseResults(results);
-                }
-              }
-            } catch (err) {
-              console.error('❌ Pose detect error:', err);
-            }
-          };
-
-          detectPose(performance.now());
+        if (!video) {
+          console.error('❌ Webcam video element not found');
+          return;
         }
+
+        // 비디오가 준비될 때까지 대기
+        const waitForVideo = () => {
+          return new Promise((resolve) => {
+            if (video.readyState >= 2) {
+              resolve(true);
+            } else {
+              video.addEventListener('loadeddata', () => resolve(true), { once: true });
+            }
+          });
+        };
+
+        await waitForVideo();
+        console.log('✅ Webcam video ready');
+
+        // ✅ Pose 감지 루프 시작
+        let startTime = performance.now();
+        
+        const detectPose = async (now) => {
+          if (!isMounted || !poseRef.current || isPaused || isCompleted) {
+            return;
+          }
+
+          animationFrameRef.current = requestAnimationFrame(detectPose);
+          
+          try {
+            const currentTimestamp = Math.floor(now);
+            
+            // timestamp 중복 방지
+            if (currentTimestamp <= lastTimestampRef.current) {
+              lastTimestampRef.current += 1;
+            } else {
+              lastTimestampRef.current = currentTimestamp;
+            }
+            
+            if (video.readyState >= 2) {
+              const results = poseRef.current.detectForVideo(video, lastTimestampRef.current);
+              if (results && isMounted) {
+                onPoseResults(results);
+              }
+            }
+          } catch (err) {
+            console.error('❌ Pose detect error:', err);
+          }
+        };
+
+        // 첫 프레임 시작
+        detectPose(performance.now());
+        console.log('✅ Pose detection loop started');
 
       } catch (error) {
         console.error('❌ MediaPipe 초기화 실패:', error);
-        setError('자세 분석 모듈 로드 실패. 앱을 새로고침해주세요.');
-        setLoading(false);
+        if (isMounted) {
+          setError('자세 분석 모듈 로드 실패. 앱을 새로고침해주세요.');
+          setLoading(false);
+        }
       }
     };
 
     initializePose();
 
+    // ✅ Cleanup 함수
     return () => {
+      console.log('🧹 MediaPipe cleanup...');
+      isMounted = false;
+      
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
+      
       if (poseRef.current) {
         try {
           poseRef.current.close();
@@ -489,9 +542,11 @@ const ExercisePage = () => {
         }
         poseRef.current = null;
       }
+      
       lastTimestampRef.current = -1;
+      setIsMediaPipeReady(false);
     };
-  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults, isMediaPipeReady]);
+  }, [exercise, isStarted, isCompleted, isPaused, onPoseResults]);
 
   // 타이머
   useEffect(() => {
@@ -612,7 +667,7 @@ const ExercisePage = () => {
               height={canvasDimensions.current.height}
             />
             
-            {/* ✅ 사람 감지 상태 표시 */}
+            {/* 사람 감지 상태 표시 */}
             <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
