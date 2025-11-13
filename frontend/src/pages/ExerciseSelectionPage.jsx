@@ -63,19 +63,13 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   setLoading(true);
   setError(null);
   try {
-    // ⬇️ [2] 'axios.get' 대신 'api.get'을 사용합니다.
     const response = await api.get(
-      '/exercises/recommendations', // ⬅️ [3] BaseURL (https://...)이 자동으로 붙습니다.
+      '/exercises/recommendations', 
       { 
-        // ⬅️ [4] 'headers' 줄은 삭제! (api.js의 interceptor가 자동으로 토큰을 넣어줍니다)
         params: { limit: 4 }
       }
     );
-    // ❗ API 응답 데이터 예시 (가정)
-    // response.data.exercises = [
-    //   { exercise_id: 1, name: "목 스트레칭", target_part: "목", ... },
-    //   { exercise_id: 2, name: "런지", target_part: "다리", ... },
-    // ]
+
     setExercises(response.data.exercises || []);
   } catch (err) {
     console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
