@@ -16,9 +16,15 @@ const ExercisePage = () => {
   const canvasDimensions = useRef({ width: 640, height: 480 });
   const lastTimestampRef = useRef(-1);
   
-  // ✅ 반복 카운팅을 위한 상태 추가
+  // 반복 카운팅을 위한 상태
   const lastRepScore = useRef(0);
   const repCooldown = useRef(false);
+  
+  // ✅ 마지막으로 감지된 포즈 저장 (깜빡임 방지)
+  const lastValidPose = useRef(null);
+  
+  // ✅ 별도의 렌더링 루프를 위한 ref
+  const renderLoopRef = useRef(null);
 
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -151,12 +157,8 @@ const ExercisePage = () => {
   }, [totalScore, exercise, currentSet, currentRep, timeRemaining, exerciseId]);
 
   // 가이드 실루엣 그리기
-  const drawGuideSilhouette = useCallback((guidePose) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !guidePose) return;
-
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
+  const drawGuideSilhouette = useCallback((ctx, guidePose, width, height) => {
+    if (!guidePose) return;
     
     const shoulder_left = guidePose["11"];
     const shoulder_right = guidePose["12"];
@@ -238,96 +240,121 @@ const ExercisePage = () => {
     }
   }, []);
 
-  // 스켈레톤 그리기
-  const drawSkeleton = useCallback((results) => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.log('⚠️ Canvas not found');
-      return;
-    }
+  // ✅ 사용자 스켈레톤 그리기 (분리)
+  const drawUserSkeleton = useCallback((ctx, poseLandmarks, width, height) => {
+    if (!poseLandmarks || poseLandmarks.length === 0) return;
 
-    const ctx = canvas.getContext('2d');
-    const { width, height } = canvasDimensions.current;
+    const connections = [
+      [11, 12], [11, 23], [12, 24], [23, 24],
+      [11, 13], [13, 15], [15, 19],
+      [12, 14], [14, 16], [16, 20],
+      [23, 25], [25, 27], [27, 31],
+      [24, 26], [26, 28], [28, 32]
+    ];
     
-    ctx.clearRect(0, 0, width, height);
+    // 연결선 그리기 (밝은 초록색)
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 4;
+    connections.forEach(([start, end]) => {
+      const startPoint = poseLandmarks[start];
+      const endPoint = poseLandmarks[end];
+      if (startPoint && endPoint) {
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x * width, startPoint.y * height);
+        ctx.lineTo(endPoint.x * width, endPoint.y * height);
+        ctx.stroke();
+      }
+    });
+    
+    // 주요 관절 점 (큰 빨간 원)
+    const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    ctx.fillStyle = '#ff0000';
+    keyJoints.forEach((idx) => {
+      const landmark = poseLandmarks[idx];
+      if (landmark) {
+        ctx.beginPath();
+        ctx.arc(landmark.x * width, landmark.y * height, 8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+    
+    // 손가락/발가락 끝 (노란 원)
+    const fingerTips = [19, 20, 31, 32];
+    ctx.fillStyle = '#ffff00';
+    fingerTips.forEach((idx) => {
+      const landmark = poseLandmarks[idx];
+      if (landmark) {
+        ctx.beginPath();
+        ctx.arc(landmark.x * width, landmark.y * height, 5, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+  }, []);
 
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.translate(-width, 0);
+  // ✅ 지속적인 렌더링 루프 (MediaPipe와 독립적)
+  useEffect(() => {
+    if (!isStarted || isCompleted) return;
 
-    // 가이드 실루엣 그리기
-    if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
-      drawGuideSilhouette(guidePoses[guideFrame]);
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // 사용자 스켈레톤 그리기
-    const poseLandmarks = results.landmarks && results.landmarks.length > 0 
-      ? results.landmarks[0] 
-      : results.poseLandmarks;
+    const { width, height } = canvasDimensions.current;
+    const ctx = canvas.getContext('2d');
 
-    if (poseLandmarks && poseLandmarks.length > 0) {
-      setPoseDetected(true);
-      
-      const connections = [
-        [11, 12], [11, 23], [12, 24], [23, 24],
-        [11, 13], [13, 15], [15, 19],
-        [12, 14], [14, 16], [16, 20],
-        [23, 25], [25, 27], [27, 31],
-        [24, 26], [26, 28], [28, 32]
-      ];
-      
-      // 연결선 그리기 (밝은 초록색)
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 4;
-      connections.forEach(([start, end]) => {
-        const startPoint = poseLandmarks[start];
-        const endPoint = poseLandmarks[end];
-        if (startPoint && endPoint) {
-          ctx.beginPath();
-          ctx.moveTo(startPoint.x * width, startPoint.y * height);
-          ctx.lineTo(endPoint.x * width, endPoint.y * height);
-          ctx.stroke();
-        }
-      });
-      
-      // 주요 관절 점 (큰 빨간 원)
-      const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
-      ctx.fillStyle = '#ff0000';
-      keyJoints.forEach((idx) => {
-        const landmark = poseLandmarks[idx];
-        if (landmark) {
-          ctx.beginPath();
-          ctx.arc(landmark.x * width, landmark.y * height, 8, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      });
-      
-      // 손가락/발가락 끝 (노란 원)
-      const fingerTips = [19, 20, 31, 32];
-      ctx.fillStyle = '#ffff00';
-      fingerTips.forEach((idx) => {
-        const landmark = poseLandmarks[idx];
-        if (landmark) {
-          ctx.beginPath();
-          ctx.arc(landmark.x * width, landmark.y * height, 5, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      });
-    } else {
-      setPoseDetected(false);
-    }
+    let isRunning = true;
 
-    ctx.restore();
-  }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
+    const renderLoop = () => {
+      if (!isRunning) return;
 
-  // ✅ 자세 분석 결과 (반복 카운팅 로직 수정)
+      // 캔버스 클리어
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.translate(-width, 0);
+
+      // ✅ 파란색 가이드 실루엣 그리기 (항상)
+      if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
+        drawGuideSilhouette(ctx, guidePoses[guideFrame], width, height);
+      }
+
+      // ✅ 초록색 사용자 스켈레톤 그리기 (마지막 유효 포즈 사용)
+      if (lastValidPose.current) {
+        drawUserSkeleton(ctx, lastValidPose.current, width, height);
+      }
+
+      ctx.restore();
+
+      // 다음 프레임 요청
+      renderLoopRef.current = requestAnimationFrame(renderLoop);
+    };
+
+    // 렌더링 시작
+    renderLoop();
+
+    return () => {
+      isRunning = false;
+      if (renderLoopRef.current) {
+        cancelAnimationFrame(renderLoopRef.current);
+        renderLoopRef.current = null;
+      }
+    };
+  }, [isStarted, isCompleted, showGuide, guideFrame, guidePoses, drawGuideSilhouette, drawUserSkeleton]);
+
+  // ✅ 자세 분석 결과 (스켈레톤 그리기 제거, 포즈만 저장)
   const onPoseResults = useCallback(async (results) => {
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
-    // 항상 스켈레톤 그리기
-    drawSkeleton(results);
+    // ✅ 유효한 포즈가 감지되면 저장 (렌더링 루프에서 사용)
+    if (poseLandmarks && poseLandmarks.length > 0) {
+      lastValidPose.current = poseLandmarks;
+      setPoseDetected(true);
+    } else {
+      setPoseDetected(false);
+      // ✅ 포즈가 감지 안 돼도 마지막 포즈는 유지 (깜빡임 방지)
+    }
 
     if (!poseLandmarks || isPaused || isCompleted) return;
 
@@ -357,7 +384,7 @@ const ExercisePage = () => {
         setScore(currentScore);
         setTotalScore(prev => [...prev, currentScore]);
         
-        // ✅ 백엔드에서 직접 카운팅한 경우 (백엔드 우선)
+        // 백엔드에서 직접 카운팅한 경우
         if (response.data.new_rep_count !== undefined) {
           setCurrentRep(response.data.new_rep_count);
           console.log('🔢 백엔드 카운팅:', response.data.new_rep_count);
@@ -368,12 +395,9 @@ const ExercisePage = () => {
           console.log('📦 백엔드 세트:', response.data.new_set_count);
         }
         
-        // ✅ 프론트엔드 반복 카운팅 로직 (개선됨)
-        // 조건: 백엔드가 카운팅하지 않았고, 자세가 정확하고, 쿨다운이 아닐 때
+        // 프론트엔드 반복 카운팅 로직
         if (response.data.new_rep_count === undefined && !repCooldown.current) {
           
-          // ✅ 점수 기반 동작 완료 감지
-          // 점수가 70 이상에서 50 이하로 떨어졌다가 다시 70 이상으로 올라오면 = 1회 완료
           const scoreThresholdHigh = 70;
           const scoreThresholdLow = 50;
           
@@ -382,19 +406,16 @@ const ExercisePage = () => {
             lastRepScore.current = currentScore;
           }
           else if (lastRepScore.current < scoreThresholdLow && currentScore >= scoreThresholdHigh) {
-            // ✅ 동작 완료 감지!
             console.log('✅ 동작 완료! (점수 상승):', lastRepScore.current, '→', currentScore);
             
             setCurrentRep(prevRep => {
               const newRep = prevRep + 1;
               console.log('🎯 반복 횟수:', prevRep, '→', newRep);
               
-              // ✅ 한 세트 완료
               if (newRep >= exercise.repetitions) {
                 setCurrentSet(prevSet => {
                   const newSet = prevSet + 1;
                   
-                  // ✅ 모든 세트 완료
                   if (newSet > exercise.sets) {
                     console.log('🎉 모든 세트 완료!');
                     setIsCompleted(true);
@@ -407,14 +428,13 @@ const ExercisePage = () => {
                     return newSet;
                   }
                 });
-                return 0; // 반복 횟수 초기화
+                return 0;
               }
               
               setFeedback(`좋습니다! ${newRep}/${exercise.repetitions}회 완료`);
               return newRep;
             });
             
-            // ✅ 중복 카운팅 방지 (3초 쿨다운)
             repCooldown.current = true;
             setTimeout(() => {
               repCooldown.current = false;
@@ -424,7 +444,6 @@ const ExercisePage = () => {
             lastRepScore.current = currentScore;
           }
           else {
-            // 점수 업데이트만
             lastRepScore.current = currentScore;
           }
         }
@@ -434,7 +453,7 @@ const ExercisePage = () => {
         setFeedback('서버 연결 실패');
       }
     }
-  }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion, drawSkeleton]);
+  }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion]);
 
   // MediaPipe 초기화 및 프레임 처리
   useEffect(() => {
@@ -453,7 +472,6 @@ const ExercisePage = () => {
       try {
         console.log('🔄 MediaPipe 초기화 시작...');
         
-        // 기존 인스턴스 정리
         if (poseRef.current) {
           try {
             poseRef.current.close();
@@ -497,14 +515,12 @@ const ExercisePage = () => {
         setIsMediaPipeReady(true);
         setLoading(false);
         
-        // 비디오 준비 대기
         const video = webcamRef.current?.video;
         if (!video) {
           console.error('❌ Webcam video element not found');
           return;
         }
 
-        // 비디오가 준비될 때까지 대기
         const waitForVideo = () => {
           return new Promise((resolve) => {
             if (video.readyState >= 2) {
@@ -518,7 +534,6 @@ const ExercisePage = () => {
         await waitForVideo();
         console.log('✅ Webcam video ready');
 
-        // Pose 감지 루프 시작
         const detectPose = async (now) => {
           if (!isMounted || !poseRef.current || isPaused || isCompleted) {
             return;
@@ -529,7 +544,6 @@ const ExercisePage = () => {
           try {
             const currentTimestamp = Math.floor(now);
             
-            // timestamp 중복 방지
             if (currentTimestamp <= lastTimestampRef.current) {
               lastTimestampRef.current += 1;
             } else {
@@ -547,7 +561,6 @@ const ExercisePage = () => {
           }
         };
 
-        // 첫 프레임 시작
         detectPose(performance.now());
         console.log('✅ Pose detection loop started');
 
@@ -562,7 +575,6 @@ const ExercisePage = () => {
 
     initializePose();
 
-    // Cleanup 함수
     return () => {
       console.log('🧹 MediaPipe cleanup...');
       isMounted = false;
@@ -613,6 +625,9 @@ const ExercisePage = () => {
   const handleRestart = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (renderLoopRef.current) {
+      cancelAnimationFrame(renderLoopRef.current);
     }
     if (poseRef.current) {
       try {
@@ -863,7 +878,7 @@ const ExercisePage = () => {
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
                 >
                   종료
                 </button>
