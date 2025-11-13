@@ -13,7 +13,7 @@ function getApiBaseUrl() {
                   window.location.hostname === '127.0.0.1';
   
   if (isLocal) {
-    return 'http://localhost:8000/api/v1';
+    return 'https://localhost:8000/api/v1';
   }
   
   // 3. 배포 환경에서는 HTTPS 강제
