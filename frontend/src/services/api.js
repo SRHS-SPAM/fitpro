@@ -126,7 +126,7 @@ export const recordsAPI = {
       ...Object.fromEntries(
         Object.entries(params).map(([k, v]) => [k, String(v)])
       )
-    });
+    }); 
     
     // ✅ /records/ 로 수정
     const url = `${BASE_URL}/records/?${queryParams.toString()}`;
