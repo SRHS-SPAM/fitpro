@@ -115,10 +115,10 @@ export const exerciseAPI = {
 
 // Records API
 export const recordsAPI = {
-  // ✅ 이미 슬래시 있음 - 완벽!
+  // ✅ 생성 - 슬래시 있음
   createRecord: (recordData) => api.post('/records/', recordData),
   
-  // 기록 목록 조회 (페이지네이션) - fetch 사용으로 우회
+  // ✅ 목록 조회 - 슬래시 추가
   getRecords: async (page = 1, limit = 10, params = {}) => {
     const queryParams = new URLSearchParams({
       page: String(page),
@@ -128,7 +128,7 @@ export const recordsAPI = {
       )
     });
     
-    // ✅ 슬래시 추가
+    // ✅ /records/ 로 수정
     const url = `${BASE_URL}/records/?${queryParams.toString()}`;
     console.log('🔧 Fetch 직접 호출:', url);
     
@@ -150,23 +150,21 @@ export const recordsAPI = {
     }
     
     const data = await response.json();
-    return { data }; // axios 응답 형식과 동일하게
+    return { data };
   },
   
-  // ✅ 슬래시 추가
+  // ✅ 상세 조회 - 슬래시 추가
   getRecord: (recordId) => api.get(`/records/${recordId}/`),
   
-  // ✅ 슬래시 추가
+  // ✅ 삭제 - 슬래시 추가 (여기가 문제!)
   deleteRecord: (recordId) => api.delete(`/records/${recordId}/`),
   
-  // 통계 조회 (주간/월간/연간)
+  // ✅ 통계 조회 - 슬래시 추가
   getStatistics: (period = 'week') => {
     if (period === 'cumulative') {
-      // ✅ 슬래시 추가
       return api.get('/records/statistics/cumulative/');
     }
     const queryParams = new URLSearchParams({ period });
-    // ✅ 슬래시 추가
     return api.get(`/records/statistics/summary/?${queryParams.toString()}`);
   },
 };
