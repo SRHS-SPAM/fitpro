@@ -25,6 +25,9 @@ const ExercisePage = () => {
   
   // ✅ 별도의 렌더링 루프를 위한 ref
   const renderLoopRef = useRef(null);
+  
+  // ✅ guideFrame을 ref로 관리 (렌더링 루프에서 실시간 참조)
+  const guideFrameRef = useRef(0);
 
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,6 +116,8 @@ const ExercisePage = () => {
       setGuideFrame(prev => {
         const nextFrame = (prev + 1) % guidePoses.length;
         console.log('🔄 프레임 전환:', prev, '→', nextFrame);
+        // ✅ ref도 함께 업데이트
+        guideFrameRef.current = nextFrame;
         return nextFrame;
       });
     }, frameInterval);
@@ -313,9 +318,12 @@ const ExercisePage = () => {
       ctx.scale(-1, 1);
       ctx.translate(-width, 0);
 
-      // ✅ 파란색 가이드 실루엣 그리기 (항상)
-      if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
-        drawGuideSilhouette(ctx, guidePoses[guideFrame], width, height);
+      // ✅ 파란색 가이드 실루엣 그리기 (항상, ref 사용)
+      if (showGuide && !isCompleted && guidePoses.length > 0) {
+        const currentFrame = guideFrameRef.current; // ✅ ref에서 최신 값 가져오기
+        if (currentFrame < guidePoses.length && guidePoses[currentFrame]) {
+          drawGuideSilhouette(ctx, guidePoses[currentFrame], width, height);
+        }
       }
 
       // ✅ 초록색 사용자 스켈레톤 그리기 (마지막 유효 포즈 사용)
@@ -339,7 +347,7 @@ const ExercisePage = () => {
         renderLoopRef.current = null;
       }
     };
-  }, [isStarted, isCompleted, showGuide, guideFrame, guidePoses, drawGuideSilhouette, drawUserSkeleton]);
+  }, [isStarted, isCompleted, showGuide, guidePoses, drawGuideSilhouette, drawUserSkeleton]); // ✅ guideFrame 제거
 
   // ✅ 자세 분석 결과 (스켈레톤 그리기 제거, 포즈만 저장)
   const onPoseResults = useCallback(async (results) => {
