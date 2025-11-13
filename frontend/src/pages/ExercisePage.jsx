@@ -459,32 +459,27 @@ const ExercisePage = () => {
                 
                 console.log('✅ 홀드 완료!', avgHoldScore, '점');
                 
-                // 1회 완료 처리
-                setCurrentRep(prevRep => {
-                  const newRep = prevRep + 1;
-                  console.log('🎯 반복 횟수:', prevRep, '→', newRep);
+                // ✅ 직접 세트 증가 (정적 운동은 1회 유지 = 1세트)
+                setCurrentSet(prevSet => {
+                  const newSet = prevSet + 1;
                   
-                  // 한 세트 완료 (정적 운동은 보통 1회 = 1세트)
-                  if (newRep >= 1) {
-                    setCurrentSet(prevSet => {
-                      const newSet = prevSet + 1;
-                      
-                      if (newSet > exercise.sets) {
-                        console.log('🎉 모든 세트 완료!');
-                        setIsCompleted(true);
-                        setFeedback('모든 세트 완료! 수고하셨습니다!');
-                        saveCompletion();
-                        return exercise.sets;
-                      } else {
-                        console.log(`✅ ${prevSet}세트 완료! 다음 세트 시작`);
-                        setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 다음 세트를 시작하세요.`);
-                        return newSet;
-                      }
-                    });
-                    return 0;
+                  if (newSet > exercise.sets) {
+                    console.log('🎉 모든 세트 완료!');
+                    setIsCompleted(true);
+                    setFeedback('모든 세트 완료! 수고하셨습니다!');
+                    saveCompletion();
+                    return exercise.sets;
+                  } else {
+                    console.log(`✅ ${prevSet}세트 완료! 다음 세트 ${newSet}/${exercise.sets}`);
+                    setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 ${newSet}세트를 시작하세요.`);
+                    return newSet;
                   }
-                  
-                  setFeedback(`좋습니다! ${newRep}회 완료`);
+                });
+                
+                // ✅ rep도 증가시켜서 UI에 표시
+                setCurrentRep(prev => {
+                  const newRep = prev + 1;
+                  console.log('🎯 반복 횟수:', prev, '→', newRep);
                   return newRep;
                 });
                 
@@ -494,8 +489,8 @@ const ExercisePage = () => {
                 repCooldown.current = true;
                 setTimeout(() => {
                   repCooldown.current = false;
-                  console.log('⏰ 쿨다운 해제');
-                }, 3000);
+                  console.log('⏰ 쿨다운 해제 (다음 세트 준비)');
+                }, 5000); // ✅ 5초 휴식 시간
               }
             }
           } else {
@@ -657,7 +652,10 @@ const ExercisePage = () => {
             return;
           }
 
-          animationFrameRef.current = requestAnimationFrame(detectPose);
+          // ✅ 30fps로 감지 빈도 조정 (부드러움 개선)
+          setTimeout(() => {
+            animationFrameRef.current = requestAnimationFrame(detectPose);
+          }, 1000 / 30); // 33ms 간격
           
           try {
             const currentTimestamp = Math.floor(now);
