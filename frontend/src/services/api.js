@@ -115,8 +115,8 @@ export const exerciseAPI = {
 
 // Records API
 export const recordsAPI = {
-  // ✅ 새로 추가 - 맨 위에 추가하세요
-  createRecord: (recordData) => api.post('/records', recordData),
+  // ✅ 이미 슬래시 있음 - 완벽!
+  createRecord: (recordData) => api.post('/records/', recordData),
   
   // 기록 목록 조회 (페이지네이션) - fetch 사용으로 우회
   getRecords: async (page = 1, limit = 10, params = {}) => {
@@ -128,7 +128,8 @@ export const recordsAPI = {
       )
     });
     
-    const url = `${BASE_URL}/records?${queryParams.toString()}`;
+    // ✅ 슬래시 추가
+    const url = `${BASE_URL}/records/?${queryParams.toString()}`;
     console.log('🔧 Fetch 직접 호출:', url);
     
     const token = localStorage.getItem('access_token');
@@ -152,19 +153,22 @@ export const recordsAPI = {
     return { data }; // axios 응답 형식과 동일하게
   },
   
-  // 특정 기록 상세 조회
-  getRecord: (recordId) => api.get(`/records/${recordId}`),
+  // ✅ 슬래시 추가
+  getRecord: (recordId) => api.get(`/records/${recordId}/`),
   
-  // 기록 삭제
-  deleteRecord: (recordId) => api.delete(`/records/${recordId}`),
+  // ✅ 슬래시 추가
+  deleteRecord: (recordId) => api.delete(`/records/${recordId}/`),
   
   // 통계 조회 (주간/월간/연간)
   getStatistics: (period = 'week') => {
     if (period === 'cumulative') {
-      return api.get('/records/statistics/cumulative');
+      // ✅ 슬래시 추가
+      return api.get('/records/statistics/cumulative/');
     }
     const queryParams = new URLSearchParams({ period });
-    return api.get(`/records/statistics/summary?${queryParams.toString()}`);
+    // ✅ 슬래시 추가
+    return api.get(`/records/statistics/summary/?${queryParams.toString()}`);
   },
 };
+
 export default api;
