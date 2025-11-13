@@ -16,8 +16,9 @@ function getApiBaseUrl() {
     return 'http://localhost:8000/api/v1';
   }
   
-  // 3. 배포 환경에서는 HTTPS 강제
+  // 3. 배포 환경에서는 HTTPS 강제 ⭐ 여기를 확인!
   return 'https://fitner-api-697550966480.asia-northeast3.run.app/api/v1';
+  //     ^^^^^^ http가 아니라 https여야 합니다!
 }
 
 const BASE_URL = getApiBaseUrl();
