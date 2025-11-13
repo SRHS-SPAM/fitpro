@@ -101,79 +101,91 @@ function OnboardingPage({ user, setUser }) {
     };
   }, []);
 
-  // 카메라 촬영 및 분석
-  const captureAndAnalyze = async () => {
-    setIsScanning(true);
-    setError('');
+// 카메라 촬영 및 분석
+const captureAndAnalyze = async () => {
+  setIsScanning(true);
+  setError('');
 
-    try {
-      const imageSrc = webcamRef.current.getScreenshot();
-      
-      if (!imageSrc) {
-        throw new Error('사진 촬영에 실패했습니다');
-      }
-
-      // 토큰 가져오기
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('로그인이 필요합니다');
-      }
-
-      // 올바른 엔드포인트로 요청
-      const response = await fetch('/api/v1/body-analysis/analyze', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ image_base64: imageSrc })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `분석 요청 실패 (${response.status})`);
-      }
-
-      const result = await response.json();
-      console.log('✅ AI 분석 결과:', result);
-      
-      // 에러가 있으면 표시
-      if (result.error) {
-        setError(result.error);
-      }
-      
-      setAnalysisResult(result);
-      
-      // confidence가 문자열이므로 변환
-      const confidenceMap = { high: 80, medium: 50, low: 30 };
-      const confidenceValue = confidenceMap[result.confidence] || 0;
-      
-      // AI 결과를 formData에 반영
-      setFormData(prev => ({
-        ...prev,
-        injured_parts: [...new Set([...prev.injured_parts, ...(result.injured_parts || [])])],
-        pain_level: prev.pain_level, // 백엔드에서 estimated_pain_level을 제공하지 않으므로 유지
-        limitations_detail: result.recommendations?.join(', ') || prev.limitations_detail
-      }));
-
-      setShowCamera(false);
-      
-      // 신뢰도가 낮으면 경고 표시
-      if (confidenceValue < 40) {
-        setError('분석 신뢰도가 낮습니다. 직접 입력하거나 다시 촬영해주세요.');
-      }
-      
-      setStep(1); // 바로 스텝 1로 이동
-      
-    } catch (err) {
-      console.error('❌ 분석 실패:', err);
-      setError(err.message || '신체 분석 중 오류가 발생했습니다. 직접 입력해주세요.');
-      setShowCamera(false);
-    } finally {
-      setIsScanning(false);
+  try {
+    const imageSrc = webcamRef.current.getScreenshot();
+    
+    if (!imageSrc) {
+      throw new Error('사진 촬영에 실패했습니다');
     }
-  };
 
+    console.log('🚀 AI 분석 요청 시작');
+
+    // ✅ api.js의 axios 인스턴스 사용 (baseURL이 자동으로 붙음)
+    const response = await api.post('/body-analysis/analyze', {
+      image_base64: imageSrc
+    });
+
+    console.log('✅ AI 분석 결과:', response.data);
+    
+    const result = response.data;
+    
+    // 에러가 있으면 표시
+    if (result.error) {
+      setError(result.error);
+    }
+    
+    setAnalysisResult(result);
+    
+    // confidence가 문자열이므로 변환
+    const confidenceMap = { high: 80, medium: 50, low: 30 };
+    const confidenceValue = confidenceMap[result.confidence] || 0;
+    
+    // AI 결과를 formData에 반영
+    setFormData(prev => ({
+      ...prev,
+      injured_parts: [...new Set([...prev.injured_parts, ...(result.injured_parts || [])])],
+      pain_level: prev.pain_level, // 백엔드에서 estimated_pain_level을 제공하지 않으므로 유지
+      limitations_detail: result.recommendations?.join(', ') || prev.limitations_detail
+    }));
+
+    setShowCamera(false);
+    
+    // 신뢰도가 낮으면 경고 표시
+    if (confidenceValue < 40) {
+      setError('분석 신뢰도가 낮습니다. 직접 입력하거나 다시 촬영해주세요.');
+    }
+    
+    setStep(1); // 바로 스텝 1로 이동
+    
+  } catch (err) {
+    console.error('❌ 분석 실패:', err);
+    
+    // axios 에러 처리
+    if (err.response) {
+      // 서버가 응답했지만 에러 상태
+      const status = err.response.status;
+      const message = err.response.data?.detail;
+      
+      if (status === 405) {
+        setError('AI 분석 기능이 현재 서버에서 비활성화되어 있습니다.\n직접 입력 방식을 이용해주세요.');
+      } else if (status === 404) {
+        setError('AI 분석 엔드포인트를 찾을 수 없습니다.\n백엔드 팀에 문의하세요.');
+      } else if (status === 401) {
+        setError('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        // 토큰 제거하고 로그인 페이지로 이동 (선택사항)
+        // localStorage.removeItem('access_token');
+        // navigate('/login');
+      } else {
+        setError(message || `분석 요청 실패 (${status})`);
+      }
+    } else if (err.request) {
+      // 요청은 보냈지만 응답이 없음
+      setError('서버 응답이 없습니다. 네트워크 연결을 확인해주세요.');
+    } else {
+      // 요청 생성 중 에러
+      setError(err.message || '신체 분석 중 오류가 발생했습니다. 직접 입력해주세요.');
+    }
+    
+    setShowCamera(false);
+  } finally {
+    setIsScanning(false);
+  }
+};
   const handlePartToggle = (part) => {
     setFormData(prev => ({
       ...prev,
