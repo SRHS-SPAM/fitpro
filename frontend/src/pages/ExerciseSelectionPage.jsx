@@ -102,7 +102,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   // --- 로딩 및 에러 화면 (기존과 동일) ---
   if (loading && !refreshing) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
+      <div className="min-h-screen bg-white text-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4 mx-auto"></div>
           <p className="text-white text-xl">AI가 맞춤 운동을 추천 중...</p>
@@ -113,7 +113,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white text-black flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-white text-2xl mb-2">운동 추천 실패</h2>
@@ -126,7 +126,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   // --- 로딩 및 에러 화면 끝 ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-3 pb-24">
+    <div className="min-h-screen bg-white text-black p-3 pb-24">
       <button 
         onClick={() => navigate('/')} 
         className="mb-3 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
@@ -148,7 +148,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${
               refreshing 
                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600  hover:bg-blue-700 text-white'
+                : 'bg-green-600  hover:bg-green-700 text-white'
             }`}
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
