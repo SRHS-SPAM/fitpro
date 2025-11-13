@@ -15,6 +15,10 @@ const ExercisePage = () => {
   const lastAnalysisTime = useRef(0);
   const canvasDimensions = useRef({ width: 640, height: 480 });
   const lastTimestampRef = useRef(-1);
+  
+  // ✅ 반복 카운팅을 위한 상태 추가
+  const lastRepScore = useRef(0);
+  const repCooldown = useRef(false);
 
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,7 +92,7 @@ const ExercisePage = () => {
     }
   }, [exerciseId]);
 
-  // ✅ 가이드 프레임 애니메이션
+  // 가이드 프레임 애니메이션
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) {
       return;
@@ -234,7 +238,7 @@ const ExercisePage = () => {
     }
   }, []);
 
-  // ✅ 스켈레톤 그리기
+  // 스켈레톤 그리기
   const drawSkeleton = useCallback((results) => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -253,17 +257,15 @@ const ExercisePage = () => {
 
     // 가이드 실루엣 그리기
     if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
-      console.log('🎨 가이드 그리기 - 현재 프레임:', guideFrame, '/', guidePoses.length);
       drawGuideSilhouette(guidePoses[guideFrame]);
     }
 
-    // ✅ 사용자 스켈레톤 그리기
+    // 사용자 스켈레톤 그리기
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
     if (poseLandmarks && poseLandmarks.length > 0) {
-      console.log('👤 사람 감지됨! 랜드마크 수:', poseLandmarks.length);
       setPoseDetected(true);
       
       const connections = [
@@ -312,20 +314,19 @@ const ExercisePage = () => {
         }
       });
     } else {
-      console.log('⚠️ 사람 감지 안됨');
       setPoseDetected(false);
     }
 
     ctx.restore();
   }, [showGuide, isCompleted, guidePoses, guideFrame, drawGuideSilhouette]);
 
-  // ✅ 자세 분석 결과
+  // ✅ 자세 분석 결과 (반복 카운팅 로직 수정)
   const onPoseResults = useCallback(async (results) => {
     const poseLandmarks = results.landmarks && results.landmarks.length > 0 
       ? results.landmarks[0] 
       : results.poseLandmarks;
 
-    // ✅ 항상 스켈레톤 그리기
+    // 항상 스켈레톤 그리기
     drawSkeleton(results);
 
     if (!poseLandmarks || isPaused || isCompleted) return;
@@ -352,41 +353,80 @@ const ExercisePage = () => {
         console.log('✅ API 응답:', response.data.score, response.data.feedback);
         
         setFeedback(response.data.feedback);
-        setScore(response.data.score);
-        setTotalScore(prev => [...prev, response.data.score]);
+        const currentScore = response.data.score;
+        setScore(currentScore);
+        setTotalScore(prev => [...prev, currentScore]);
         
+        // ✅ 백엔드에서 직접 카운팅한 경우 (백엔드 우선)
         if (response.data.new_rep_count !== undefined) {
           setCurrentRep(response.data.new_rep_count);
+          console.log('🔢 백엔드 카운팅:', response.data.new_rep_count);
         }
         
         if (response.data.new_set_count !== undefined) {
           setCurrentSet(response.data.new_set_count);
+          console.log('📦 백엔드 세트:', response.data.new_set_count);
         }
         
-        if (response.data.is_correct && response.data.new_rep_count === undefined) {
-          setCurrentRep(prevRep => {
-            const newRep = prevRep + 1;
-            console.log('✅ 정확한 자세! 반복:', newRep);
+        // ✅ 프론트엔드 반복 카운팅 로직 (개선됨)
+        // 조건: 백엔드가 카운팅하지 않았고, 자세가 정확하고, 쿨다운이 아닐 때
+        if (response.data.new_rep_count === undefined && !repCooldown.current) {
+          
+          // ✅ 점수 기반 동작 완료 감지
+          // 점수가 70 이상에서 50 이하로 떨어졌다가 다시 70 이상으로 올라오면 = 1회 완료
+          const scoreThresholdHigh = 70;
+          const scoreThresholdLow = 50;
+          
+          if (lastRepScore.current >= scoreThresholdHigh && currentScore < scoreThresholdLow) {
+            console.log('📉 동작 중간 (점수 하락):', currentScore);
+            lastRepScore.current = currentScore;
+          }
+          else if (lastRepScore.current < scoreThresholdLow && currentScore >= scoreThresholdHigh) {
+            // ✅ 동작 완료 감지!
+            console.log('✅ 동작 완료! (점수 상승):', lastRepScore.current, '→', currentScore);
             
-            if (newRep >= exercise.repetitions) {
-              setCurrentSet(prevSet => {
-                const newSet = prevSet + 1;
-                if (newSet > exercise.sets) {
-                  console.log('🎉 모든 세트 완료!');
-                  setIsCompleted(true);
-                  setFeedback('모든 세트 완료! 수고하셨습니다!');
-                  saveCompletion();
-                  return exercise.sets;
-                } else {
-                  console.log(`✅ ${prevSet}세트 완료!`);
-                  setFeedback(`${prevSet}세트 완료! 다음 세트를 시작하세요.`);
-                  return newSet;
-                }
-              });
-              return 0;
-            }
-            return newRep;
-          });
+            setCurrentRep(prevRep => {
+              const newRep = prevRep + 1;
+              console.log('🎯 반복 횟수:', prevRep, '→', newRep);
+              
+              // ✅ 한 세트 완료
+              if (newRep >= exercise.repetitions) {
+                setCurrentSet(prevSet => {
+                  const newSet = prevSet + 1;
+                  
+                  // ✅ 모든 세트 완료
+                  if (newSet > exercise.sets) {
+                    console.log('🎉 모든 세트 완료!');
+                    setIsCompleted(true);
+                    setFeedback('모든 세트 완료! 수고하셨습니다!');
+                    saveCompletion();
+                    return exercise.sets;
+                  } else {
+                    console.log(`✅ ${prevSet}세트 완료! 다음 세트 시작`);
+                    setFeedback(`${prevSet}세트 완료! 잠시 쉬었다가 다음 세트를 시작하세요.`);
+                    return newSet;
+                  }
+                });
+                return 0; // 반복 횟수 초기화
+              }
+              
+              setFeedback(`좋습니다! ${newRep}/${exercise.repetitions}회 완료`);
+              return newRep;
+            });
+            
+            // ✅ 중복 카운팅 방지 (3초 쿨다운)
+            repCooldown.current = true;
+            setTimeout(() => {
+              repCooldown.current = false;
+              console.log('⏰ 쿨다운 해제');
+            }, 3000);
+            
+            lastRepScore.current = currentScore;
+          }
+          else {
+            // 점수 업데이트만
+            lastRepScore.current = currentScore;
+          }
         }
 
       } catch (error) {
@@ -396,7 +436,7 @@ const ExercisePage = () => {
     }
   }, [isPaused, isCompleted, exercise, exerciseId, saveCompletion, drawSkeleton]);
 
-  // ✅ MediaPipe 초기화 및 프레임 처리 (핵심 수정!)
+  // MediaPipe 초기화 및 프레임 처리
   useEffect(() => {
     if (!exercise || !isStarted || isCompleted) return;
 
@@ -413,7 +453,7 @@ const ExercisePage = () => {
       try {
         console.log('🔄 MediaPipe 초기화 시작...');
         
-        // ✅ 기존 인스턴스 정리
+        // 기존 인스턴스 정리
         if (poseRef.current) {
           try {
             poseRef.current.close();
@@ -457,7 +497,7 @@ const ExercisePage = () => {
         setIsMediaPipeReady(true);
         setLoading(false);
         
-        // ✅ 비디오 준비 대기
+        // 비디오 준비 대기
         const video = webcamRef.current?.video;
         if (!video) {
           console.error('❌ Webcam video element not found');
@@ -478,9 +518,7 @@ const ExercisePage = () => {
         await waitForVideo();
         console.log('✅ Webcam video ready');
 
-        // ✅ Pose 감지 루프 시작
-        let startTime = performance.now();
-        
+        // Pose 감지 루프 시작
         const detectPose = async (now) => {
           if (!isMounted || !poseRef.current || isPaused || isCompleted) {
             return;
@@ -524,7 +562,7 @@ const ExercisePage = () => {
 
     initializePose();
 
-    // ✅ Cleanup 함수
+    // Cleanup 함수
     return () => {
       console.log('🧹 MediaPipe cleanup...');
       isMounted = false;
@@ -667,7 +705,6 @@ const ExercisePage = () => {
               height={canvasDimensions.current.height}
             />
             
-            {/* 사람 감지 상태 표시 */}
             <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
