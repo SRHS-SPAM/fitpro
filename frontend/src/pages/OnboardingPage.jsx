@@ -4,6 +4,7 @@ import { authAPI } from '../services/api';
 import { AlertCircle, ChevronLeft, Mic, MicOff, Camera, Loader2, CheckCircle } from 'lucide-react';
 import Webcam from 'react-webcam';
 import './OnboardingPage.css';
+import api from '../services/api'; 
 
 const BODY_PARTS = [
   '목', '어깨', '팔꿈치', '손목', '허리', '무릎', '발목', '기타'

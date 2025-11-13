@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, Loader2, AlertCircle } from 'lucide-react';
+import api from '../services/api'; // ⭐ 추가
 
 const BodyScanner = ({ onAnalysisComplete }) => {
   const webcamRef = useRef(null);
@@ -19,24 +20,42 @@ const BodyScanner = ({ onAnalysisComplete }) => {
         throw new Error('사진 촬영에 실패했습니다');
       }
 
-      const response = await fetch('/api/v1/analysis/body-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_base64: imageSrc })
+      console.log('🚀 신체 스캔 요청 시작');
+
+      // ✅ api.js의 axios 인스턴스 사용
+      const response = await api.post('/body-analysis/analyze', {
+        image_base64: imageSrc
       });
 
-      if (!response.ok) {
-        throw new Error('분석 요청 실패');
-      }
-
-      const result = await response.json();
+      console.log('✅ 분석 결과:', response.data);
       
       // 부모 컴포넌트로 결과 전달
-      onAnalysisComplete(result);
+      onAnalysisComplete(response.data);
       setShowCamera(false);
       
     } catch (err) {
-      setError(err.message);
+      console.error('❌ 분석 실패:', err);
+      
+      // axios 에러 처리
+      let errorMessage = '분석 중 오류가 발생했습니다';
+      
+      if (err.response) {
+        const status = err.response.status;
+        
+        if (status === 405) {
+          errorMessage = 'AI 분석 기능이 현재 비활성화되어 있습니다';
+        } else if (status === 404) {
+          errorMessage = '분석 엔드포인트를 찾을 수 없습니다';
+        } else if (status === 401) {
+          errorMessage = '로그인이 필요합니다';
+        } else {
+          errorMessage = err.response.data?.detail || errorMessage;
+        }
+      } else if (err.request) {
+        errorMessage = '서버 응답이 없습니다. 네트워크를 확인해주세요';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsScanning(false);
     }
