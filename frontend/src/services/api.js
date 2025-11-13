@@ -13,7 +13,7 @@ function getApiBaseUrl() {
                   window.location.hostname === '127.0.0.1';
   
   if (isLocal) {
-    return 'https://localhost:8000/api/v1';
+    return 'http://localhost:8000/api/v1';
   }
   
   // 3. 배포 환경에서는 HTTPS 강제
@@ -31,17 +31,40 @@ const api = axios.create({
   timeout: 100000,
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
+  // ⚠️ CRITICAL: axios가 URL을 변조하지 못하도록 강제
+  transformRequest: [(data, headers) => {
+    // baseURL이 https인지 강제 확인
+    if (BASE_URL.startsWith('https://')) {
+      headers['X-Forwarded-Proto'] = 'https';
+    }
+    return typeof data === 'string' ? data : JSON.stringify(data);
+  }],
 });
 
 // Request interceptor - 토큰 자동 추가
 api.interceptors.request.use(
   (config) => {
+    // 🔒 HTTPS 강제 적용 (axios 버그 우회)
+    if (config.baseURL?.startsWith('https://') && config.url) {
+      const fullUrl = new URL(config.url, config.baseURL);
+      if (fullUrl.protocol !== 'https:') {
+        fullUrl.protocol = 'https:';
+        config.url = fullUrl.toString().replace(config.baseURL, '');
+      }
+    }
+    
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('📤 API 요청:', config.method.toUpperCase(), config.baseURL + config.url);
+    
+    // 최종 URL 확인
+    const finalUrl = config.baseURL + config.url;
+    console.log('📤 API 요청:', config.method.toUpperCase(), finalUrl);
+    console.log('   🔍 config.baseURL:', config.baseURL);
+    console.log('   🔍 config.url:', config.url);
+    
     return config;
   },
   (error) => Promise.reject(error)
@@ -92,8 +115,8 @@ export const exerciseAPI = {
 
 // Records API
 export const recordsAPI = {
-  // 기록 목록 조회 (페이지네이션)
-  getRecords: (page = 1, limit = 10, params = {}) => {
+  // 기록 목록 조회 (페이지네이션) - fetch 사용으로 우회
+  getRecords: async (page = 1, limit = 10, params = {}) => {
     const queryParams = new URLSearchParams({
       page: String(page),
       limit: String(limit),
@@ -101,7 +124,29 @@ export const recordsAPI = {
         Object.entries(params).map(([k, v]) => [k, String(v)])
       )
     });
-    return api.get(`/records?${queryParams.toString()}`);
+    
+    const url = `${BASE_URL}/records?${queryParams.toString()}`;
+    console.log('🔧 Fetch 직접 호출:', url);
+    
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('access_token');
+        window.location.href = '/login';
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return { data }; // axios 응답 형식과 동일하게
   },
   
   // 특정 기록 상세 조회
