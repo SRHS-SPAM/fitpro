@@ -60,25 +60,25 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   );
 
   const fetchRecommendations = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const response = await api.get(
-      '/exercises/recommendations', 
-      { 
-        params: { limit: 4 }
-      }
-    );
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(
+        '/exercises/recommendations',
+        {
+          params: { limit: 4 }
+        }
+      );
 
-    setExercises(response.data.exercises || []);
-  } catch (err) {
-    console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
-    setError(err.response?.data?.detail || '운동 추천을 불러올 수 없습니다.');
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
+      setExercises(response.data.exercises || []);
+    } catch (err) {
+      console.error('추천 운동 불러오기 실패:', err.response?.data?.detail || err.message);
+      setError(err.response?.data?.detail || '운동 추천을 불러올 수 없습니다.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     fetchRecommendations();
@@ -90,7 +90,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   };
 
   const getIntensityColor = (intensity) => {
-    switch(intensity?.toLowerCase()) {
+    switch (intensity?.toLowerCase()) {
       case 'low': return 'bg-green-500';
       case 'medium': return 'bg-yellow-500';
       case 'high': return 'bg-red-500';
@@ -99,13 +99,14 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
     }
   };
 
-  // --- 로딩 및 에러 화면 (기존과 동일) ---
+  // --- 로딩 및 에러 화면 (기존 요청대로 유지) ---
   if (loading && !refreshing) {
     return (
       <div className="min-h-screen bg-white text-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4 mx-auto"></div>
-          <p className="text-white text-xl">AI가 맞춤 운동을 추천 중...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500 mb-4 mx-auto"></div>
+          {/* ⚠️ 텍스트 색상을 검은색 배경에 맞게 회색/파란색에서, 흰색 배경에 맞게 text-black으로 변경 */}
+          <p className="text-black text-xl">AI가 맞춤 운동을 추천 중...</p>
         </div>
       </div>
     );
@@ -116,9 +117,11 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
       <div className="min-h-screen bg-white text-black flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-white text-2xl mb-2">운동 추천 실패</h2>
-          <p className="text-gray-400 mb-6">{error}</p>
-          <button onClick={() => navigate('/')} className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg">홈으로 돌아가기</button>
+          {/* ⚠️ 텍스트 색상 변경 */}
+          <h2 className="text-black text-2xl mb-2">운동 추천 실패</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          {/* ⚠️ 버튼 색상 초록색으로 변경 */}
+          <button onClick={() => navigate('/')} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg">홈으로 돌아가기</button>
         </div>
       </div>
     );
@@ -126,29 +129,33 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
   // --- 로딩 및 에러 화면 끝 ---
 
   return (
+    // 1. 전체 배경: bg-white, text-black
     <div className="min-h-screen bg-white text-black p-3 pb-24">
-      <button 
-        onClick={() => navigate('/')} 
-        className="mb-3 flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm"
+      {/* 2. '나가기' 버튼: 어두운 배경에서 밝은 배경으로 변경 */}
+      <button
+        onClick={() => navigate('/')}
+        className="mb-3 flex items-center gap-2 bg-gray-200 text-black hover:bg-gray-300 px-4 py-2 rounded-lg transition"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
       </button>
 
       <div className="max-w-4xl mx-auto pt-2 pb-8">
-        <div className="items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3"> {/* justify-between을 위해 flex 추가 */}
           <div className="flex-1">
-            <h1 className="text-4xl font-bold mb-3">AI 맞춤 운동 추천</h1>
-            <p className="text-gray-400 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
+            {/* ⚠️ 텍스트 색상 변경: text-white -> text-black */}
+            <h1 className="text-4xl font-bold mb-3 text-black">AI 맞춤 운동 추천</h1>
+            <p className="text-gray-600 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
           </div>
-          
+
+          {/* 3. '다른 운동 추천받기' 버튼: 그대로 유지 (원래 초록색이었음) */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${
-              refreshing 
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
-                : 'bg-green-600  hover:bg-green-700 text-white'
+              refreshing
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' // 밝은 테마에 맞게 색상 변경
+                : 'bg-green-600 hover:bg-green-700 text-white'
             }`}
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -156,8 +163,8 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
           </button>
         </div>
       </div>
-      
-      <div className="max-w-6xl mx-auto grid grid-cols-2 gap-2">
+
+      <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4"> {/* col-2 -> col-1/2로 변경하여 반응형 적용 */}
         {exercises.map((exercise) => {
 
           console.log('추천된 운동 객체:', exercise);
@@ -165,78 +172,76 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
 
           // 2. isSaved 계산
           const isSaved = savedExerciseIds.has(exercise.exercise_id);
-          
+
           // 3. ✅✅✅ 바로 이 부분입니다! ✅✅✅
           // exercise.target_parts가 정확히 전달되는지 확인
           const imageUrl = getRehabImage(exercise.target_parts);
 
           return (
-            <div key={exercise.exercise_id} className="bg-gray-800 rounded-xl p-2 border-2 border-transparent hover:border-blue-500 transition-colors duration-200">
-              
+            // 4. 카드 배경: bg-gray-800 -> bg-gray-100
+            <div key={exercise.exercise_id} className="bg-gray-100 rounded-xl p-4 border border-gray-200 hover:border-green-500 transition-colors duration-200">
 
               <div className="mb-4">
-                  {imageUrl && (
-                    <img 
-                      src={imageUrl} 
-                      alt="재활 부위"
-                      className="w-full h-28 object-cover rounded-lg flex-shrink-0 bg-gray-700 mb-2"
-                    />
-                  )}
-                
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt="재활 부위"
+                    // 이미지 배경: bg-gray-700 -> bg-white
+                    className="w-full h-36 object-cover rounded-lg flex-shrink-0 bg-white mb-3"
+                  />
+                )}
+
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-2">{exercise.name}</h3>
-                  <p className="text-gray-400 text-sm mb-3">{exercise.description}</p>
+                  {/* ⚠️ 텍스트 색상 변경 */}
+                  <h3 className="text-xl font-bold mb-2 text-black">{exercise.name}</h3>
+                  <p className="text-gray-600 text-sm mb-3">{exercise.description}</p>
                 </div>
               </div>
-              
-              <div className="flex flex-col gap-2 mb-4">
-                <div className="bg-gray-900 rounded-lg p-3">
+
+              {/* 5. 정보 카드 배경: bg-gray-900 -> bg-white + border */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {/* 시간 정보 */}
+                <div className="bg-white rounded-lg p-3 border border-gray-300">
                   <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-xs text-gray-400">시간</span>
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs text-gray-500">시간</span>
                   </div>
-                  <p className="text-lg font-semibold">{exercise.duration_minutes}분</p>
+                  {/* ⚠️ 텍스트 색상 변경 */}
+                  <p className="text-lg font-semibold text-black">{exercise.duration_minutes}분</p>
                 </div>
-                <div className="bg-gray-900 rounded-lg p-3">
+                {/* 강도 정보 */}
+                <div className="bg-white rounded-lg p-3 border border-gray-300">
                   <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-gray-400" />
-                    <span className="text-xs text-gray-400">강도</span>
+                    <Zap className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs text-gray-500">강도</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${getIntensityColor(exercise.intensity)}`}></span>
-                    <p className="text-lg font-semibold capitalize">{exercise.intensity}</p>
+                    {/* ⚠️ 텍스트 색상 변경 */}
+                    <p className="text-lg font-semibold capitalize text-black">{exercise.intensity}</p>
                   </div>
                 </div>
-                {/* <div className="bg-gray-900 rounded-lg p-3">
-                  <span className="text-xs text-gray-400 block mb-1">세트 × 반복</span>
-                  <p className="text-lg font-semibold">{exercise.sets} × {exercise.repetitions}</p>
-                </div> */}
               </div>
-              
-              {/* {exercise.recommendation_reason && (
-                <div className="bg-blue-900 bg-opacity-30 border border-blue-500 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-blue-200">
-                    <span className="font-semibold">💡 추천 이유:</span> {exercise.recommendation_reason}
-                  </p>
-                </div>
-              )} */}
-              
-              <div className="mt-4 grid grid-rows-2 gap-2">
+
+              {/* 6. 버튼 영역 스타일 변경 */}
+              <div className="mt-4 grid grid-cols-2 gap-2"> {/* grid-rows-2 -> grid-cols-2로 변경하여 버튼 가로 배열 */}
+                {/* '저장' 버튼: 배경색 및 텍스트 색상 변경 */}
                 <button
                   onClick={() => addMyExercise(exercise)}
                   disabled={isSaved}
                   className={`w-full flex items-center justify-center p-3 rounded-lg font-medium transition ${
-                    isSaved 
-                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
-                      : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
+                    isSaved
+                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed' // 저장됨 상태 색상 변경
+                      : 'bg-gray-300 text-black hover:bg-gray-400' // 일반 상태 색상 변경
+                    }`}
                 >
                   {isSaved ? <CheckCircle className="w-5 h-5 mr-2" /> : <PlusCircle className="w-5 h-5 mr-2" />}
                   {isSaved ? '저장됨' : '저장'}
                 </button>
-                <button 
-                  onClick={() => navigate(`/exercise/${exercise.exercise_id}`)} 
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-semibold transition"
+                {/* '바로 시작' 버튼: 파란색 -> 초록색으로 변경 */}
+                <button
+                  onClick={() => navigate(`/exercise/${exercise.exercise_id}`)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-semibold transition"
                 >
                   바로 시작 →
                 </button>
@@ -245,13 +250,13 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
           );
         })}
       </div>
-      
+
       {exercises.length === 0 && !loading && (
         <div className="text-center py-12">
-          <p className="text-gray-400 text-lg">추천할 운동이 없습니다.</p>
-          <button 
-            onClick={() => navigate('/')} 
-            className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg"
+          <p className="text-gray-500 text-lg">추천할 운동이 없습니다.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
           >
             홈으로 돌아가기
           </button>
