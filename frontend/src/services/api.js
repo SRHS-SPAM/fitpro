@@ -1,9 +1,17 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// 🔒 환경 변수에서 베이스 URL 가져오기
+const API_DOMAIN = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+let BASE_URL = API_DOMAIN.endsWith('/api/v1') ? API_DOMAIN : `${API_DOMAIN}/api/v1`;
+
+// 배포 환경에서 http를 https로 자동 변환
+if (window.location.protocol === 'https:' && BASE_URL.startsWith('http://')) {
+  BASE_URL = BASE_URL.replace('http://', 'https://');
+  console.log('🔒 API URL을 HTTPS로 변환:', BASE_URL);
+}
 
 const api = axios.create({
-  baseURL: BASE_URL, // ⬅️ 이제 동적으로 URL이 설정됩니다!
+  baseURL: BASE_URL,
   timeout: 100000,
   headers: {
     'Content-Type': 'application/json',
