@@ -115,6 +115,9 @@ export const exerciseAPI = {
 
 // Records API
 export const recordsAPI = {
+  // ✅ 새로 추가 - 맨 위에 추가하세요
+  createRecord: (recordData) => api.post('/records', recordData),
+  
   // 기록 목록 조회 (페이지네이션) - fetch 사용으로 우회
   getRecords: async (page = 1, limit = 10, params = {}) => {
     const queryParams = new URLSearchParams({
@@ -164,5 +167,4 @@ export const recordsAPI = {
     return api.get(`/records/statistics/summary?${queryParams.toString()}`);
   },
 };
-
 export default api;
