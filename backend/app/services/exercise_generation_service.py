@@ -1630,7 +1630,7 @@ def generate_silhouette_from_guide_poses(
 ) -> Dict:
     """
     guide_poses를 기반으로 silhouette_animation의 keyframes 생성
-    ✅ 수정: 프레임 수 제한 (최대 20개)
+    ✅ 수정: 단순 반복 구조로 변경, 2초 고정 간격
     """
     print(f"\n{'='*60}")
     print(f"🎬 generate_silhouette_from_guide_poses 호출")
@@ -1646,61 +1646,50 @@ def generate_silhouette_from_guide_poses(
         print(f"⚠️ guide_poses가 {len(guide_poses)}개뿐! 최소 2개 필요. 기본 포즈 추가")
         guide_poses = get_default_guide_poses_with_animation()
     
-    # ✅ 프레임 수 제한: 최대 20개
-    MAX_TOTAL_FRAMES = 20
-    
-    speed_multiplier = get_speed_multiplier(intensity)
-    base_cycle_time = 4.0 * speed_multiplier
-    
-    # ✅ 프레임당 시간 계산
-    time_per_frame = (duration_seconds * 1000) / MAX_TOTAL_FRAMES
-    
-    # ✅ 반복할 사이클 수 계산
-    frames_per_cycle = len(guide_poses)
-    total_cycles = min(10, max(1, MAX_TOTAL_FRAMES // frames_per_cycle))
-    
-    print(f"  - 사이클당 시간: {base_cycle_time:.2f}초")
-    print(f"  - 총 사이클: {total_cycles}회")
-    print(f"  - 프레임당 시간: {time_per_frame:.0f}ms")
-    print(f"  - 예상 총 프레임: {min(total_cycles * frames_per_cycle, MAX_TOTAL_FRAMES)}")
+    # ✅ 프레임당 2초 고정 (intensity 무시)
+    frame_duration_ms = 2000
     
     keyframes = []
     current_time = 0
     
-    for cycle in range(total_cycles):
+    # ✅ duration_seconds 동안 반복
+    total_frames_needed = (duration_seconds * 1000) // frame_duration_ms
+    cycles_needed = (total_frames_needed // len(guide_poses)) + 1
+    
+    print(f"  - 필요한 총 프레임: {total_frames_needed}")
+    print(f"  - 필요한 사이클: {cycles_needed}")
+    print(f"  - 프레임당 간격: {frame_duration_ms}ms (2초)")
+    
+    for cycle in range(int(cycles_needed)):
         for i, guide_pose in enumerate(guide_poses):
+            # 시간 초과하면 중단
+            if current_time >= duration_seconds * 1000:
+                break
+                
             landmarks = convert_guide_pose_to_landmarks(guide_pose)
             
             keyframe = {
                 "timestamp_ms": int(current_time),
                 "pose_landmarks": landmarks,
-                "description": f"사이클 {cycle+1}/{total_cycles} - 프레임 {i+1}/{len(guide_poses)}"
+                "description": f"사이클 {cycle+1} - 프레임 {i+1}/{len(guide_poses)}"
             }
             keyframes.append(keyframe)
-            current_time += time_per_frame
+            current_time += frame_duration_ms
             
-            # ✅ 최대 프레임 수 제한
-            if len(keyframes) >= MAX_TOTAL_FRAMES:
-                break
+            print(f"    키프레임 생성: {len(keyframes)}번째, 시간={current_time}ms")
         
-        if len(keyframes) >= MAX_TOTAL_FRAMES:
+        if current_time >= duration_seconds * 1000:
             break
     
-    # 마지막 프레임 추가
-    if guide_poses and len(keyframes) < MAX_TOTAL_FRAMES:
-        keyframes.append({
-            "timestamp_ms": int(current_time),
-            "pose_landmarks": convert_guide_pose_to_landmarks(guide_poses[0]),
-            "description": "종료 (시작 자세로)"
-        })
-    
     print(f"✅ 총 {len(keyframes)}개 키프레임 생성 완료")
+    print(f"✅ 총 소요 시간: {current_time}ms ({current_time/1000:.1f}초)")
     print(f"{'='*60}\n")
     
     return {
         "fps": 30,
         "keyframes": keyframes
     }
+
 async def generate_guide_poses(exercise_name: str) -> List[Dict[str, Dict[str, float]]]:
     """
     운동 이름 기반 가이드 포즈 생성

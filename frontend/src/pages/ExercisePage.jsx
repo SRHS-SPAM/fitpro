@@ -33,7 +33,7 @@ const ExercisePage = () => {
   const [guidePoses, setGuidePoses] = useState([]);
   const [completionFeedback, setCompletionFeedback] = useState(null);
   const [isMediaPipeReady, setIsMediaPipeReady] = useState(false);
-  const [poseDetected, setPoseDetected] = useState(false); // ✅ 사람 감지 상태
+  const [poseDetected, setPoseDetected] = useState(false);
 
   // 운동 정보 불러오기
   useEffect(() => {
@@ -89,7 +89,7 @@ const ExercisePage = () => {
     }
   }, [exerciseId]);
 
-  // ✅ 가이드 프레임 애니메이션 (timeRemaining 제거!)
+  // ✅ 가이드 프레임 애니메이션 (수정됨!)
   useEffect(() => {
     if (!isStarted || isPaused || !showGuide || isCompleted || guidePoses.length === 0) {
       return;
@@ -97,14 +97,14 @@ const ExercisePage = () => {
 
     console.log('🎬 가이드 애니메이션 시작:', guidePoses.length, '프레임');
     
-    // ✅ 고정된 간격 사용 (2초)
+    // ✅ 2초마다 프레임 전환 (duration과 무관하게 고정)
     const frameInterval = 2000;
     console.log(`⏱️ 프레임 전환 간격: ${frameInterval}ms`);
     
     const interval = setInterval(() => {
       setGuideFrame(prev => {
         const nextFrame = (prev + 1) % guidePoses.length;
-        console.log('🔄 프레임:', nextFrame);
+        console.log('🔄 프레임 전환:', prev, '→', nextFrame);
         return nextFrame;
       });
     }, frameInterval);
@@ -113,7 +113,7 @@ const ExercisePage = () => {
       console.log('⏹️ 가이드 애니메이션 정지');
       clearInterval(interval);
     };
-  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses]); // ✅ timeRemaining 제거!
+  }, [isStarted, isPaused, showGuide, isCompleted, guidePoses.length]); // ✅ guidePoses.length만 체크
 
   // 완료 데이터 저장
   const saveCompletion = useCallback(async () => {
@@ -236,7 +236,7 @@ const ExercisePage = () => {
     }
   }, []);
 
-  // ✅ 스켈레톤 그리기 (디버깅 강화)
+  // ✅ 스켈레톤 그리기
   const drawSkeleton = useCallback((results) => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -253,8 +253,9 @@ const ExercisePage = () => {
     ctx.scale(-1, 1);
     ctx.translate(-width, 0);
 
-    // 가이드 실루엣 그리기
+    // ✅ 가이드 실루엣 그리기 (디버깅 로그 추가)
     if (showGuide && !isCompleted && guidePoses.length > 0 && guideFrame < guidePoses.length && guidePoses[guideFrame]) {
+      console.log('🎨 가이드 그리기 - 현재 프레임:', guideFrame, '/', guidePoses.length);
       drawGuideSilhouette(guidePoses[guideFrame]);
     }
 
@@ -275,7 +276,7 @@ const ExercisePage = () => {
         [24, 26], [26, 28], [28, 32]
       ];
       
-      // ✅ 연결선 그리기 (밝은 초록색)
+      // 연결선 그리기 (밝은 초록색)
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 4;
       connections.forEach(([start, end]) => {
@@ -289,7 +290,7 @@ const ExercisePage = () => {
         }
       });
       
-      // ✅ 주요 관절 점 (큰 빨간 원)
+      // 주요 관절 점 (큰 빨간 원)
       const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
       ctx.fillStyle = '#ff0000';
       keyJoints.forEach((idx) => {
@@ -301,7 +302,7 @@ const ExercisePage = () => {
         }
       });
       
-      // ✅ 손가락/발가락 끝 (노란 원)
+      // 손가락/발가락 끝 (노란 원)
       const fingerTips = [19, 20, 31, 32];
       ctx.fillStyle = '#ffff00';
       fingerTips.forEach((idx) => {
@@ -426,7 +427,7 @@ const ExercisePage = () => {
             },
             runningMode: "VIDEO",
             numPoses: 1,
-            minPoseDetectionConfidence: 0.3,  // ✅ 낮춰서 어두운 환경에서도 감지
+            minPoseDetectionConfidence: 0.3,
             minPosePresenceConfidence: 0.3,
             minTrackingConfidence: 0.3
           }
