@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { AlertCircle, ChevronLeft, Mic, MicOff } from 'lucide-react';
+import { AlertCircle, ChevronLeft, Mic, MicOff, Camera, Loader2, CheckCircle } from 'lucide-react';
+import Webcam from 'react-webcam';
 import './OnboardingPage.css';
 
 const BODY_PARTS = [
@@ -10,9 +11,15 @@ const BODY_PARTS = [
 
 function OnboardingPage({ user, setUser }) {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // 0: 초기 선택, 1~3: 기존 스텝
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 카메라 스캔 상태
+  const [showCamera, setShowCamera] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const webcamRef = useRef(null);
 
   // 음성인식 상태
   const [isRecording1, setIsRecording1] = useState(false);
@@ -94,6 +101,50 @@ function OnboardingPage({ user, setUser }) {
     };
   }, []);
 
+  // 카메라 촬영 및 분석
+  const captureAndAnalyze = async () => {
+    setIsScanning(true);
+    setError('');
+
+    try {
+      const imageSrc = webcamRef.current.getScreenshot();
+      
+      if (!imageSrc) {
+        throw new Error('사진 촬영에 실패했습니다');
+      }
+
+      const response = await fetch('/api/v1/analysis/body-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64: imageSrc })
+      });
+
+      if (!response.ok) {
+        throw new Error('분석 요청 실패');
+      }
+
+      const result = await response.json();
+      setAnalysisResult(result);
+      
+      // AI 결과를 formData에 반영
+      setFormData(prev => ({
+        ...prev,
+        injured_parts: [...new Set([...prev.injured_parts, ...(result.injured_parts || [])])],
+        pain_level: result.estimated_pain_level || prev.pain_level,
+        limitations: result.suggestions || prev.limitations
+      }));
+
+      setShowCamera(false);
+      setStep(1); // 바로 스텝 1로 이동
+      
+    } catch (err) {
+      console.error('분석 실패:', err);
+      setError(err.message || '신체 분석 중 오류가 발생했습니다.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handlePartToggle = (part) => {
     setFormData(prev => ({
       ...prev,
@@ -103,7 +154,6 @@ function OnboardingPage({ user, setUser }) {
     }));
   };
 
-  //입력창 음성인식１、２
   const toggleRecording1 = () => {
     if (!recognitionRef1.current) {
       setError('이 브라우저는 음성인식을 지원하지 않습니다.');
@@ -114,7 +164,6 @@ function OnboardingPage({ user, setUser }) {
       recognitionRef1.current.stop();
       setIsRecording1(false);
       setVoiceGuide1('');
-      // 중지할 때 인식된 텍스트를 textarea에 반영
       if (liveTranscript1.trim()) {
         setFormData(prev => ({
           ...prev,
@@ -146,7 +195,6 @@ function OnboardingPage({ user, setUser }) {
       recognitionRef2.current.stop();
       setIsRecording2(false);
       setVoiceGuide2('');
-      // 중지할 때 인식된 텍스트를 textarea에 반영
       if (liveTranscript2.trim()) {
         setFormData(prev => ({
           ...prev,
@@ -170,7 +218,7 @@ function OnboardingPage({ user, setUser }) {
 
   const parseTextToArray = (text) => {
     if (!text || text.trim() === '') return [];
-      return text
+    return text
       .split(/[,.\n;]+/)
       .map(item => item.trim())
       .filter(item => item.length > 0);
@@ -184,13 +232,11 @@ function OnboardingPage({ user, setUser }) {
       const detailParts = parseTextToArray(formData.injured_parts_detail);
       const detailLimitations = parseTextToArray(formData.limitations_detail);
 
-      // 버튼으로 선택한 부위 + 직접 입력한 부위 합치기
       const allInjuredParts = [
         ...formData.injured_parts,
         ...detailParts
       ];
 
-      // 중복 제거
       const uniqueInjuredParts = [...new Set(allInjuredParts)];
       const uniqueLimitations = [...new Set(detailLimitations)];
 
@@ -200,7 +246,7 @@ function OnboardingPage({ user, setUser }) {
         limitations: uniqueLimitations
       };
 
-      console.log('🚀 전송할 데이터:', dataToSend); // 디버깅용
+      console.log('🚀 전송할 데이터:', dataToSend);
 
       const response = await authAPI.updateBodyCondition(dataToSend);
       setUser({ ...user, body_condition: response.data.body_condition });
@@ -238,14 +284,197 @@ function OnboardingPage({ user, setUser }) {
         )}
 
         <div className="onboarding-card">
+          {/* Step 0: 초기 선택 화면 */}
+          {step === 0 && (
+            <div>
+              <h2 className="onboarding-title">
+                신체 상태를 입력해주세요
+              </h2>
+              <p className="onboarding-subtitle" style={{ marginBottom: '24px' }}>
+                재활 운동 맞춤화를 위해 현재 상태를 알려주세요
+              </p>
+
+              {/* AI 분석 결과 표시 */}
+              {analysisResult && analysisResult.confidence > 0 && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <CheckCircle size={20} style={{ color: '#2563eb', marginTop: '2px', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: '600', color: '#1e3a8a', marginBottom: '4px' }}>
+                        AI 분석 완료 (신뢰도: {analysisResult.confidence}%)
+                      </p>
+                      {analysisResult.detected_issues.length > 0 && (
+                        <p style={{ fontSize: '14px', color: '#1e40af' }}>
+                          감지: {analysisResult.detected_issues.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!showCamera ? (
+                <>
+                  {/* 자동 분석 버튼 */}
+                  <button
+                    onClick={() => setShowCamera(true)}
+                    className="onboarding-next-button"
+                    style={{ marginBottom: '16px' }}
+                  >
+                    <Camera size={20} style={{ marginRight: '8px' }} />
+                    카메라로 자동 분석하기
+                  </button>
+
+                  {/* 구분선 */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    margin: '20px 0'
+                  }}>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }} />
+                    <span style={{ color: '#6b7280', fontSize: '14px' }}>또는</span>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }} />
+                  </div>
+
+                  {/* 수동 입력 버튼 */}
+                  <button
+                    onClick={() => setStep(1)}
+                    className="onboarding-prev-button"
+                    style={{ width: '100%', border: '2px solid #e5e7eb' }}
+                  >
+                    직접 입력하기
+                  </button>
+
+                  {/* 안내 문구 */}
+                  <div style={{
+                    marginTop: '24px',
+                    padding: '16px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#4b5563'
+                  }}>
+                    <p style={{ fontWeight: '600', marginBottom: '8px' }}>💡 촬영 팁:</p>
+                    <ul style={{ listStyle: 'disc', paddingLeft: '20px', margin: 0 }}>
+                      <li>밝은 조명에서 촬영하세요</li>
+                      <li>전신이 화면에 들어오도록 하세요</li>
+                      <li>보조기구가 있다면 함께 보이게 하세요</li>
+                      <li>부정확할 수 있으니 결과를 확인 후 수정하세요</li>
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* 카메라 뷰 */}
+                  <div style={{
+                    position: 'relative',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    backgroundColor: '#000',
+                    marginBottom: '16px'
+                  }}>
+                    <Webcam
+                      ref={webcamRef}
+                      audio={false}
+                      screenshotFormat="image/jpeg"
+                      videoConstraints={{
+                        facingMode: 'user',
+                        width: 720,
+                        height: 1280
+                      }}
+                      style={{ width: '100%', display: 'block' }}
+                    />
+                    
+                    {/* 가이드 오버레이 */}
+                    <div style={{
+                      position: 'absolute',
+                      inset: '32px',
+                      border: '2px solid rgba(255,255,255,0.5)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pointerEvents: 'none'
+                    }}>
+                      <div style={{
+                        color: 'white',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        padding: '8px 16px',
+                        borderRadius: '8px'
+                      }}>
+                        <p style={{ fontSize: '14px', margin: 0 }}>전신이 보이도록</p>
+                        <p style={{ fontSize: '14px', margin: 0 }}>프레임 안에 서주세요</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={captureAndAnalyze}
+                      disabled={isScanning}
+                      className="onboarding-next-button"
+                      style={{ flex: 1, backgroundColor: '#10b981' }}
+                    >
+                      {isScanning ? (
+                        <>
+                          <Loader2 size={20} style={{ marginRight: '8px' }} className="spinning" />
+                          분석 중...
+                        </>
+                      ) : (
+                        '사진 촬영 및 분석'
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowCamera(false)}
+                      disabled={isScanning}
+                      className="onboarding-prev-button"
+                      style={{ padding: '0 16px' }}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Step 1: 불편 부위 입력 */}
           {step === 1 && (
             <div>
               <h2 className="onboarding-title">
                 현재 치료 중이신 병명이나<br />불편한 부위를 입력해주세요
               </h2>
+              
+              {/* AI 분석 결과가 있으면 표시 */}
+              {analysisResult && analysisResult.confidence > 30 && (
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: '#eff6ff',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  fontSize: '13px',
+                  color: '#1e40af'
+                }}>
+                  ✓ AI가 감지한 부위가 자동으로 선택되었습니다. 수정하거나 추가할 수 있습니다.
+                </div>
+              )}
+
               <div className="onboarding-parts-grid">
                 {BODY_PARTS.map(part => (
-                  <button key={part} onClick={() => handlePartToggle(part)} className={`onboarding-part-button ${formData.injured_parts.includes(part) ? 'active' : ''}`}>
+                  <button 
+                    key={part} 
+                    onClick={() => handlePartToggle(part)} 
+                    className={`onboarding-part-button ${formData.injured_parts.includes(part) ? 'active' : ''}`}
+                  >
                     {part}
                   </button>
                 ))}
@@ -279,12 +508,26 @@ function OnboardingPage({ user, setUser }) {
                   ))}
                 </div>
               )}
-              <button onClick={() => setStep(2)} className="onboarding-next-button">
-                다음
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setStep(0)} 
+                  className="onboarding-prev-button"
+                  style={{ width: '80px' }}
+                >
+                  이전
+                </button>
+                <button 
+                  onClick={() => setStep(2)} 
+                  className="onboarding-next-button"
+                  style={{ flex: 1 }}
+                >
+                  다음
+                </button>
+              </div>
             </div>
           )}
 
+          {/* Step 2: 통증 수준 */}
           {step === 2 && (
             <div>
               <h2 className="onboarding-title">
@@ -319,6 +562,7 @@ function OnboardingPage({ user, setUser }) {
             </div>
           )}
 
+          {/* Step 3: 동작 제한 */}
           {step === 3 && (
             <div>
               <h2 className="onboarding-title">
@@ -377,7 +621,6 @@ function OnboardingPage({ user, setUser }) {
             <h3 className="voice-modal-title">음성 인식 중...</h3>
             <p className="voice-modal-message">{voiceGuide1 || voiceGuide2}</p>
             
-            {/* 실시간 인식 텍스트 표시 - 편집 가능 */}
             <textarea
               className="voice-modal-transcript-editable"
               value={isRecording1 ? liveTranscript1 : liveTranscript2}

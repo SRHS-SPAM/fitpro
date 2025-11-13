@@ -1,14 +1,30 @@
 import axios from 'axios';
 
-// 🔒 환경 변수에서 베이스 URL 가져오기
-const API_DOMAIN = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-let BASE_URL = API_DOMAIN.endsWith('/api/v1') ? API_DOMAIN : `${API_DOMAIN}/api/v1`;
-
-// 배포 환경에서 http를 https로 자동 변환
-if (window.location.protocol === 'https:' && BASE_URL.startsWith('http://')) {
-  BASE_URL = BASE_URL.replace('http://', 'https://');
-  console.log('🔒 API URL을 HTTPS로 변환:', BASE_URL);
+// 🔒 런타임 환경에 따라 API URL 자동 설정
+function getApiBaseUrl() {
+  // 1. 환경 변수가 있으면 사용
+  if (import.meta.env.VITE_API_BASE_URL) {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    return envUrl.endsWith('/api/v1') ? envUrl : `${envUrl}/api/v1`;
+  }
+  
+  // 2. 환경 변수가 없으면 호스트명으로 판단
+  const isLocal = window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1';
+  
+  if (isLocal) {
+    return 'http://localhost:8000/api/v1';
+  }
+  
+  // 3. 배포 환경에서는 HTTPS 강제
+  return 'https://fitner-api-697550966480.asia-northeast3.run.app/api/v1';
 }
+
+const BASE_URL = getApiBaseUrl();
+
+console.log('🌍 현재 사용 중인 API URL:', BASE_URL);
+console.log('📍 현재 호스트:', window.location.hostname);
+console.log('🔐 프로토콜:', window.location.protocol);
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -25,6 +41,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('📤 API 요청:', config.method.toUpperCase(), config.baseURL + config.url);
     return config;
   },
   (error) => Promise.reject(error)
@@ -32,8 +49,12 @@ api.interceptors.request.use(
 
 // Response interceptor - 에러 처리
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API 응답:', response.config.url, response.status);
+    return response;
+  },
   (error) => {
+    console.error('❌ API 에러:', error.config?.url, error.message);
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
       window.location.href = '/login';

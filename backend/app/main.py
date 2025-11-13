@@ -10,7 +10,7 @@ from app.database import connect_to_mongodb, close_mongodb_connection
 from app.config import settings
 
 # ⭐ [수정됨] 라우터들을 한 번에 import하여 코드를 정리합니다.
-from app.routers import auth, users, exercises, records
+from app.routers import auth, users, exercises, records, analysis
 
 # 로깅 설정
 logging.basicConfig(
@@ -133,6 +133,7 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(exercises.router, prefix="/api/v1")
 # ⭐ [추가됨] records 라우터를 등록하여 /api/v1/records 경로를 활성화합니다.
 app.include_router(records.router, prefix="/api/v1")
+app.include_router(analysis.router, prefix="/api/v1") 
 
 
 # 개발 환경에서 직접 실행 시 사용 (프로덕션에서는 Gunicorn/Uvicorn 사용)
