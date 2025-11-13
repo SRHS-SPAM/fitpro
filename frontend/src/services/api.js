@@ -93,14 +93,16 @@ export const exerciseAPI = {
 // Records API
 export const recordsAPI = {
   // 기록 목록 조회 (페이지네이션)
-  getRecords: (page = 1, limit = 10, params = {}) => 
-    api.get('/records', { 
-      params: { 
-        page, 
-        limit,
-        ...params
-      } 
-    }),
+  getRecords: (page = 1, limit = 10, params = {}) => {
+    const queryParams = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...Object.fromEntries(
+        Object.entries(params).map(([k, v]) => [k, String(v)])
+      )
+    });
+    return api.get(`/records?${queryParams.toString()}`);
+  },
   
   // 특정 기록 상세 조회
   getRecord: (recordId) => api.get(`/records/${recordId}`),
@@ -113,9 +115,8 @@ export const recordsAPI = {
     if (period === 'cumulative') {
       return api.get('/records/statistics/cumulative');
     }
-    return api.get('/records/statistics/summary', { 
-      params: { period }
-    });
+    const queryParams = new URLSearchParams({ period });
+    return api.get(`/records/statistics/summary?${queryParams.toString()}`);
   },
 };
 
