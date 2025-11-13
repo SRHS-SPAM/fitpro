@@ -512,11 +512,11 @@ const ExercisePage = () => {
           console.log('🏃 동적 운동 모드 - 현재 점수:', currentScore);
           
           if (response.data.new_rep_count === undefined && !repCooldown.current) {
-            // ✅ 임계값
-            const GOOD_POSE = 60;  // 좋은 자세
-            const BAD_POSE = 45;   // 나쁜 자세 (동작 중)
+            // ✅ 완화된 임계값 (더 쉽게 카운팅)
+            const GOOD_POSE = 50;  // 60 → 55 (5점 낮춤)
+            const TRANSITION_ZONE = 50; // 전환 구간 추가
             
-            console.log(`📊 [점수] 현재: ${currentScore.toFixed(1)} | 기준: ${GOOD_POSE}/${BAD_POSE} | 동작 중: ${isInDownPhase.current}`);
+            console.log(`📊 [점수] 현재: ${currentScore.toFixed(1)} | 기준: ${GOOD_POSE} | 동작 중: ${isInDownPhase.current}`);
             
             // ✅ 초기값 처리
             if (lastRepScore.current === 0) {
@@ -526,7 +526,7 @@ const ExercisePage = () => {
               return;
             }
             
-            // ✅ 상태 머신 (3단계)
+            // ✅ 상태 머신 (완화된 버전)
             
             // 1️⃣ 좋은 자세에서 점수가 떨어지기 시작 → 동작 시작
             if (!isInDownPhase.current && currentScore < GOOD_POSE) {
@@ -534,12 +534,13 @@ const ExercisePage = () => {
               isInDownPhase.current = true; // 플래그 ON
             }
             
-            // 2️⃣ 동작 중 상태에서 나쁜 자세 도달
-            if (isInDownPhase.current && currentScore < BAD_POSE) {
-              console.log('💪 [진행] 동작 진행 중 (나쁜 자세):', currentScore.toFixed(1));
+            // 2️⃣ 동작 중 상태에서 점수 추적
+            if (isInDownPhase.current && currentScore < TRANSITION_ZONE) {
+              console.log('💪 [진행] 동작 진행 중:', currentScore.toFixed(1));
             }
             
             // 3️⃣ 동작 중 상태에서 다시 좋은 자세로 복귀 → 동작 완료! ⭐
+            // ✅ 완화: GOOD_POSE(55) 이상이면 카운팅 (이전: 60)
             if (isInDownPhase.current && currentScore >= GOOD_POSE) {
               console.log('✅ [완료] 동작 완료! 좋은 자세 복귀:', currentScore.toFixed(1));
               console.log('🎯 ===== 반복 카운팅! =====');
@@ -574,12 +575,12 @@ const ExercisePage = () => {
                 return newRep;
               });
               
-              // 1.5초 쿨다운
+              // ✅ 쿨다운 단축: 1초 (이전: 1.5초)
               repCooldown.current = true;
               setTimeout(() => {
                 repCooldown.current = false;
                 console.log('⏰ 쿨다운 해제');
-              }, 1500);
+              }, 1000);
             }
             
             lastRepScore.current = currentScore;
@@ -872,7 +873,7 @@ const ExercisePage = () => {
               {/* ✅ 디버깅: 점수 변화 표시 */}
               {!isCompleted && isStarted && (
                 <div className="text-xs text-gray-400 mt-1">
-                  이전: {lastRepScore.current.toFixed(0)} / 기준: 60/45
+                  이전: {lastRepScore.current.toFixed(0)} / 기준: 55
                 </div>
               )}
             </div>
