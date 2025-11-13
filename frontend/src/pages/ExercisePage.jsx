@@ -193,10 +193,10 @@ const ExercisePage = () => {
     const hip_left = guidePose["23"];
     const hip_right = guidePose["24"];
 
-    // 몸통 그리기
+    // 몸통 그리기 (파란색 -> 초록색)
     if (shoulder_left && shoulder_right && hip_left && hip_right) {
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.3)'; // green-500
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.5)';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(shoulder_left.x * width, shoulder_left.y * height);
@@ -208,14 +208,14 @@ const ExercisePage = () => {
       ctx.stroke();
     }
 
-    // 팔다리 그리기
+    // 팔다리 그리기 (파란색 -> 초록색)
     const drawDetailedLimb = (joints) => {
       const hasAllJoints = joints.every(j => guidePose[j]);
       if (!hasAllJoints) {
         if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
           ctx.lineWidth = 12;
           ctx.lineCap = 'round';
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+          ctx.strokeStyle = 'rgba(34, 197, 94, 0.5)';
           ctx.beginPath();
           ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
           ctx.lineTo(guidePose[joints[1]].x * width, guidePose[joints[1]].y * height);
@@ -227,7 +227,7 @@ const ExercisePage = () => {
 
       ctx.lineWidth = 12;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.5)';
       ctx.beginPath();
       ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
       
@@ -238,7 +238,7 @@ const ExercisePage = () => {
 
       joints.forEach(jointIdx => {
         if (guidePose[jointIdx]) {
-          ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.7)';
           ctx.beginPath();
           ctx.arc(
             guidePose[jointIdx].x * width, 
@@ -257,11 +257,11 @@ const ExercisePage = () => {
     drawDetailedLimb(["23", "25", "27", "31"]);
     drawDetailedLimb(["24", "26", "28", "32"]);
 
-    // 머리
+    // 머리 (파란색 -> 초록색)
     if (shoulder_left && shoulder_right) {
       const neckX = (shoulder_left.x + shoulder_right.x) / 2;
       const neckY = (shoulder_left.y + shoulder_right.y) / 2;
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.5)';
       ctx.beginPath();
       ctx.arc(neckX * width, (neckY - 0.08) * height, 20, 0, 2 * Math.PI);
       ctx.fill();
@@ -280,8 +280,8 @@ const ExercisePage = () => {
       [24, 26], [26, 28], [28, 32]
     ];
     
-    // 연결선 그리기 (밝은 초록색)
-    ctx.strokeStyle = '#00ff00';
+    // 연결선 그리기 (밝은 초록색 -> 더 진한 초록색으로 변경)
+    ctx.strokeStyle = '#10b981'; // green-500
     ctx.lineWidth = 4;
     connections.forEach(([start, end]) => {
       const startPoint = poseLandmarks[start];
@@ -294,9 +294,9 @@ const ExercisePage = () => {
       }
     });
     
-    // 주요 관절 점 (큰 빨간 원)
+    // 주요 관절 점 (큰 빨간 원 -> 주황색으로 변경)
     const keyJoints = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
-    ctx.fillStyle = '#ff0000';
+    ctx.fillStyle = '#f97316'; // orange-500
     keyJoints.forEach((idx) => {
       const landmark = poseLandmarks[idx];
       if (landmark) {
@@ -308,7 +308,7 @@ const ExercisePage = () => {
     
     // 손가락/발가락 끝 (노란 원)
     const fingerTips = [19, 20, 31, 32];
-    ctx.fillStyle = '#ffff00';
+    ctx.fillStyle = '#eab308'; // yellow-500
     fingerTips.forEach((idx) => {
       const landmark = poseLandmarks[idx];
       if (landmark) {
@@ -341,9 +341,9 @@ const ExercisePage = () => {
       ctx.scale(-1, 1);
       ctx.translate(-width, 0);
 
-      // ✅ 파란색 가이드 실루엣 그리기 (항상, ref 사용)
+      // ✅ 초록색 가이드 실루엣 그리기 (항상, ref 사용)
       if (showGuide && !isCompleted && guidePoses.length > 0) {
-        const currentFrame = guideFrameRef.current; // ✅ ref에서 최신 값 가져오기
+        const currentFrame = guideFrameRef.current;
         if (currentFrame < guidePoses.length && guidePoses[currentFrame]) {
           drawGuideSilhouette(ctx, guidePoses[currentFrame], width, height);
         }
@@ -370,7 +370,7 @@ const ExercisePage = () => {
         renderLoopRef.current = null;
       }
     };
-  }, [isStarted, isCompleted, showGuide, guidePoses, drawGuideSilhouette, drawUserSkeleton]); // ✅ guideFrame 제거
+  }, [isStarted, isCompleted, showGuide, guidePoses, drawGuideSilhouette, drawUserSkeleton]);
 
   // ✅ 자세 분석 결과 (정적/동적 운동 분기 처리)
   const onPoseResults = useCallback(async (results) => {
@@ -787,11 +787,11 @@ const ExercisePage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-        <div className="text-white text-2xl">운동 정보 로딩 중...</div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500 mb-4"></div>
+        <div className="text-black text-2xl">운동 정보 로딩 중...</div>
         {isStarted && (
-          <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
+          <div className="text-gray-600 mt-2">AI 모듈 초기화 중...</div>
         )}
       </div>
     );
@@ -799,20 +799,20 @@ const ExercisePage = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="text-red-500 text-6xl mb-4">⚠️</div>
-        <div className="text-white text-2xl mb-2">로딩 실패</div>
-        <div className="text-gray-400 text-center max-w-md">{error}</div>
+        <div className="text-black text-2xl mb-2">로딩 실패</div>
+        <div className="text-gray-600 text-center max-w-md">{error}</div>
         <div className="flex gap-4 mt-6">
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
+            className="bg-green-600 hover:bg-green-700 text-white px-3 py-3 rounded-lg"
           >
             다시 시도
           </button>
           <button
             onClick={() => navigate('/')}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
+            className="bg-gray-400 hover:bg-gray-500 text-white px-3 py-3 rounded-lg"
           >
             홈으로
           </button>
@@ -823,11 +823,11 @@ const ExercisePage = () => {
 
   if (!exercise) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-black text-2xl">운동 정보를 찾을 수 없습니다</div>
         <button
           onClick={() => navigate('/')}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
+          className="bg-gray-400 hover:bg-gray-500 text-white px-3 py-3 rounded-lg ml-4"
         >
           홈으로
         </button>
@@ -836,10 +836,10 @@ const ExercisePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
+    <div className="min-h-screen bg-white text-black p-4">
       <button
         onClick={() => navigate('/')}
-        className="flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2"
+        className="flex items-center gap-2 bg-gray-200 text-black hover:bg-gray-300 px-4 py-2 rounded-lg transition mb-2"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
@@ -868,9 +868,8 @@ const ExercisePage = () => {
             <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <div className="text-sm">{poseDetected ? '감지됨' : '사람 없음'}</div>
+                <div className="text-sm text-white">{poseDetected ? '감지됨' : '사람 없음'}</div>
               </div>
-              {/* ✅ 디버깅: 점수 변화 표시 */}
               {!isCompleted && isStarted && (
                 <div className="text-xs text-gray-400 mt-1">
                   이전: {lastRepScore.current.toFixed(0)} / 기준: 55
@@ -879,12 +878,12 @@ const ExercisePage = () => {
             </div>
 
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
-              <div className="text-4xl font-bold">{score}</div>
+              <div className="text-4xl font-bold text-white">{score}</div>
               <div className="text-sm text-gray-400 text-center">점수</div>
             </div>
 
             <div className="absolute top-4 right-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
-              <div className="text-2xl font-mono">
+              <div className="text-2xl font-mono text-white">
                 {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
               </div>
             </div>
@@ -895,7 +894,7 @@ const ExercisePage = () => {
                   onClick={() => setShowGuide(!showGuide)}
                   className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
                 >
-                  {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
+                  {showGuide ? <Eye className="w-6 h-6 text-white" /> : <EyeOff className="w-6 h-6 text-white" />}
                 </button>
 
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
@@ -903,7 +902,7 @@ const ExercisePage = () => {
                     <div className="text-xs text-gray-300 mb-2">세트</div>
                     <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
                       <div
-                        className="bg-blue-500 rounded-full transition-all w-full"
+                        className="bg-green-500 rounded-full transition-all w-full"
                         style={{ height: `${exercise && exercise.sets > 0 ? Math.min(((currentSet - 1) / exercise.sets) * 100, 100) : 0}%` }}
                       />
                     </div>
@@ -925,31 +924,31 @@ const ExercisePage = () => {
             )}
 
             {isCompleted && (
-              <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
-                <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
-                <p className="text-xl text-gray-300 mb-4">
+              <div className="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
+                <h2 className="text-4xl font-bold text-black mb-1">운동 완료!</h2>
+                <p className="text-xl text-gray-600 mb-4">
                   {exercise.sets}세트 × {exercise.repetitions}회 달성
                 </p>
                 
-                <div className="bg-gray-800 rounded-lg p-5 w-full max-w-lg">
-                  <div className="text-3xl font-bold text-blue-400 mb-2">
+                <div className="bg-gray-100 rounded-lg p-5 w-full max-w-lg border border-gray-300">
+                  <div className="text-3xl font-bold text-green-600 mb-2">
                     {totalScore.length > 0 
                       ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
                       : 0}점
                   </div>
-                  <p className="text-gray-400">평균 점수</p>
+                  <p className="text-gray-600">평균 점수</p>
                 </div>
 
                 {completionFeedback && (
-                  <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg text-left space-y-4">
-                    <h3 className="text-xl font-semibold text-white mb-3 text-center">
+                  <div className="bg-gray-100 rounded-lg p-6 w-full max-w-lg text-left space-y-4 border border-gray-300">
+                    <h3 className="text-xl font-semibold text-black mb-3 text-center">
                       AI 종합 피드백
                     </h3>
                     
                     {completionFeedback.summary && (
                       <div>
-                        <h4 className="font-semibold text-blue-400 mb-1">종합 평가</h4>
-                        <p className="text-gray-300 whitespace-pre-line">
+                        <h4 className="font-semibold text-green-600 mb-1">종합 평가</h4>
+                        <p className="text-gray-700 whitespace-pre-line">
                           {completionFeedback.summary}
                         </p>
                       </div>
@@ -957,8 +956,8 @@ const ExercisePage = () => {
 
                     {completionFeedback.strengths && completionFeedback.strengths.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-green-400 mb-1">👍 잘한 점</h4>
-                        <ul className="list-disc list-inside text-gray-300 space-y-1">
+                        <h4 className="font-semibold text-green-600 mb-1">👍 잘한 점</h4>
+                        <ul className="list-disc list-inside text-gray-700 space-y-1">
                           {completionFeedback.strengths.map((item, index) => (
                             <li key={index}>{item}</li>
                           ))}
@@ -968,8 +967,8 @@ const ExercisePage = () => {
 
                     {completionFeedback.improvements && completionFeedback.improvements.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-yellow-400 mb-1">✏️ 개선할 점</h4>
-                        <ul className="list-disc list-inside text-gray-300 space-y-1">
+                        <h4 className="font-semibold text-yellow-600 mb-1">✏️ 개선할 점</h4>
+                        <ul className="list-disc list-inside text-gray-700 space-y-1">
                           {completionFeedback.improvements.map((item, index) => (
                             <li key={index}>{item}</li>
                           ))}
@@ -982,13 +981,13 @@ const ExercisePage = () => {
                 <div className="flex gap-4 w-full max-w-lg pt-3">
                   <button
                     onClick={handleRestart}
-                    className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
+                    className="flex-1 px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-lg font-semibold transition"
                   >
                     다시 하기
                   </button>
                   <button
                     onClick={() => navigate('/')}
-                    className="flex-1 px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                    className="flex-1 px-8 py-4 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-lg font-semibold transition"
                   >
                     홈으로
                   </button>
@@ -997,10 +996,10 @@ const ExercisePage = () => {
             )}
 
             <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
-              <p className="text-lg text-center">{feedback}</p>
+              <p className="text-lg text-center text-white">{feedback}</p>
               {showGuide && !isCompleted && guidePoses.length > 0 && (
-                <p className="text-sm text-blue-400 text-center mt-1">
-                  파란색 가이드를 따라하세요
+                <p className="text-sm text-green-400 text-center mt-1">
+                  초록색 가이드를 따라하세요
                 </p>
               )}
               {!poseDetected && isStarted && !isCompleted && (
@@ -1015,7 +1014,7 @@ const ExercisePage = () => {
             {!isStarted ? (
               <button
                 onClick={() => setIsStarted(true)}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg text-lg font-semibold transition"
               >
                 운동 시작
               </button>
@@ -1023,13 +1022,13 @@ const ExercisePage = () => {
               <div className="flex-1 flex gap-4">
                 <button
                   onClick={handleRestart}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 rounded-lg text-lg font-semibold transition"
                 >
                   다시 하기
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                  className="flex-1 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-lg font-semibold transition"
                 >
                   종료
                 </button>
@@ -1054,9 +1053,9 @@ const ExercisePage = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">운동 지침</h3>
-            <ol className="space-y-2 text-sm text-gray-300">
+          <div className="bg-gray-100 rounded-lg p-6 border border-gray-300">
+            <h3 className="text-xl font-semibold mb-4 text-black">운동 지침</h3>
+            <ol className="space-y-2 text-sm text-gray-700">
               {exercise.instructions.map((instruction, index) => (
                 <li key={index} className="flex">
                   <span className="font-semibold mr-2">{index + 1}.</span>
@@ -1066,9 +1065,9 @@ const ExercisePage = () => {
             </ol>
           </div>
 
-          <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
+          <div className="bg-red-50 border border-red-300 rounded-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 text-red-600">⚠️ 주의사항</h3>
+            <ul className="space-y-2 text-sm text-gray-700">
               {exercise.safety_warnings.map((warning, index) => (
                 <li key={index}>• {warning}</li>
               ))}
