@@ -113,33 +113,62 @@ function OnboardingPage({ user, setUser }) {
         throw new Error('사진 촬영에 실패했습니다');
       }
 
-      const response = await fetch('/api/v1/analysis/body-scan', {
+      // 토큰 가져오기
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('로그인이 필요합니다');
+      }
+
+      // 올바른 엔드포인트로 요청
+      const response = await fetch('/api/v1/body-analysis/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ image_base64: imageSrc })
       });
 
       if (!response.ok) {
-        throw new Error('분석 요청 실패');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `분석 요청 실패 (${response.status})`);
       }
 
       const result = await response.json();
+      console.log('✅ AI 분석 결과:', result);
+      
+      // 에러가 있으면 표시
+      if (result.error) {
+        setError(result.error);
+      }
+      
       setAnalysisResult(result);
+      
+      // confidence가 문자열이므로 변환
+      const confidenceMap = { high: 80, medium: 50, low: 30 };
+      const confidenceValue = confidenceMap[result.confidence] || 0;
       
       // AI 결과를 formData에 반영
       setFormData(prev => ({
         ...prev,
         injured_parts: [...new Set([...prev.injured_parts, ...(result.injured_parts || [])])],
-        pain_level: result.estimated_pain_level || prev.pain_level,
-        limitations: result.suggestions || prev.limitations
+        pain_level: prev.pain_level, // 백엔드에서 estimated_pain_level을 제공하지 않으므로 유지
+        limitations_detail: result.recommendations?.join(', ') || prev.limitations_detail
       }));
 
       setShowCamera(false);
+      
+      // 신뢰도가 낮으면 경고 표시
+      if (confidenceValue < 40) {
+        setError('분석 신뢰도가 낮습니다. 직접 입력하거나 다시 촬영해주세요.');
+      }
+      
       setStep(1); // 바로 스텝 1로 이동
       
     } catch (err) {
-      console.error('분석 실패:', err);
-      setError(err.message || '신체 분석 중 오류가 발생했습니다.');
+      console.error('❌ 분석 실패:', err);
+      setError(err.message || '신체 분석 중 오류가 발생했습니다. 직접 입력해주세요.');
+      setShowCamera(false);
     } finally {
       setIsScanning(false);
     }
@@ -259,6 +288,13 @@ function OnboardingPage({ user, setUser }) {
     }
   };
 
+  // confidence 문자열을 숫자로 변환하는 헬퍼 함수
+  const getConfidenceDisplay = () => {
+    if (!analysisResult) return '';
+    const confidenceMap = { high: '높음 (80%)', medium: '보통 (50%)', low: '낮음 (30%)' };
+    return confidenceMap[analysisResult.confidence] || '알 수 없음';
+  };
+
   return (
     <div className="onboarding-wrapper">
       <div className="onboarding-header">
@@ -295,7 +331,7 @@ function OnboardingPage({ user, setUser }) {
               </p>
 
               {/* AI 분석 결과 표시 */}
-              {analysisResult && analysisResult.confidence > 0 && (
+              {analysisResult && analysisResult.confidence && (
                 <div style={{
                   padding: '16px',
                   backgroundColor: '#eff6ff',
@@ -307,11 +343,11 @@ function OnboardingPage({ user, setUser }) {
                     <CheckCircle size={20} style={{ color: '#2563eb', marginTop: '2px', flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: '600', color: '#1e3a8a', marginBottom: '4px' }}>
-                        AI 분석 완료 (신뢰도: {analysisResult.confidence}%)
+                        AI 분석 완료 (신뢰도: {getConfidenceDisplay()})
                       </p>
-                      {analysisResult.detected_issues.length > 0 && (
+                      {analysisResult.suspected_conditions && analysisResult.suspected_conditions.length > 0 && (
                         <p style={{ fontSize: '14px', color: '#1e40af' }}>
-                          감지: {analysisResult.detected_issues.join(', ')}
+                          감지: {analysisResult.suspected_conditions.join(', ')}
                         </p>
                       )}
                     </div>
@@ -325,7 +361,7 @@ function OnboardingPage({ user, setUser }) {
                   <button
                     onClick={() => setShowCamera(true)}
                     className="onboarding-next-button"
-                    style={{ marginBottom: '16px' }}
+                    style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Camera size={20} style={{ marginRight: '8px' }} />
                     카메라로 자동 분석하기
@@ -421,7 +457,7 @@ function OnboardingPage({ user, setUser }) {
                       onClick={captureAndAnalyze}
                       disabled={isScanning}
                       className="onboarding-next-button"
-                      style={{ flex: 1, backgroundColor: '#10b981' }}
+                      style={{ flex: 1, backgroundColor: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       {isScanning ? (
                         <>
@@ -455,7 +491,7 @@ function OnboardingPage({ user, setUser }) {
               </h2>
               
               {/* AI 분석 결과가 있으면 표시 */}
-              {analysisResult && analysisResult.confidence > 30 && (
+              {analysisResult && analysisResult.confidence !== 'low' && (
                 <div style={{
                   padding: '12px',
                   backgroundColor: '#eff6ff',
