@@ -23,7 +23,7 @@ function HomePage({ user }) {
       } finally {
         setRecordsLoading(false);
       }
-    };
+    }; 
     if (user) fetchRecords();
   }, [user]);
 
