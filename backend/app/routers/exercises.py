@@ -63,7 +63,7 @@ async def get_exercise_recommendations(current_user: dict = Depends(get_current_
             "name": rec.get("name"),
             "description": rec.get("description"),
             "instructions": rec.get("instructions", []),
-            "duration_seconds": duration_minutes * 60,  # ✅ 수정
+            "duration_seconds": duration_minutes * 600000,  # ✅ 수정
             "duration_minutes": duration_minutes,
             "repetitions": rec.get("repetitions"),
             "sets": rec.get("sets"),
