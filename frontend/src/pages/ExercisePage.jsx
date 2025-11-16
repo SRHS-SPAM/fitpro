@@ -906,10 +906,10 @@ const ExercisePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-white text-gray-900 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#ccf4d3] to-white text-gray-900 p-4">
       <button
         onClick={() => navigate('/')}
-        className="flex items-center gap-2 bg-[#effff2] bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2"
+        className="flex items-center gap-2 bg-[#4CAF50] bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2 text-white"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
@@ -935,14 +935,14 @@ const ExercisePage = () => {
               height={canvasDimensions.current.height}
             />
             
-            <div className="absolute top-4 left-4 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
+            <div className="absolute top-4 left-4 bg-white bg-opacity-70 px-2  py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <div className="text-sm">{poseDetected ? '감지됨' : '사람 없음'}</div>
               </div>
               {/* ✅ 디버깅: 점수 변화 표시 */}
               {!isCompleted && isStarted && (
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-black mt-1">
                   이전: {lastRepScore.current.toFixed(0)} / 기준: 55
                 </div>
               )}
@@ -950,10 +950,10 @@ const ExercisePage = () => {
 
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="text-4xl font-bold">{score}</div>
-              <div className="text-sm text-gray-400 text-center">점수</div>
+              <div className="text-sm text-black text-center">점수</div>
             </div>
 
-            <div className="absolute top-4 right-4 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
+            <div className="absolute top-4 right-4 bg-white bg-opacity-70 px-3 py-2 rounded-lg">
               <div className="text-2xl font-mono">
                 {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
               </div>
@@ -970,8 +970,8 @@ const ExercisePage = () => {
 
                 <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
                   <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2">세트</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                    <div className="text-xs text-black mb-2">세트</div>
+                    <div className="flex-1 w-4 bg-gray-400 rounded-full relative flex flex-col-reverse">
                       <div
                         className="bg-blue-500 rounded-full transition-all w-full"
                         style={{ height: `${exercise && exercise.sets > 0 ? Math.min(((currentSet - 1) / exercise.sets) * 100, 100) : 0}%` }}
@@ -981,14 +981,14 @@ const ExercisePage = () => {
                   </div>
               
                   <div className="flex flex-col items-center">
-                    <div className="text-xs text-gray-300 mb-2">반복</div>
-                    <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
+                    <div className="text-xs text-black mb-2">반복</div>
+                    <div className="flex-1 w-4 bg-gray-400 rounded-full relative flex flex-col-reverse">
                       <div
                         className="bg-green-500 rounded-full transition-all w-full"
                         style={{ height: `${exercise && exercise.repetitions > 0 ? Math.min((currentRep / exercise.repetitions) * 100, 100) : 0}%` }}
                       />
                     </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentRep}/{exercise?.repetitions || 0}</div>
+                    <div className="text-xs text-black font-semibold mt-2">{currentRep}/{exercise?.repetitions || 0}</div>
                   </div>
                 </div>
               </>
@@ -1161,9 +1161,9 @@ const ExercisePage = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">운동 지침</h3>
-            <ol className="space-y-2 text-sm text-gray-300">
+          <div className="bg-white rounded-lg p-6 border border-[#9ca3af]">
+            <h3 className="text-xl font-bold mb-4 text-black">운동 지침</h3>
+            <ol className="space-y-2 text-sm text-black">
               {exercise.instructions.map((instruction, index) => (
                 <li key={index} className="flex">
                   <span className="font-semibold mr-2">{index + 1}.</span>
@@ -1173,9 +1173,9 @@ const ExercisePage = () => {
             </ol>
           </div>
 
-          <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 text-red-400">⚠️ 주의사항</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
+          <div className="bg-red-400 bg-opacity-30 border border-red-500 rounded-lg p-6">
+            <h3 className="text-xl font-bold mb-4 text-red-900">⚠️ 주의사항</h3>
+            <ul className="space-y-2 text-sm text-black">
               {exercise.safety_warnings.map((warning, index) => (
                 <li key={index}>• {warning}</li>
               ))}
