@@ -28,7 +28,7 @@ console.log('🔐 프로토콜:', window.location.protocol);
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 100000,
+  timeout: 1000000,
   headers: {
     'Content-Type': 'application/json',
   },
