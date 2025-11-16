@@ -842,7 +842,7 @@ const ExercisePage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
         <div className="text-white text-2xl">운동 정보 로딩 중...</div>
         {isStarted && (
@@ -854,7 +854,7 @@ const ExercisePage = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="text-red-500 text-6xl mb-4">⚠️</div>
         <div className="text-white text-2xl mb-2">로딩 실패</div>
         <div className="text-gray-400 text-center max-w-md">{error}</div>
@@ -867,7 +867,7 @@ const ExercisePage = () => {
           </button>
           <button
             onClick={() => navigate('/')}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg"
+            className="bg-gray-500 hover:bg-gray-600 text-gray-900 px-3 py-3 rounded-lg"
           >
             홈으로
           </button>
@@ -878,11 +878,11 @@ const ExercisePage = () => {
 
   if (!exercise) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-white text-2xl">운동 정보를 찾을 수 없습니다</div>
         <button
           onClick={() => navigate('/')}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-3 rounded-lg ml-4"
+          className="bg-gray-500 hover:bg-gray-600 text-gray-900 px-3 py-3 rounded-lg ml-4"
         >
           홈으로
         </button>
@@ -891,10 +891,10 @@ const ExercisePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-white text-gray-900 p-4">
       <button
         onClick={() => navigate('/')}
-        className="flex items-center gap-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2"
+        className="flex items-center gap-2 bg-[#effff2] bg-opacity-80 hover:bg-opacity-100 px-4 py-2 rounded-lg transition backdrop-blur-sm mb-2"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>나가기</span>
@@ -902,7 +902,7 @@ const ExercisePage = () => {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="relative bg-black rounded-lg overflow-hidden" style={{ height: '70vh' }}>
+          <div className="relative bg-white rounded-lg overflow-hidden" style={{ height: '70vh' }}>
             <Webcam
               ref={webcamRef}
               className="absolute top-0 left-0 w-full h-full object-cover"
@@ -920,7 +920,7 @@ const ExercisePage = () => {
               height={canvasDimensions.current.height}
             />
             
-            <div className="absolute top-4 left-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+            <div className="absolute top-4 left-4 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${poseDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <div className="text-sm">{poseDetected ? '감지됨' : '사람 없음'}</div>
@@ -933,12 +933,12 @@ const ExercisePage = () => {
               )}
             </div>
 
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="text-4xl font-bold">{score}</div>
               <div className="text-sm text-gray-400 text-center">점수</div>
             </div>
 
-            <div className="absolute top-4 right-4 bg-black bg-opacity-70 px-4 py-2 rounded-lg">
+            <div className="absolute top-4 right-4 bg-white bg-opacity-70 px-4 py-2 rounded-lg">
               <div className="text-2xl font-mono">
                 {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
               </div>
@@ -948,12 +948,12 @@ const ExercisePage = () => {
               <>
                 <button
                   onClick={() => setShowGuide(!showGuide)}
-                  className="absolute top-20 right-4 bg-black bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
+                  className="absolute top-20 right-4 bg-white bg-opacity-70 p-3 rounded-lg hover:bg-opacity-90 transition z-10"
                 >
                   {showGuide ? <Eye className="w-6 h-6" /> : <EyeOff className="w-6 h-6" />}
                 </button>
 
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 px-2 py-4 rounded-lg flex gap-4 z-10" style={{ height: '300px' }}>
                   <div className="flex flex-col items-center">
                     <div className="text-xs text-gray-300 mb-2">세트</div>
                     <div className="flex-1 w-4 bg-gray-700 rounded-full relative flex flex-col-reverse">
@@ -980,7 +980,7 @@ const ExercisePage = () => {
             )}
 
             {isCompleted && (
-              <div className="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
+              <div className="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
                 <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
                 <p className="text-xl text-gray-300 mb-4">
                   {exercise.sets}세트 × {exercise.repetitions}회 달성
@@ -1088,7 +1088,7 @@ const ExercisePage = () => {
               </div>
             )}
 
-            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 px-6 py-3 rounded-lg">
+            <div className="absolute bottom-4 left-4 right-4 bg-white bg-opacity-70 px-6 py-3 rounded-lg">
               <p className="text-lg text-center">{feedback}</p>
               {showGuide && !isCompleted && guidePoses.length > 0 && (
                 <p className="text-sm text-blue-400 text-center mt-1">
