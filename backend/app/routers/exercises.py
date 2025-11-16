@@ -10,7 +10,7 @@
 
 import json
 from typing import Dict, List, Any
-from backend.app.services.exercise_generation_service import get_ankle_guide_poses, get_arm_raise_guide_poses, get_calf_raise_guide_poses, get_default_guide_poses_with_animation, get_leg_raise_guide_poses, get_lunge_guide_poses, get_neck_guide_poses, get_plank_guide_poses, get_pushup_guide_poses, get_shoulder_guide_poses, get_sitting_guide_poses, get_squat_guide_poses, get_stretching_guide_poses, get_wrist_guide_poses
+from app.services.exercise_generation_service import get_ankle_guide_poses, get_arm_raise_guide_poses, get_calf_raise_guide_poses, get_default_guide_poses_with_animation, get_leg_raise_guide_poses, get_lunge_guide_poses, get_neck_guide_poses, get_plank_guide_poses, get_pushup_guide_poses, get_shoulder_guide_poses, get_sitting_guide_poses, get_squat_guide_poses, get_stretching_guide_poses, get_wrist_guide_poses
 from openai import AsyncOpenAI
 from bson import ObjectId
 
