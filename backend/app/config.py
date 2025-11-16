@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     # 1. 서버 설정
-    PORT: int = 8000
+    PORT: int = 8080
     ENVIRONMENT: Literal["development", "production"] = "development"
 
     # 2. 데이터베이스 설정
