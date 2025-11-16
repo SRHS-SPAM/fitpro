@@ -3,7 +3,7 @@ from typing import Dict, List, Any
 from openai import AsyncOpenAI
 from bson import ObjectId
 
-from ..config import settings
+from app.config import settings 
 
 # OpenAI 클라이언트 초기화
 client = AsyncOpenAI(
