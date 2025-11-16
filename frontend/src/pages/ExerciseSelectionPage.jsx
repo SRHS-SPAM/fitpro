@@ -141,7 +141,7 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
         <span>나가기</span>
       </button>
 
-      <div className="max-w-4xl mx-auto pt-2 pb-8">
+      <div className="max-w-4xl mx-auto pt-2 pb-5">
         <div className=" mb-3"> {/* justify-between을 위해 flex 추가 */}
           <div className="flex-1">
             {/* ⚠️ 텍스트 색상 변경: text-white -> text-black */}
