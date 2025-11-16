@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://fitner-api-697550966480.asia-northeast3.run.app/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
