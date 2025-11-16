@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, AlertTriangle} from 'lucide-react';
 import Webcam from 'react-webcam';
 import { exerciseAPI, recordsAPI } from '../services/api';
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
@@ -883,7 +883,7 @@ const ExercisePage = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#4CAF50] mb-4"></div>
         <div className="text-white text-2xl">운동 정보 로딩 중...</div>
         {isStarted && (
           <div className="text-gray-400 mt-2">AI 모듈 초기화 중...</div>
@@ -901,7 +901,7 @@ const ExercisePage = () => {
         <div className="flex gap-4 mt-6">
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
+            className="bg-[#4CAF50] hover:bg-blue-600 text-white px-3 py-3 rounded-lg"
           >
             다시 시도
           </button>
@@ -998,7 +998,7 @@ const ExercisePage = () => {
                     <div className="text-xs text-black mb-2">세트</div>
                     <div className="flex-1 w-4 bg-gray-400 rounded-full relative flex flex-col-reverse">
                       <div
-                        className="bg-blue-500 rounded-full transition-all w-full"
+                        className="bg-[#4CAF50] rounded-full transition-all w-full"
                         style={{ height: `${exercise && exercise.sets > 0 ? Math.min(((currentSet - 1) / exercise.sets) * 100, 100) : 0}%` }}
                       />
                     </div>
@@ -1020,9 +1020,9 @@ const ExercisePage = () => {
             )}
 
             {isCompleted && (
-              <div className="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
-                <h2 className="text-4xl font-bold text-white mb-1">운동 완료!</h2>
-                <p className="text-xl text-gray-300 mb-4">
+              <div className="absolute inset-0 bg-white bg-opacity-75 flex flex-col items-center justify-center z-50 p-4 space-y-4 overflow-y-auto">
+                <h2 className="text-4xl font-bold text-black mb-1">운동 완료!</h2>
+                <p className="text-xl text-gray-600 mb-4">
                   {exercise.sets}세트 × {exercise.repetitions}회 달성
                 </p>
                 
@@ -1060,7 +1060,7 @@ const ExercisePage = () => {
                   </div>
                 )}
                 
-                <div className="bg-gray-800 rounded-lg p-5 w-full max-w-lg">
+                <div className="bg-white border border-gray-300 rounded-lg p-5 w-full max-w-lg">
                   <div className="text-3xl font-bold text-blue-400 mb-2">
                     {totalScore.length > 0 
                       ? Math.round(totalScore.reduce((a, b) => a + b, 0) / totalScore.length)
@@ -1114,13 +1114,13 @@ const ExercisePage = () => {
                 <div className="flex gap-4 w-full max-w-lg pt-3">
                   <button
                     onClick={handleRestart}
-                    className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-semibold transition"
+                    className="flex-1 px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-lg font-semibold transition"
                   >
                     다시 하기
                   </button>
                   <button
                     onClick={() => navigate('/')}
-                    className="flex-1 px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                    className="flex-1 px-8 py-4 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-lg font-semibold transition"
                   >
                     홈으로
                   </button>
@@ -1155,13 +1155,13 @@ const ExercisePage = () => {
               <div className="flex-1 flex gap-4">
                 <button
                   onClick={handleRestart}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition"
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition"
                 >
                   다시 하기
                 </button>
                 <button
                   onClick={() => navigate('/')}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-lg font-semibold transition"
+                  className="flex-1 bg-gray-500 hover:bg-gray-400 text-white rounded-lg text-lg font-semibold transition"
                 >
                   종료
                 </button>
@@ -1186,7 +1186,7 @@ const ExercisePage = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-lg p-6 border border-[#9ca3af]">
+          <div className="bg-white rounded-lg p-6 border shadow-xl">
             <h3 className="text-xl font-bold mb-4 text-black">운동 지침</h3>
             <ol className="space-y-2 text-sm text-black">
               {exercise.instructions.map((instruction, index) => (
@@ -1198,9 +1198,13 @@ const ExercisePage = () => {
             </ol>
           </div>
 
-          <div className="bg-red-400 bg-opacity-30 border border-red-500 rounded-lg p-6">
-            <h3 className="text-xl font-bold mb-4 text-red-900">⚠️ 주의사항</h3>
-            <ul className="space-y-2 text-sm text-black">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 shadow-xl">
+            <div className='flex gap-2'>
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-1.5" />
+              <h3 className="text-xl font-bold mb-4 text-red-600">주의사항</h3>
+            </div>
+            
+            <ul className="space-y-2 text-sm text-red-800">
               {exercise.safety_warnings.map((warning, index) => (
                 <li key={index}>• {warning}</li>
               ))}
