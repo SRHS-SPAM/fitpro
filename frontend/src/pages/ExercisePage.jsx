@@ -962,7 +962,7 @@ const ExercisePage = () => {
                         style={{ height: `${exercise && exercise.sets > 0 ? Math.min(((currentSet - 1) / exercise.sets) * 100, 100) : 0}%` }}
                       />
                     </div>
-                    <div className="text-xs text-white font-semibold mt-2">{currentSet}/{exercise?.sets || 0}</div>
+                    <div className="text-xs text-gray-900 font-semibold mt-2">{currentSet}/{exercise?.sets || 0}</div>
                   </div>
               
                   <div className="flex flex-col items-center">
