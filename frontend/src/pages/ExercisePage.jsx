@@ -78,7 +78,9 @@ const ExercisePage = () => {
             console.log(`⚠️ 키프레임 샘플링: ${allKeyframes.length} → ${selectedKeyframes.length}`);
           }
           
-          const poses = selectedKeyframes.map(keyframe => {
+          console.log(`✅ 모든 키프레임 사용: ${allKeyframes.length}개`);
+
+          const poses = allKeyframes.map(keyframe => {
             const poseObj = {};
             if (keyframe.pose_landmarks) {
               keyframe.pose_landmarks.forEach((landmark, index) => {
@@ -87,6 +89,19 @@ const ExercisePage = () => {
             }
             return poseObj;
           });
+
+          const validPoses = poses.filter(pose => {
+            const requiredLandmarks = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 31, 32];
+            return requiredLandmarks.every(idx => pose[idx.toString()]);
+          });
+
+          if (validPoses.length < 2) {
+            console.error('❌ 유효한 포즈가 부족합니다');
+            setError('운동 애니메이션 데이터가 올바르지 않습니다');
+            return;
+          }
+
+        setGuidePoses(validPoses);
           
           console.log('✅ Processed guide poses:', poses.length);
           setGuidePoses(poses);
