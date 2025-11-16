@@ -23,6 +23,7 @@ const partImageMap = {
   '어깨': '/pain/arm.png',
   '가슴': '/pain/arm.png',
   '등': '/pain/waist.png',
+  '햄스트링': '/pain/leg.png',
 };
 
 // 로직 수정: 배열의 첫 번째 요소만 확인
@@ -140,12 +141,12 @@ const ExerciseSelectionPage = ({ myExercises, addMyExercise }) => {
         <span>나가기</span>
       </button>
 
-      <div className="max-w-4xl mx-auto pt-2 pb-8">
-        <div className="flex items-center justify-between mb-3"> {/* justify-between을 위해 flex 추가 */}
+      <div className="max-w-4xl mx-auto pt-2 pb-5">
+        <div className=" mb-3"> {/* justify-between을 위해 flex 추가 */}
           <div className="flex-1">
             {/* ⚠️ 텍스트 색상 변경: text-white -> text-black */}
             <h1 className="text-4xl font-bold mb-3 text-black">AI 맞춤 운동 추천</h1>
-            <p className="text-gray-600 text-lg mb-5">당신의 상태에 맞는 운동을 선택하세요</p>
+            <p className="text-gray-600 text-lg mb-4">당신의 상태에 맞는 운동을 선택하세요</p>
           </div>
 
           {/* 3. '다른 운동 추천받기' 버튼: 그대로 유지 (원래 초록색이었음) */}
