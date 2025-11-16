@@ -837,23 +837,48 @@ const ExercisePage = () => {
     saveCompletion();
   };
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
+    console.log('🔄 운동 재시작');
+    
+    // 1. 정리
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (renderLoopRef.current) {
       cancelAnimationFrame(renderLoopRef.current);
+      renderLoopRef.current = null;
     }
     if (poseRef.current) {
-      try {
-        poseRef.current.close();
-      } catch (e) {
-        console.error('Pose close error:', e);
-      }
+      try { poseRef.current.close(); } catch (e) {}
       poseRef.current = null;
     }
-    window.location.reload();
-  };
+    
+    // 2. 상태 초기화
+    setIsStarted(false);
+    setIsPaused(false);
+    setIsCompleted(false);
+    setCurrentSet(1);
+    setCurrentRep(0);
+    setScore(100);
+    setTotalScore([]);
+    setFeedback('준비하세요');
+    setTimeRemaining(exercise?.duration_seconds || 0);
+    setShowGuide(true);
+    setGuideFrame(0);
+    setPoseDetected(false);
+    
+    // 3. ref 초기화
+    lastAnalysisTime.current = 0;
+    lastTimestampRef.current = -1;
+    lastRepScore.current = 0;
+    repCooldown.current = false;
+    isInDownPhase.current = false;
+    lastValidPose.current = null;
+    guideFrameRef.current = 0;
+    
+    console.log('✅ 재시작 완료');
+  }, [exercise]);
 
   if (loading) {
     return (
