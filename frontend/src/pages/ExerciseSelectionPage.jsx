@@ -14,6 +14,7 @@ const partImageMap = {
   '팔꿈치': '/pain/arm.png',
   '다리': '/pain/leg.png',
   '허리': '/pain/waist.png',
+  '코어': '/pain/waist.png',
   '발': '/pain/foot.png',
   '발목': '/pain/foot.png',
   '무릎': '/pain/leg.png',
