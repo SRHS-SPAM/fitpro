@@ -256,87 +256,104 @@ const ExercisePage = () => {
 
   // 가이드 실루엣 그리기
   const drawGuideSilhouette = useCallback((ctx, guidePose, width, height) => {
-    if (!guidePose) return;
+  if (!guidePose) {
+    console.warn('⚠️ guidePose가 없습니다');
+    return;
+  }
+  
+  // ✅ 필수 랜드마크 확인
+  const requiredLandmarks = ["11", "12", "23", "24"];
+  const hasRequired = requiredLandmarks.every(idx => guidePose[idx]);
+  
+  if (!hasRequired) {
+    console.warn('⚠️ 필수 랜드마크 부족:', requiredLandmarks.filter(idx => !guidePose[idx]));
+    return;
+  }
+  
+  const shoulder_left = guidePose["11"];
+  const shoulder_right = guidePose["12"];
+  const hip_left = guidePose["23"];
+  const hip_right = guidePose["24"];
+
+  // 몸통 그리기 (더 선명하게)
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';  // ✅ 투명도 증가
+  ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';  // ✅ 테두리 진하게
+  ctx.lineWidth = 4;  // ✅ 선 두껍게
+  ctx.beginPath();
+  ctx.moveTo(shoulder_left.x * width, shoulder_left.y * height);
+  ctx.lineTo(shoulder_right.x * width, shoulder_right.y * height);
+  ctx.lineTo(hip_right.x * width, hip_right.y * height);
+  ctx.lineTo(hip_left.x * width, hip_left.y * height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 팔다리 그리기 (개선)
+  const drawDetailedLimb = (joints) => {
+    const hasAllJoints = joints.every(j => guidePose[j]);
+    if (!hasAllJoints) {
+      // 부분적으로라도 그리기
+      const availableJoints = joints.filter(j => guidePose[j]);
+      if (availableJoints.length >= 2) {
+        ctx.lineWidth = 14;  // ✅ 더 굵게
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(guidePose[availableJoints[0]].x * width, guidePose[availableJoints[0]].y * height);
+        for (let i = 1; i < availableJoints.length; i++) {
+          ctx.lineTo(guidePose[availableJoints[i]].x * width, guidePose[availableJoints[i]].y * height);
+        }
+        ctx.stroke();
+      }
+      return;
+    }
+
+    // 완전한 팔다리
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
     
-    const shoulder_left = guidePose["11"];
-    const shoulder_right = guidePose["12"];
-    const hip_left = guidePose["23"];
-    const hip_right = guidePose["24"];
-
-    // 몸통 그리기
-    if (shoulder_left && shoulder_right && hip_left && hip_right) {
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(shoulder_left.x * width, shoulder_left.y * height);
-      ctx.lineTo(shoulder_right.x * width, shoulder_right.y * height);
-      ctx.lineTo(hip_right.x * width, hip_right.y * height);
-      ctx.lineTo(hip_left.x * width, hip_left.y * height);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+    for (let i = 1; i < joints.length; i++) {
+      ctx.lineTo(guidePose[joints[i]].x * width, guidePose[joints[i]].y * height);
     }
+    ctx.stroke();
 
-    // 팔다리 그리기
-    const drawDetailedLimb = (joints) => {
-      const hasAllJoints = joints.every(j => guidePose[j]);
-      if (!hasAllJoints) {
-        if (joints.length >= 3 && joints.slice(0, 3).every(j => guidePose[j])) {
-          ctx.lineWidth = 12;
-          ctx.lineCap = 'round';
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
-          ctx.beginPath();
-          ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
-          ctx.lineTo(guidePose[joints[1]].x * width, guidePose[joints[1]].y * height);
-          ctx.lineTo(guidePose[joints[2]].x * width, guidePose[joints[2]].y * height);
-          ctx.stroke();
-        }
-        return;
+    // 관절 점 (더 크게)
+    joints.forEach(jointIdx => {
+      if (guidePose[jointIdx]) {
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
+        ctx.beginPath();
+        ctx.arc(
+          guidePose[jointIdx].x * width, 
+          guidePose[jointIdx].y * height, 
+          8,  // ✅ 크기 증가
+          0, 
+          2 * Math.PI
+        );
+        ctx.fill();
       }
+    });
+  };
 
-      ctx.lineWidth = 12;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
-      ctx.beginPath();
-      ctx.moveTo(guidePose[joints[0]].x * width, guidePose[joints[0]].y * height);
-      
-      for (let i = 1; i < joints.length; i++) {
-        ctx.lineTo(guidePose[joints[i]].x * width, guidePose[joints[i]].y * height);
-      }
-      ctx.stroke();
+  // 팔다리 그리기
+  drawDetailedLimb(["11", "13", "15", "19"]);  // 왼팔
+  drawDetailedLimb(["12", "14", "16", "20"]);  // 오른팔
+  drawDetailedLimb(["23", "25", "27", "31"]);  // 왼다리
+  drawDetailedLimb(["24", "26", "28", "32"]);  // 오른다리
 
-      joints.forEach(jointIdx => {
-        if (guidePose[jointIdx]) {
-          ctx.fillStyle = 'rgba(59, 130, 246, 0.7)';
-          ctx.beginPath();
-          ctx.arc(
-            guidePose[jointIdx].x * width, 
-            guidePose[jointIdx].y * height, 
-            6,
-            0, 
-            2 * Math.PI
-          );
-          ctx.fill();
-        }
-      });
-    };
-
-    drawDetailedLimb(["11", "13", "15", "19"]);
-    drawDetailedLimb(["12", "14", "16", "20"]);
-    drawDetailedLimb(["23", "25", "27", "31"]);
-    drawDetailedLimb(["24", "26", "28", "32"]);
-
-    // 머리
-    if (shoulder_left && shoulder_right) {
-      const neckX = (shoulder_left.x + shoulder_right.x) / 2;
-      const neckY = (shoulder_left.y + shoulder_right.y) / 2;
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
-      ctx.beginPath();
-      ctx.arc(neckX * width, (neckY - 0.08) * height, 20, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-  }, []);
+  // 머리 (더 크게)
+  const neckX = (shoulder_left.x + shoulder_right.x) / 2;
+  const neckY = (shoulder_left.y + shoulder_right.y) / 2;
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.6)';
+  ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(neckX * width, (neckY - 0.08) * height, 25, 0, 2 * Math.PI);  // ✅ 크기 증가
+  ctx.fill();
+  ctx.stroke();
+}, []);
 
   // ✅ 사용자 스켈레톤 그리기 (분리)
   const drawUserSkeleton = useCallback((ctx, poseLandmarks, width, height) => {

@@ -92,43 +92,94 @@ async def save_exercise(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_database)
 ):
-    """추천받은 운동을 '내 운동'으로 저장합니다."""
+    """
+    추천받은 운동을 '내 운동'으로 저장
+    
+    ✅ 개선: my_exercises 컬렉션에 영구 저장
+    """
     try:
+        user_id = ObjectId(current_user["user_id"])
+        exercise_oid = ObjectId(exercise_id)
+        
+        # 1. 원본 운동 조회
         exercise = await db.generated_exercises.find_one({
-            "_id": ObjectId(exercise_id),
-            "user_id": ObjectId(current_user["user_id"])
+            "_id": exercise_oid,
+            "user_id": user_id
         })
         
         if not exercise:
-            raise HTTPException(status_code=404, detail="운동을 찾을 수 없거나 저장 권한이 없습니다.")
+            raise HTTPException(
+                status_code=404, 
+                detail="운동을 찾을 수 없거나 저장 권한이 없습니다."
+            )
         
-        # ✅ expires_at을 7일로 연장
-        result = await db.generated_exercises.update_one(
-            {"_id": ObjectId(exercise_id), "user_id": ObjectId(current_user["user_id"])},
-            {
-                "$set": {
-                    "is_saved": True,
-                    "expires_at": datetime.utcnow() + timedelta(days=7)  # ✅ 저장 시 만료일 연장
-                }
+        # 2. ✅ 이미 저장되어 있는지 확인
+        existing = await db.my_exercises.find_one({
+            "user_id": user_id,
+            "original_exercise_id": exercise_oid
+        })
+        
+        if existing:
+            return {
+                "message": "이미 저장된 운동입니다.",
+                "exercise_id": str(existing["_id"]),
+                "exercise_name": exercise.get("name"),
+                "is_new": False
             }
-        )
         
-        if result.modified_count == 0:
-            raise HTTPException(status_code=500, detail="운동 저장에 실패했습니다.")
+        # 3. ✅ my_exercises 컬렉션에 영구 저장
+        my_exercise_doc = {
+            "user_id": user_id,
+            "original_exercise_id": exercise_oid,  # 원본 ID 참조
+            
+            # 운동 기본 정보
+            "name": exercise.get("name"),
+            "description": exercise.get("description"),
+            "instructions": exercise.get("instructions", []),
+            "duration_seconds": exercise.get("duration_seconds"),
+            "repetitions": exercise.get("repetitions"),
+            "sets": exercise.get("sets"),
+            "target_parts": exercise.get("target_parts", []),
+            "intensity": exercise.get("intensity", "medium"),
+            "safety_warnings": exercise.get("safety_warnings", []),
+            
+            # ✅ 중요: 애니메이션 데이터 복사
+            "silhouette_animation": exercise.get("silhouette_animation"),
+            "guide_poses": exercise.get("guide_poses"),
+            "customization_params": exercise.get("customization_params"),
+            
+            # 메타데이터
+            "saved_at": datetime.utcnow(),
+            "last_performed_at": None,
+            "total_performed_count": 0,
+            "is_favorite": False,
+            "user_notes": "",
+            
+            # ✅ TTL 없음 = 영구 저장!
+        }
+        
+        result = await db.my_exercises.insert_one(my_exercise_doc)
+        
+        # 4. generated_exercises의 is_saved도 업데이트 (선택)
+        await db.generated_exercises.update_one(
+            {"_id": exercise_oid},
+            {"$set": {"is_saved": True}}
+        )
         
         return {
             "message": "운동이 저장되었습니다.",
-            "exercise_id": exercise_id,
-            "exercise_name": exercise.get("name")
+            "exercise_id": str(result.inserted_id),  # ✅ my_exercises의 ID 반환
+            "exercise_name": exercise.get("name"),
+            "is_new": True
         }
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ 운동 저장 실패: {e}")
         if "not a valid ObjectId" in str(e):
             raise HTTPException(status_code=400, detail="올바르지 않은 운동 ID입니다.")
         raise HTTPException(status_code=500, detail=f"운동 저장 실패: {str(e)}")
-
 
 @router.post("/generate", response_model=ExerciseResponse)
 async def generate_exercise(request: ExerciseGenerateRequest, current_user: dict = Depends(get_current_user)):
