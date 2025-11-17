@@ -239,16 +239,32 @@ async def generate_exercise(request: ExerciseGenerateRequest, current_user: dict
 
 @router.get("/{exercise_id}", response_model=ExerciseResponse)
 async def get_exercise(exercise_id: str, current_user: dict = Depends(get_current_user)):
-    """특정 운동 상세 조회"""
+    """
+    특정 운동 상세 조회
+    ✅ 수정: my_exercises와 generated_exercises 둘 다 확인
+    """
     db = await get_database()
     try:
         obj_id = ObjectId(exercise_id)
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
     
-    exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": ObjectId(current_user["user_id"])})
+    user_oid = ObjectId(current_user["user_id"])
+    
+    # ✅ 먼저 my_exercises에서 찾기
+    exercise = await db.my_exercises.find_one({"_id": obj_id, "user_id": user_oid})
+    
+    # ✅ 없으면 generated_exercises에서 찾기
+    if not exercise:
+        exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": user_oid})
+    
     if not exercise:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="운동을 찾을 수 없거나 접근 권한이 없습니다.")
+    
+    # ✅ intensity 처리
+    intensity = exercise.get("intensity")
+    if not intensity:
+        intensity = exercise.get("customization_params", {}).get("intensity", "medium")
     
     return ExerciseResponse(
         exercise_id=str(exercise["_id"]), 
@@ -260,11 +276,12 @@ async def get_exercise(exercise_id: str, current_user: dict = Depends(get_curren
         sets=exercise["sets"], 
         target_parts=exercise["target_parts"],
         safety_warnings=exercise["safety_warnings"],
-        intensity=exercise.get("customization_params", {}).get("intensity", "medium"),
+        intensity=intensity,
         silhouette_animation=exercise.get("silhouette_animation"),
-        created_at=exercise["created_at"].isoformat(),
+        created_at=exercise.get("saved_at", exercise.get("created_at")).isoformat(),
         recommendation_reason=exercise.get("recommendation_reason")
     )
+
 
 
 @router.post("/{exercise_id}/analyze-realtime", response_model=PoseAnalysisResponse)
@@ -273,7 +290,10 @@ async def analyze_pose_realtime(
     request: PoseAnalysisRequest, 
     current_user: dict = Depends(get_current_user)
 ):
-    """실시간 자세 분석 및 피드백 제공"""
+    """
+    실시간 자세 분석 및 피드백 제공
+    ✅ 수정: my_exercises와 generated_exercises 둘 다 확인
+    """
     db = await get_database()
     
     try: 
@@ -281,10 +301,14 @@ async def analyze_pose_realtime(
     except Exception: 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
     
-    exercise = await db.generated_exercises.find_one({
-        "_id": obj_id, 
-        "user_id": ObjectId(current_user["user_id"])
-    })
+    user_oid = ObjectId(current_user["user_id"])
+    
+    # ✅ 먼저 my_exercises에서 찾기
+    exercise = await db.my_exercises.find_one({"_id": obj_id, "user_id": user_oid})
+    
+    # ✅ 없으면 generated_exercises에서 찾기
+    if not exercise:
+        exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": user_oid})
     
     if not exercise: 
         raise HTTPException(
@@ -314,7 +338,10 @@ async def complete_exercise(
     request: ExerciseCompleteRequest, 
     current_user: dict = Depends(get_current_user)
 ):
-    """운동 완료 기록 저장"""
+    """
+    운동 완료 기록 저장
+    ✅ 수정: my_exercises와 generated_exercises 둘 다 확인
+    """
     db = await get_database()
     
     try: 
@@ -322,10 +349,14 @@ async def complete_exercise(
     except Exception: 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="잘못된 형식의 운동 ID입니다.")
     
-    exercise = await db.generated_exercises.find_one({
-        "_id": obj_id, 
-        "user_id": ObjectId(current_user["user_id"])
-    })
+    user_oid = ObjectId(current_user["user_id"])
+    
+    # ✅ 먼저 my_exercises에서 찾기
+    exercise = await db.my_exercises.find_one({"_id": obj_id, "user_id": user_oid})
+    
+    # ✅ 없으면 generated_exercises에서 찾기
+    if not exercise:
+        exercise = await db.generated_exercises.find_one({"_id": obj_id, "user_id": user_oid})
     
     if not exercise: 
         raise HTTPException(
@@ -333,8 +364,21 @@ async def complete_exercise(
             detail="운동을 찾을 수 없거나 접근 권한이 없습니다."
         )
     
+    # ✅ 운동이 my_exercises에 있으면 last_performed_at 업데이트
+    if await db.my_exercises.find_one({"_id": obj_id}):
+        await db.my_exercises.update_one(
+            {"_id": obj_id},
+            {
+                "$set": {"last_performed_at": datetime.utcnow()},
+                "$inc": {"total_performed_count": 1}
+            }
+        )
+    
     # ✅ 칼로리 계산
-    intensity = exercise.get("customization_params", {}).get("intensity", "medium")
+    intensity = exercise.get("intensity")
+    if not intensity:
+        intensity = exercise.get("customization_params", {}).get("intensity", "medium")
+    
     intensity_multiplier = {"low": 1.0, "medium": 1.5, "high": 2.0}.get(intensity, 1.5)
     calories_burned = int(request.duration_minutes * 3 * intensity_multiplier)
     
@@ -363,7 +407,7 @@ async def complete_exercise(
     
     # ✅ 기록 저장
     record_doc = {
-        "user_id": ObjectId(current_user["user_id"]), 
+        "user_id": user_oid, 
         "exercise_id": obj_id, 
         "exercise_name": exercise["name"],
         "completed_at": datetime.utcnow(), 
@@ -396,19 +440,27 @@ async def delete_exercise(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_database)
 ):
-    """내 운동 목록에서 운동 템플릿 삭제"""
+    """
+    내 운동 목록에서 운동 템플릿 삭제
+    ✅ 수정: my_exercises 컬렉션에서 삭제
+    """
     try:
-        exercise = await db.generated_exercises.find_one({
-            "_id": ObjectId(exercise_id),
-            "user_id": ObjectId(current_user["user_id"])
+        user_oid = ObjectId(current_user["user_id"])
+        exercise_oid = ObjectId(exercise_id)
+        
+        # ✅ my_exercises에서 찾기
+        exercise = await db.my_exercises.find_one({
+            "_id": exercise_oid,
+            "user_id": user_oid
         })
         
         if not exercise:
             raise HTTPException(status_code=404, detail="운동을 찾을 수 없거나 삭제 권한이 없습니다.")
         
-        result = await db.generated_exercises.delete_one({
-            "_id": ObjectId(exercise_id),
-            "user_id": ObjectId(current_user["user_id"])
+        # ✅ my_exercises에서 삭제
+        result = await db.my_exercises.delete_one({
+            "_id": exercise_oid,
+            "user_id": user_oid
         })
         
         if result.deleted_count == 0:
@@ -423,6 +475,7 @@ async def delete_exercise(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"❌ 운동 삭제 실패: {e}")
         if "not a valid ObjectId" in str(e):
             raise HTTPException(status_code=400, detail="올바르지 않은 운동 ID입니다.")
         raise HTTPException(status_code=500, detail=f"운동 삭제 실패: {str(e)}")
@@ -433,25 +486,31 @@ async def get_my_exercises(
     current_user: dict = Depends(get_current_user),
     db = Depends(get_database)
 ):
-    """내 운동 목록 조회 (My Exercise 페이지용)"""
+    """
+    내 운동 목록 조회 (My Exercise 페이지용)
+    ✅ 수정: my_exercises 컬렉션에서 조회 (영구 저장된 운동)
+    """
     try:
-        # ✅ is_saved=True인 운동만 조회
-        exercises = await db.generated_exercises.find({
-            "user_id": ObjectId(current_user["user_id"]),
-            "is_saved": True
-        }).sort("created_at", -1).to_list(length=None)
+        # ✅ my_exercises 컬렉션에서 조회 (generated_exercises 아님!)
+        exercises = await db.my_exercises.find({
+            "user_id": ObjectId(current_user["user_id"])
+        }).sort("saved_at", -1).to_list(length=None)
         
         formatted_exercises = []
         for ex in exercises:
+            # ✅ duration_minutes 계산 (초 단위를 분으로 변환)
+            duration_seconds = ex.get("duration_seconds", 0)
+            duration_minutes = duration_seconds // 60 if duration_seconds else 10
+            
             formatted_exercises.append({
-                "exercise_id": str(ex["_id"]),
+                "exercise_id": str(ex["_id"]),  # ✅ my_exercises의 ID 사용
                 "name": ex.get("name"),
                 "description": ex.get("description"),
-                "duration_minutes": ex.get("duration_minutes"),
-                "intensity": ex.get("customization_params", {}).get("intensity", "medium"),
+                "duration_minutes": duration_minutes,
+                "intensity": ex.get("intensity", "medium"),
                 "sets": ex.get("sets"),
                 "repetitions": ex.get("repetitions"),
-                "created_at": ex.get("created_at").isoformat() if ex.get("created_at") else None
+                "created_at": ex.get("saved_at").isoformat() if ex.get("saved_at") else None  # ✅ saved_at 사용
             })
         
         return {
@@ -460,4 +519,5 @@ async def get_my_exercises(
         }
         
     except Exception as e:
+        print(f"❌ 운동 목록 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=f"운동 목록 조회 실패: {str(e)}")
