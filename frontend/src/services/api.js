@@ -115,10 +115,10 @@ export const exerciseAPI = {
 
 // Records API
 export const recordsAPI = {
-  // ✅ 생성 - 슬래시 있음
+  // ✅ 생성
   createRecord: (recordData) => api.post('/records/', recordData),
   
-  // ✅ 목록 조회 - 슬래시 추가
+  // ✅ 목록 조회
   getRecords: async (page = 1, limit = 10, params = {}) => {
     const queryParams = new URLSearchParams({
       page: String(page),
@@ -128,7 +128,6 @@ export const recordsAPI = {
       )
     }); 
     
-    // ✅ /records/ 로 수정
     const url = `${BASE_URL}/records/?${queryParams.toString()}`;
     console.log('🔧 Fetch 직접 호출:', url);
     
@@ -153,13 +152,13 @@ export const recordsAPI = {
     return { data };
   },
   
-  // ✅ 상세 조회 - 슬래시 추가
-  getRecord: (recordId) => api.get(`/records/${recordId}/`),
+  // ✅ 상세 조회 - 슬래시 제거!
+  getRecord: (recordId) => api.get(`/records/${recordId}`),
   
-  // ✅ 삭제 - 슬래시 추가 (여기가 문제!)
-  deleteRecord: (recordId) => api.delete(`/records/${recordId}/`),
+  // ✅ 삭제 - 슬래시 제거!
+  deleteRecord: (recordId) => api.delete(`/records/${recordId}`),
   
-  // ✅ 통계 조회 - 슬래시 추가
+  // ✅ 통계 조회
   getStatistics: (period = 'week') => {
     if (period === 'cumulative') {
       return api.get('/records/statistics/cumulative/');
@@ -168,5 +167,4 @@ export const recordsAPI = {
     return api.get(`/records/statistics/summary/?${queryParams.toString()}`);
   },
 };
-
 export default api;
