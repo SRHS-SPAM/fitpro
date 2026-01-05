@@ -17,7 +17,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-PORT = int(os.getenv("PORT", 8080))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
