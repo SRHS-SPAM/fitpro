@@ -3,11 +3,8 @@
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional
-import logging
 
 from .config import settings
-
-logger = logging.getLogger(__name__)
 
 client: AsyncIOMotorClient = None
 db = None
@@ -15,46 +12,38 @@ db = None
 
 async def connect_to_mongodb():
     global client, db
-    
-    # MongoDB URI가 없으면 건너뛰기
-    if not settings.MONGODB_URI:
-        logger.warning("⚠️  MONGODB_URI가 설정되지 않았습니다. MongoDB 없이 실행합니다.")
-        return
-    
-    logger.info("🔄 Connecting to MongoDB...")
+    print("Connecting to MongoDB...")
     try:
+        # 클라이언트 인스턴스는 이 함수 내에서만 생성합니다.
         client = AsyncIOMotorClient(
             settings.MONGODB_URI,
-            serverSelectionTimeoutMS=10000,  # 30초는 너무 김
-            connectTimeoutMS=10000,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
             tls=True,
             tlsAllowInvalidCertificates=True
         )
         await client.admin.command('ping') 
         
+        # 데이터베이스 인스턴스 할당
         db = client[settings.MONGO_DB_NAME]
         
-        logger.info(f"✅ Successfully connected to MongoDB database: {settings.MONGO_DB_NAME}")
+        print(f"Successfully connected to MongoDB database: {settings.MONGO_DB_NAME}")
         
     except Exception as e:
-        logger.error(f"❌ Could not connect to MongoDB: {e}")
-        logger.warning("⚠️  MongoDB 기능이 비활성화됩니다. 앱은 계속 실행됩니다.")
-        client = None
-        db = None
-        # raise 제거 - 에러를 던지지 않고 계속 진행
+        print(f"Could not connect to MongoDB: {e}")
+        raise
         
 
 async def close_mongodb_connection():
     global client
     if client:
         client.close()
-        logger.info("✅ MongoDB connection closed.")
+        print("MongoDB connection closed.")
 
 
 async def get_database():
     if db is None:
-        logger.warning("⚠️  Database not initialized. MongoDB 기능을 사용할 수 없습니다.")
-        raise RuntimeError("Database not initialized. MongoDB is not available.")
+        raise RuntimeError("Database not initialized. Call connect_to_mongodb() at startup.")
     return db
 
 
