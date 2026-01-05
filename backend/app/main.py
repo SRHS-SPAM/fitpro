@@ -17,6 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+PORT = int(os.getenv("PORT", 8080))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,7 +54,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
-        "https://fitpro-seven.vercel.app"  # ✅ 올바른 문자열 형식
+        "https://fitpro-seven.vercel.app" 
     ],
     allow_credentials=True,
     allow_methods=["*"],
