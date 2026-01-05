@@ -84,6 +84,8 @@ class CustomizationParams(BaseModel):
 class GeneratedExerciseModel(BaseModel):
     """
     AI 생성 운동 MongoDB 문서 모델 (7일 캐시)
+    
+    ✅ 수정: guide_poses 및 intensity 필드 추가
     """
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     user_id: PyObjectId = Field(..., description="사용자 ID")
@@ -95,9 +97,21 @@ class GeneratedExerciseModel(BaseModel):
     repetitions: int = Field(..., gt=0, description="반복 횟수")
     sets: int = Field(..., gt=0, description="세트 수")
     target_parts: List[str] = Field(..., min_items=1, description="타겟 부위")
+    intensity: str = Field(default="medium", description="운동 강도 (low, medium, high, stretching)")  # ✅ 추가
     safety_warnings: List[str] = Field(..., description="안전 경고")
+    
+    # ✅ 중요: guide_poses 추가!
+    guide_poses: Optional[List[Dict[str, Dict[str, float]]]] = Field(
+        default=None,
+        description="가이드 포즈 목록 (프레임별 랜드마크)"
+    )
+    
     silhouette_animation: SilhouetteAnimation = Field(..., description="실루엣 애니메이션")
     customization_params: CustomizationParams = Field(default_factory=CustomizationParams, description="커스터마이징 파라미터")
+    
+    # ✅ 추가: 저장 여부 및 메타데이터
+    is_saved: bool = Field(default=False, description="내 운동에 저장 여부")
+    
     created_at: datetime = Field(default_factory=datetime.utcnow, description="생성 시간")
     expires_at: datetime = Field(..., description="만료 시간 (7일 후)")
 
@@ -119,7 +133,15 @@ class GeneratedExerciseModel(BaseModel):
                 "repetitions": 10,
                 "sets": 3,
                 "target_parts": ["무릎", "허벅지"],
+                "intensity": "low",
                 "safety_warnings": ["통증 시 중단하세요"],
+                "guide_poses": [
+                    {
+                        "0": {"x": 0.5, "y": 0.15, "z": -0.1},
+                        "11": {"x": 0.4, "y": 0.3, "z": -0.1},
+                        # ... (0-32번 랜드마크)
+                    }
+                ],
                 "silhouette_animation": {
                     "keyframes": [
                         {
@@ -134,6 +156,7 @@ class GeneratedExerciseModel(BaseModel):
                     "hold_time_ms": 2000,
                     "intensity": "low"
                 },
+                "is_saved": False,
                 "created_at": "2025-01-01T00:00:00",
                 "expires_at": "2025-01-08T00:00:00"
             }
@@ -143,6 +166,8 @@ class GeneratedExerciseModel(BaseModel):
 class GeneratedExerciseResponse(BaseModel):
     """
     생성된 운동 API 응답 모델
+    
+    ✅ 수정: guide_poses 및 intensity 필드 추가
     """
     exercise_id: str = Field(..., description="운동 ID")
     name: str = Field(..., description="운동 이름")
@@ -152,9 +177,20 @@ class GeneratedExerciseResponse(BaseModel):
     repetitions: int = Field(..., description="반복 횟수")
     sets: int = Field(..., description="세트 수")
     target_parts: List[str] = Field(..., description="타겟 부위")
+    intensity: str = Field(..., description="운동 강도")  # ✅ 추가
     safety_warnings: List[str] = Field(..., description="안전 경고")
+    
+    # ✅ 중요: guide_poses 추가!
+    guide_poses: Optional[List[Dict[str, Dict[str, float]]]] = Field(
+        default=None,
+        description="가이드 포즈 목록"
+    )
+    
     silhouette_animation: SilhouetteAnimation = Field(..., description="실루엣 애니메이션")
+    customization_params: Optional[CustomizationParams] = Field(None, description="커스터마이징 파라미터")
+    
     created_at: datetime = Field(..., description="생성 시간")
+    is_saved: Optional[bool] = Field(None, description="저장 여부")  # ✅ 추가
 
     class Config:
         schema_extra = {
@@ -167,12 +203,62 @@ class GeneratedExerciseResponse(BaseModel):
                 "repetitions": 10,
                 "sets": 3,
                 "target_parts": ["무릎", "허벅지"],
+                "intensity": "low",
                 "safety_warnings": ["통증 시 중단하세요"],
+                "guide_poses": [
+                    {
+                        "0": {"x": 0.5, "y": 0.15, "z": -0.1},
+                        "11": {"x": 0.4, "y": 0.3, "z": -0.1}
+                    }
+                ],
                 "silhouette_animation": {
                     "keyframes": []
                 },
-                "created_at": "2025-01-01T00:00:00"
+                "created_at": "2025-01-01T00:00:00",
+                "is_saved": False
             }
+        }
+
+
+class ExerciseResponse(BaseModel):
+    """
+    ✅ 통합 운동 응답 모델 (generated_exercises, my_exercises 공용)
+    """
+    exercise_id: str = Field(..., description="운동 ID")
+    name: str = Field(..., description="운동 이름")
+    description: str = Field(..., description="운동 설명")
+    instructions: List[str] = Field(..., description="운동 지침")
+    duration_seconds: int = Field(..., description="운동 시간 (초)")
+    repetitions: int = Field(..., description="반복 횟수")
+    sets: int = Field(..., description="세트 수")
+    target_parts: List[str] = Field(..., description="타겟 부위")
+    intensity: str = Field(..., description="운동 강도")
+    safety_warnings: List[str] = Field(..., description="안전 경고")
+    
+    # ✅ 애니메이션 데이터
+    guide_poses: Optional[List[Dict[str, Dict[str, float]]]] = Field(
+        default=None,
+        description="가이드 포즈 목록"
+    )
+    silhouette_animation: Optional[SilhouetteAnimation] = Field(
+        None,
+        description="실루엣 애니메이션"
+    )
+    customization_params: Optional[CustomizationParams] = Field(
+        None,
+        description="커스터마이징 파라미터"
+    )
+    
+    # ✅ 메타데이터 (my_exercises용)
+    is_saved: Optional[bool] = Field(None, description="저장 여부")
+    is_favorite: Optional[bool] = Field(None, description="즐겨찾기 여부")
+    total_performed_count: Optional[int] = Field(None, description="수행 횟수")
+    last_performed_at: Optional[datetime] = Field(None, description="마지막 수행 시간")
+    saved_at: Optional[datetime] = Field(None, description="저장 시간")
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
         }
 
 
@@ -190,5 +276,37 @@ class ExerciseGenerateRequest(BaseModel):
                 "exercise_type": "rehabilitation",
                 "intensity": "low",
                 "duration_minutes": 15
+            }
+        }
+
+
+class ExerciseRecommendationsResponse(BaseModel):
+    """
+    ✅ 운동 추천 응답 모델
+    """
+    recommendations: List[ExerciseResponse] = Field(..., description="추천 운동 목록")
+    total_count: int = Field(..., description="추천된 운동 개수")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "recommendations": [
+                    {
+                        "exercise_id": "65abc123def456789014",
+                        "name": "벽 대고 팔 굽히기",
+                        "description": "상체 근력 강화",
+                        "instructions": ["1단계: 벽에서 30cm 떨어져 서세요"],
+                        "duration_seconds": 300,
+                        "repetitions": 10,
+                        "sets": 3,
+                        "target_parts": ["팔", "어깨"],
+                        "intensity": "medium",
+                        "safety_warnings": ["통증 시 중단"],
+                        "guide_poses": None,
+                        "silhouette_animation": {"keyframes": []},
+                        "is_saved": False
+                    }
+                ],
+                "total_count": 4
             }
         }

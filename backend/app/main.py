@@ -49,18 +49,16 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:3000", 
-        "[http://127.0.0.1:5173](http://127.0.0.1:5173)",
-        "[http://127.0.0.1:3000](http://127.0.0.1:3000)",
-        "[https://fitpro-seven.vercel.app](https://fitpro-seven.vercel.app)", 
-        "*" 
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "https://fitpro-seven.vercel.app"  # ✅ 올바른 문자열 형식
     ],
     allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],   
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
