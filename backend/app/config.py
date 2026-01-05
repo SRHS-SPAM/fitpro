@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     """
     model_config = SettingsConfigDict(
         env_file=".env", 
-        extra='ignore'  # .env에 정의된 모든 변수를 사용
+        extra='ignore'
     )
 
-    # 1. 서버 설정
-    PORT: int = 8080
+    # 1. 서버 설정 - Cloud Run의 PORT 환경 변수 우선 사용
+    PORT: int = int(os.getenv("PORT", 8080))  # ← 수정된 부분
     ENVIRONMENT: Literal["development", "production"] = "development"
 
     # 2. 데이터베이스 설정
